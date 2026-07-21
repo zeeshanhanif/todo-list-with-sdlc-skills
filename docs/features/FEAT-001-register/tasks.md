@@ -21,7 +21,7 @@
       Done when: an integration test shows commit persists and a thrown error rolls
       back (against the local test DB).
 
-- [ ] T4 — Domain: `PasswordPolicyService` — length bounds + `CommonPasswordSet`
+- [x] T4 — Domain: `PasswordPolicyService` — length bounds + `CommonPasswordSet`
       membership; add the bundled common-password data file (design §5, D2;
       FR-AUTH-004, NFR-SEC-003).
       Done when: unit tests for AC-4 pass (too-short rejected, common password
