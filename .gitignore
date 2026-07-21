@@ -1,0 +1,32 @@
+# dependencies
+node_modules/
+.pnp.*
+
+# builds
+dist/
+.next/
+out/
+build/
+coverage/
+*.tsbuildinfo
+
+# generated design tokens (produced from docs/tokens.json by scripts/build-tokens.mjs)
+apps/web/src/styles/tokens.generated.css
+
+# test artifacts
+e2e/test-results/
+e2e/playwright-report/
+playwright/.cache/
+
+# env & secrets
+.env
+.env.*.local
+*.local
+
+# os / editor
+.DS_Store
+*.log
+npm-debug.log*
+
+# scaffold working file (kept until first deploy; safe to remove after)
+# docs/.scaffold-progress.md

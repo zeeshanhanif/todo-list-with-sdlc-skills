@@ -1,0 +1,23 @@
+# Local data story for the walking skeleton: standard Postgres (ADR-003, C-6 —
+# no proprietary extensions, pg_dump-portable). In cloud environments this is
+# Supabase-managed Postgres; locally it's a plain container.
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: todo_db
+    environment:
+      POSTGRES_USER: todo
+      POSTGRES_PASSWORD: todo
+      POSTGRES_DB: todo
+    ports:
+      - "5432:5432"
+    volumes:
+      - todo_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U todo -d todo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  todo_pgdata:

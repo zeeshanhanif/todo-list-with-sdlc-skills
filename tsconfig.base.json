@@ -1,0 +1,16 @@
+{
+  "$comment": "Shared compiler baseline. Each unit extends this and sets its own module/target where its build system requires (Next uses bundler resolution; Nest uses commonjs).",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "declaration": true,
+    "strict": true,
+    "noImplicitOverride": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true
+  }
+}
