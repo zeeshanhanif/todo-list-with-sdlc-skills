@@ -52,6 +52,31 @@ should name the unit runner and E2E framework.*
 
 ## Deviations & decisions
 
+- **Liveness `/healthz` split from the skeleton DB round-trip (2026-07-21).**
+  Originally `GET /healthz` did an `INSERT`+`COUNT` on `skeleton_ping` —
+  conflating the real liveness probe (NFR-OBS-002) with the skeleton's DB proof,
+  and making liveness do a DB write on every call (an anti-pattern: a DB blip
+  would fail liveness and get the instance killed). Now, **both endpoints live in
+  the `health` module**: `GET /healthz` is dependency-free liveness (no DB), and
+  the write+read proof is a sub-route `GET /healthz/ping` (`SkeletonService`,
+  marked SCAFFOLDING) that the web shell and e2e hit. Liveness monitors hit the
+  exact path `/healthz`, so they never touch the DB. Contract split in
+  `@todo/shared` (`HealthResponse` vs `SkeletonPingResponse`). `SkeletonService` +
+  `skeleton_ping` table + the `/healthz/ping` route are removed when the first
+  real slice lands. Plan §2 updated to match.
+- **Secrets via Cloud Run env vars, not Secret Manager (user decision,
+  2026-07-21).** The `deploy/` configs set `DATABASE_URL` / `EMAIL_API_KEY` /
+  `SUPABASE_JWT_SECRET` as Cloud Run environment variables at deploy time
+  (`--set-env-vars` / service config) instead of `secretKeyRef` → Secret Manager.
+  Still satisfies **NFR-MAINT-003** (externalized, nothing in source). **App code
+  unchanged** — it already reads `process.env`. **Trade-off (security downgrade):**
+  env-var values are visible to anyone with Cloud Run viewer access, with no
+  per-secret access control, rotation, or audit — whereas the architecture chose
+  Secret Manager in §8 precisely for those. **Doc drift to resolve:** this is an
+  architecture-level decision; `docs/architecture.md` (§7 deployment diagram node,
+  §8 "Secrets"). **Resolved 2026-07-21:** `docs/architecture.md` amended to **rev 3**
+  (§8 + deployment view now say Cloud Run env vars, with the trade-off recorded) and
+  `docs/implementation-plan.md` §2/§6 updated to match. Repo and docs are back in sync.
 - **Next 16 uses Turbopack for `next build`.** It treated `apps/web` as its root
   and could not resolve the hoisted workspace package `@todo/shared` (in the
   root `node_modules`). Fix: set `turbopack.root` (and `outputFileTracingRoot`)
