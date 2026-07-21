@@ -11,7 +11,7 @@
       Done when: `npm run db:migrate` applies clean, and the down migration drops
       all three (leaving `skeleton_ping`), against the current schema.
 
-- [ ] T2 — Shared contracts: add `REGISTER_PATH`, `RegisterRequest`,
+- [x] T2 — Shared contracts: add `REGISTER_PATH`, `RegisterRequest`,
       `RegisterResponse`, `ApiError`, `PASSWORD_MIN_LENGTH`, `PASSWORD_MAX_LENGTH`
       to `@todo/shared` (design §3).
       Done when: `npm run build:shared` succeeds and api + web typecheck against them.
