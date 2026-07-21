@@ -1,0 +1,38 @@
+# Cloud Run service — API tier (ADR-004). Placeholder image + secret refs.
+# Not applied: `gcloud run services replace deploy/cloudrun-api.yaml` is the
+# user's first-deploy step.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: todo-api
+  labels:
+    app: todo
+    unit: api
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "10"
+    spec:
+      containerConcurrency: 80
+      containers:
+        - image: REGION-docker.pkg.dev/PROJECT/todo/api:latest
+          ports:
+            - containerPort: 3001
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "3001"
+            - name: WEB_ORIGIN
+              value: https://todo-web-PLACEHOLDER.run.app
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: database-url
+                  key: latest
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi

@@ -1,0 +1,36 @@
+# Cloud Run Job — cleanup/outbox worker (ADR-007). Triggered by Cloud Scheduler
+# (~every minute) in cloud environments. Placeholder image + secret refs.
+# Not applied: `gcloud run jobs replace deploy/cloudrun-worker-job.yaml`.
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: todo-worker
+  labels:
+    app: todo
+    unit: worker
+spec:
+  template:
+    spec:
+      template:
+        spec:
+          maxRetries: 3
+          timeoutSeconds: 300
+          containers:
+            - image: REGION-docker.pkg.dev/PROJECT/todo/worker:latest
+              env:
+                - name: NODE_ENV
+                  value: production
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: database-url
+                      key: latest
+                - name: EMAIL_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: email-api-key
+                      key: latest
+              resources:
+                limits:
+                  cpu: "1"
+                  memory: 512Mi
