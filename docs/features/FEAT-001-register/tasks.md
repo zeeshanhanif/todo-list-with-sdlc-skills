@@ -32,7 +32,7 @@
       Done when: unit tests pass — hash has `$argon2id$` prefix and verifies (AC-5);
       token issue returns raw≠hash, hash=SHA-256(raw), expiry ≈ now()+24h (AC-7).
 
-- [ ] T6 — Domain: `AuthService.register` + `Users/Lists/EmailOutbox` repositories,
+- [x] T6 — Domain: `AuthService.register` + `Users/Lists/EmailOutbox` repositories,
       one transaction (user + Inbox + outbox), unique-violation→`email_taken`
       mapping (design §5; FR-AUTH-001, FR-AUTH-002, FR-AUTH-005, FR-LIST-003).
       Done when: integration tests for AC-1, AC-2, AC-6, AC-7, AC-8, AC-9 pass
