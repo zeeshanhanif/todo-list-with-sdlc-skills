@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: todo
+          POSTGRES_PASSWORD: todo
+          POSTGRES_DB: todo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U todo -d todo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://todo:todo@localhost:5432/todo
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared package + design tokens
+        run: npm run build:shared && npm run build:tokens
+
+      - name: Enforce module boundaries
+        run: npm run boundaries
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build all units
+        run: npm run build
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Run DB migrations
+        run: npm run db:migrate
+
+      - name: Install Playwright browsers
+        run: npm run install:browsers -w @todo/e2e
+
+      - name: End-to-end (walking skeleton)
+        run: npm run test -w @todo/e2e
+        env:
+          CI: "true"

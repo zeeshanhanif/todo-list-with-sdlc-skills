@@ -1,0 +1,36 @@
+{
+  "name": "todo-list",
+  "version": "0.0.0",
+  "private": true,
+  "description": "To-Do List Application — monorepo (walking skeleton). See docs/.",
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "e2e"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build:tokens": "node scripts/build-tokens.mjs",
+    "build:shared": "npm run build -w @todo/shared",
+    "build": "npm run build:shared && npm run build:tokens && npm run build -w @todo/api && npm run build -w @todo/worker && npm run build -w @todo/web",
+    "lint": "npm run lint -w @todo/web && npm run lint -w @todo/api",
+    "test": "npm run test -w @todo/api && npm run test -w @todo/worker",
+    "test:e2e": "npm run build:shared && npm run build:tokens && npm run db:migrate && npm run test -w @todo/e2e",
+    "boundaries": "depcruise apps packages --config .dependency-cruiser.cjs",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
+    "db:migrate": "node-pg-migrate up -m migrations --envPath .env",
+    "dev:api": "npm run start:dev -w @todo/api",
+    "dev:web": "npm run dev -w @todo/web"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "dependency-cruiser": "18.1.0",
+    "dotenv": "17.4.2",
+    "node-pg-migrate": "9.0.0",
+    "pg": "8.22.0",
+    "typescript": "^5.7.3"
+  }
+}

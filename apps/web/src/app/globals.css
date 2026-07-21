@@ -1,0 +1,14 @@
+@import "tailwindcss";
+/* Design tokens, generated from docs/tokens.json by scripts/build-tokens.mjs
+   (runs on predev/prebuild). Delete docs/tokens.json and the build fails and the
+   shell loses its colors — the wiring is the point (ux-foundations). */
+@import "../styles/tokens.generated.css";
+
+body {
+  background: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-body);
+  line-height: var(--font-line-height-body);
+  -webkit-font-smoothing: antialiased;
+}

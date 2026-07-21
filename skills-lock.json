@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "skills": {
+    "detailed-design": {
+      "source": "zeeshanhanif/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/detailed-design/SKILL.md",
+      "computedHash": "0547215eb10bf62af94c9b1e4e53464e2bf358c13cdd708256128b358907f519"
+    },
+    "implementation-planning": {
+      "source": "zeeshanhanif/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/implementation-planning/SKILL.md",
+      "computedHash": "a7ad8f0a50050ce15d25e5d26af4caca11abd55ab08a59751a371dceaf3d7d3f"
+    },
+    "project-scaffolding": {
+      "source": "zeeshanhanif/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/project-scaffolding/SKILL.md",
+      "computedHash": "209e2641c4c34035eba5dedf1c287a6f567c849afda6b21bc0bc44b2e2abc1ef"
+    },
+    "requirements-engineering": {
+      "source": "zeeshanhanif/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/requirements-engineering/SKILL.md",
+      "computedHash": "3e29e5ad2751f798890905c0d314ad6a5c23d55c52f1f88cdc3acbbd14d29a62"
+    },
+    "software-architecture": {
+      "source": "zeeshanhanif/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/software-architecture/SKILL.md",
+      "computedHash": "231ad892d1f5dec4eb887d59cf7a4001fda3fcfb6fb86ba2542f1bf09a43c561"
+    },
+    "ux-foundations": {
+      "source": "zeeshanhanif/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/ux-foundations/SKILL.md",
+      "computedHash": "5d99cc1f36c7e28338563e708d663bfcb20d087e6917edf515c927053dd39c57"
+    }
+  }
+}

@@ -1,0 +1,31 @@
+# Cloud Run service — web tier (ADR-004). Placeholder image. Not applied.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: todo-web
+  labels:
+    app: todo
+    unit: web
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "10"
+    spec:
+      containerConcurrency: 80
+      containers:
+        - image: REGION-docker.pkg.dev/PROJECT/todo/web:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "3000"
+            - name: API_URL
+              value: https://todo-api-PLACEHOLDER.run.app
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi
