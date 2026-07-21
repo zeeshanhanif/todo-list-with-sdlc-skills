@@ -52,7 +52,7 @@
       Done when: the form submits, shows the notice on 201, and renders field errors
       from the `ApiError` envelope on 400/409.
 
-- [ ] T9 — Verify: all acceptance criteria AC-1..AC-9 (design §6) demonstrably pass;
+- [x] T9 — Verify: all acceptance criteria AC-1..AC-9 (design §6) demonstrably pass;
       `npm run boundaries`, `npm run lint`, and the api + shared test suites are green;
       migration up/down clean.
       Done when: the full feature suite passes and the checklist above is satisfied.
