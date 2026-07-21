@@ -1,14 +1,14 @@
-import { fetchHealth } from "@/lib/api";
+import { fetchSkeletonPing } from "@/lib/api";
 
 // The skeleton shell: the app-shell frame (SCR-WEB-007 — sidebar + content) with
-// the design system wired in, plus a health card proving the end-to-end path
-// (web -> API /healthz -> Postgres -> back). Feature screens replace the content
-// column per slice. All colors/spacing come from token CSS variables, so this
-// visibly breaks if docs/tokens.json is removed.
+// the design system wired in, plus a card proving the end-to-end path
+// (web -> API /skeleton/ping -> Postgres write+read -> back). Feature screens
+// replace the content column per slice. All colors/spacing come from token CSS
+// variables, so this visibly breaks if docs/tokens.json is removed.
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const health = await fetchHealth();
+  const health = await fetchSkeletonPing();
   const healthy = health?.status === "ok" && health?.db === "up";
 
   return (

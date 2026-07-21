@@ -1,7 +1,8 @@
 # Architecture: To-Do List Application
 
-> Status: Draft · Last updated: 2026-07-15 (rev 2 — stack refinement: Next.js /
-> NestJS / Supabase) · Author: Software Architecture
+> Status: Draft · Last updated: 2026-07-21 (rev 3 — secrets via Cloud Run env
+> vars instead of Secret Manager, §8 + deployment view; rev 2 — stack refinement:
+> Next.js / NestJS / Supabase) · Author: Software Architecture
 > Source of truth for requirements: [`docs/srs.md`](./srs.md) (v1.0). Use cases:
 > [`docs/use-cases.md`](./use-cases.md). This document decides *how*; the SRS
 > defines *what*.
@@ -246,7 +247,7 @@ graph TB
             job["Cleanup/Outbox Job<br/>(scheduled)"]
         end
         sched["Cloud Scheduler"]
-        secrets["Secret Manager<br/>(Supabase creds, JWT secret, email API key)"]
+        secrets["Deploy-time env vars<br/>(set on Cloud Run services/job:<br/>Supabase creds, JWT secret, email API key)"]
     end
     supa[("Supabase (managed)<br/>Postgres + Realtime<br/>HA, PITR backups, Supavisor pooler")]
     email["Email Provider (external)"]
@@ -256,12 +257,12 @@ graph TB
     web -->|"HTTPS REST"| api
     api -->|"SQL via pooler (TLS)"| supa
     api -->|"broadcast per-user signal"| supa
-    api -.->|"reads secrets"| secrets
-    web -.->|"reads secrets"| secrets
+    api -.->|"env config"| secrets
+    web -.->|"env config"| secrets
     sched -->|"triggers"| job
     job -->|"SQL"| supa
     job -->|"HTTPS API"| email
-    job -.->|"reads secrets"| secrets
+    job -.->|"env config"| secrets
 
     classDef ext fill:#999,stroke:#666,color:#fff
     classDef infra fill:#438dd5,stroke:#2e6295,color:#fff
@@ -301,9 +302,15 @@ graph TB
 - **Audit log:** security-relevant events (sign-in success/failure, password
   change/reset, account deletion) appended to `audit_log`, retained ≥ 90 days
   (NFR-SEC-009).
-- **Secrets:** DB credentials and the email API key in Secret Manager; nothing in
-  source (NFR-MAINT-003). OWASP Top 10 addressed via parameterized queries, output
-  encoding in React, security headers, and dependency scanning in CI (NFR-SEC-008/010).
+- **Secrets:** DB credentials, the email API key, and the JWT secret are set as
+  **Cloud Run environment variables** on each service/job at deploy time; nothing
+  in source (NFR-MAINT-003). *(rev 3 amendment — was Secret Manager. Trade-off:
+  env-var values are visible to anyone with Cloud Run viewer access, without
+  per-secret access control, rotation, or audit. Accepted for the MVP; NFR-MAINT-003
+  is still satisfied since secrets stay out of source. Revisit Secret Manager if
+  the security posture needs to rise.)* OWASP Top 10 addressed via parameterized
+  queries, output encoding in React, security headers, and dependency scanning in
+  CI (NFR-SEC-008/010).
 
 **Data (NFR-REL-002/003).**
 - Single Supabase-managed Postgres system of record; relational integrity via

@@ -27,11 +27,11 @@ spec:
               value: "3001"
             - name: WEB_ORIGIN
               value: https://todo-web-PLACEHOLDER.run.app
+            # Set at deploy time (e.g. `gcloud run deploy --set-env-vars` or the
+            # service config). Carries the DB password — visible to anyone with
+            # Cloud Run viewer access. Never committed to source (NFR-MAINT-003).
             - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: database-url
-                  key: latest
+              value: REPLACE_AT_DEPLOY
           resources:
             limits:
               cpu: "1"
