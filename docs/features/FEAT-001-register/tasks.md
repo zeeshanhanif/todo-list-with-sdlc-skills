@@ -38,7 +38,7 @@
       Done when: integration tests for AC-1, AC-2, AC-6, AC-7, AC-8, AC-9 pass
       against the local test DB.
 
-- [ ] T7 — Contract: `AuthModule` + `AuthController` `POST /auth/register` + `RegisterDto`;
+- [x] T7 — Contract: `AuthModule` + `AuthController` `POST /auth/register` + `RegisterDto`;
       register global `ValidationPipe` and `HttpExceptionFilter` error envelope in
       `main.ts` (design §3, §7 D6; FR-AUTH-003; UC-001 flows).
       Done when: supertest contract tests pass for 201 success and the designed
