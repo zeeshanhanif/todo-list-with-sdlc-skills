@@ -16,7 +16,7 @@
       to `@todo/shared` (design §3).
       Done when: `npm run build:shared` succeeds and api + web typecheck against them.
 
-- [ ] T3 — Infra: add `DbService.transaction<T>(fn)` (BEGIN/COMMIT/ROLLBACK on a
+- [x] T3 — Infra: add `DbService.transaction<T>(fn)` (BEGIN/COMMIT/ROLLBACK on a
       pooled client) (design §5).
       Done when: an integration test shows commit persists and a thrown error rolls
       back (against the local test DB).
