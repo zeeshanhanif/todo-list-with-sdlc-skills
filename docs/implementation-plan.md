@@ -40,15 +40,19 @@ any feature.
   pipeline to a live environment (ADR-002/004).
 - Supabase Postgres reached through the Supavisor pooler; a first versioned
   migration runs on deploy (ADR-003).
-- A trivial end-to-end operation: web calls `GET /healthz` on the API, which
-  executes a trivial `SELECT 1` through the pooler and returns — proving
-  web → API → domain → Postgres → back over HTTPS (NFR-OBS-002).
+- A trivial end-to-end operation: web calls `GET /healthz/ping` on the API, which
+  writes+reads one row through the pooler and returns — proving
+  web → API → domain → Postgres → back over HTTPS. Liveness is the
+  dependency-free `GET /healthz` (NFR-OBS-002) that does not touch the DB — both
+  live in the health module. (The `/healthz/ping` proof is scaffolding, removed
+  once the first real slice lands.)
 - The **UI shell** (SCR-WEB-007) with the design system wired in — shadcn/ui,
   Lucide icons, `design.md`/`tokens.json` tokens, light + dark theme, the
   sidebar/content/detail layout frame — plus the generic **Error / Not Found**
   page (SCR-WEB-019). Screens land in this shell.
-- Secrets from Secret Manager (Supabase creds, JWT secret, email API key);
-  nothing in source (NFR-MAINT-003).
+- Secrets as Cloud Run environment variables set at deploy time (Supabase creds,
+  JWT secret, email API key); nothing in source (NFR-MAINT-003). See architecture
+  §8 rev 3.
 
 **What's stubbed**
 - All business logic and domain endpoints (auth beyond a placeholder, lists,
@@ -294,7 +298,7 @@ concepts (§8) and ux-foundations. Cross-cutting FRs placed here carry their IDs
   (NFR-SEC-007), DB-backed rate-limit/lockout infra (NFR-SEC-006), OWASP Top 10
   practices + dependency scanning (NFR-SEC-008, NFR-SEC-010), and the **security
   audit log** for sign-in/password/deletion events retained ≥ 90 days
-  (**NFR-SEC-009**). Secrets externalized to Secret Manager (NFR-MAINT-003).
+  (**NFR-SEC-009**). Secrets externalized as Cloud Run env vars (NFR-MAINT-003).
 - **Observability (NFR-OBS-*).** Structured JSON logging (NFR-OBS-001), `/healthz`
   (NFR-OBS-002), latency/error metrics + alerting (NFR-OBS-003).
 - **Design system & accessibility.** shadcn/ui + Lucide + `design.md`/`tokens.json`

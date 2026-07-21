@@ -20,16 +20,13 @@ spec:
               env:
                 - name: NODE_ENV
                   value: production
+                # Set at deploy time as Cloud Run Job env vars. Carry secrets
+                # (DB password, email key) — visible to anyone with Cloud Run
+                # viewer access. Never committed to source (NFR-MAINT-003).
                 - name: DATABASE_URL
-                  valueFrom:
-                    secretKeyRef:
-                      name: database-url
-                      key: latest
+                  value: REPLACE_AT_DEPLOY
                 - name: EMAIL_API_KEY
-                  valueFrom:
-                    secretKeyRef:
-                      name: email-api-key
-                      key: latest
+                  value: REPLACE_AT_DEPLOY
               resources:
                 limits:
                   cpu: "1"

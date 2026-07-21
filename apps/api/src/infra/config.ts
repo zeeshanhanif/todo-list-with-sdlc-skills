@@ -10,7 +10,7 @@ export interface AppConfig {
 /**
  * Loads configuration from the environment (NFR-MAINT-003 — externalized config,
  * no committed secrets). Reads a local .env in development; in cloud environments
- * the values come from Secret Manager (architecture §7).
+ * the values are Cloud Run environment variables set at deploy time.
  */
 export function loadConfig(): AppConfig {
   loadDotenv();
