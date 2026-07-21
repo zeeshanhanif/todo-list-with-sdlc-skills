@@ -5,6 +5,8 @@ export interface AppConfig {
   nodeEnv: string;
   databaseUrl: string;
   webOrigin: string;
+  /** Verification-link lifetime in hours (NFR-SEC-004, default 24). */
+  verificationTokenTtlHours: number;
 }
 
 /**
@@ -20,5 +22,8 @@ export function loadConfig(): AppConfig {
     databaseUrl:
       process.env.DATABASE_URL ?? 'postgres://todo:todo@localhost:5432/todo',
     webOrigin: process.env.WEB_ORIGIN ?? 'http://localhost:3000',
+    verificationTokenTtlHours: Number(
+      process.env.VERIFICATION_TOKEN_TTL_HOURS ?? 24,
+    ),
   };
 }

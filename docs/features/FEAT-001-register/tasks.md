@@ -27,7 +27,7 @@
       Done when: unit tests for AC-4 pass (too-short rejected, common password
       rejected, compliant accepted).
 
-- [ ] T5 — Domain: `PasswordHasher` (Argon2id) + `VerificationTokenService`
+- [x] T5 — Domain: `PasswordHasher` (Argon2id) + `VerificationTokenService`
       (raw+SHA-256 hash+expiry) (design §5, D1/D4; NFR-SEC-005, NFR-SEC-004).
       Done when: unit tests pass — hash has `$argon2id$` prefix and verifies (AC-5);
       token issue returns raw≠hash, hash=SHA-256(raw), expiry ≈ now()+24h (AC-7).
