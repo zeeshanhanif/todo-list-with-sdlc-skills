@@ -45,7 +45,7 @@
       errors — 400 `validation_failed` (bad email / weak / breached password, with
       `fields[]`), 409 `email_taken` (AC-1..AC-4).
 
-- [ ] T8 — UI integration point: wire the Sign Up form (SCR-WEB-001) and the
+- [x] T8 — UI integration point: wire the Sign Up form (SCR-WEB-001) and the
       "check your email" notice (SCR-WEB-002) to `POST /auth/register`, rendering
       success and field-error states. (Screens themselves are ui-design's manifest;
       this task is the contract wiring only.)
