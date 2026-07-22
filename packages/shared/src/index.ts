@@ -40,3 +40,33 @@ export interface SkeletonPingResponse {
   time: string;
   service: string;
 }
+
+// --- Auth: registration (FEAT-001) ---
+
+/** Path of the registration endpoint. */
+export const REGISTER_PATH = "/auth/register";
+
+/** Password policy bounds (NFR-SEC-003). Reused by the web client for the
+ * min-length hint so the UI can never drift from the server rule. */
+export const PASSWORD_MIN_LENGTH = 10;
+export const PASSWORD_MAX_LENGTH = 128;
+
+/** Request body of POST /auth/register. */
+export interface RegisterRequest {
+  email: string;
+  password: string;
+}
+
+/** Success response (201) of POST /auth/register — neutral (SW-002). */
+export interface RegisterResponse {
+  status: "verification_sent";
+}
+
+/** Standard API error envelope (established by FEAT-001, technical-design D6).
+ * `fields` is present for field-level validation failures. */
+export interface ApiError {
+  statusCode: number;
+  code: string;
+  message: string;
+  fields?: Array<{ field: string; message: string }>;
+}

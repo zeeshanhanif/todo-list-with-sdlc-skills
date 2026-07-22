@@ -24,6 +24,9 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
     "@todo/shared": "*",
+    "argon2": "^0.45.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
     "dotenv": "17.4.2",
     "pg": "8.22.0",
     "reflect-metadata": "^0.2.2",
@@ -70,6 +73,7 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "globalSetup": "<rootDir>/../test/global-setup.js"
   }
 }

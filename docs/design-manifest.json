@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "policy": {
+    "fallback": "code-native",
+    "note": "Asked once on first run (FEAT-001). No design tool holds these screens and the repo (shadcn/ui + tokens) is the design surface; screens are specified code-native in each feature's ui-design.md. Overridable per screen; switch to generate/register by connecting a design-tool MCP and re-running (re-verification registers tool designs after the fact)."
+  },
+  "screens": {
+    "SCR-WEB-001": {
+      "name": "Sign Up",
+      "surface": "WEB",
+      "feature": "FEAT-001",
+      "strategy": "code-native",
+      "source": {
+        "spec": "features/FEAT-001-register/ui-design.md#scr-web-001--sign-up"
+      },
+      "states": {
+        "covered": ["default", "validating", "field-error"],
+        "gaps": [],
+        "supplements": []
+      },
+      "contract_bindings": ["POST /auth/register"],
+      "conformance": {
+        "result": "pass",
+        "corrections": [],
+        "escalations": []
+      },
+      "status": "designed",
+      "designed_at": "2026-07-21"
+    },
+    "SCR-WEB-002": {
+      "name": "Verify Email — Notice",
+      "surface": "WEB",
+      "feature": "FEAT-001",
+      "strategy": "code-native",
+      "source": {
+        "spec": "features/FEAT-001-register/ui-design.md#scr-web-002--verify-email--notice"
+      },
+      "states": {
+        "covered": ["default", "resend-sent", "rate-limited"],
+        "gaps": [],
+        "supplements": []
+      },
+      "contract_bindings": ["POST /auth/register"],
+      "notes": "Arrival state binds to POST /auth/register (201). The Resend action powering the resend-sent and rate-limited states binds to POST /auth/verify/resend, owned by FEAT-002 (not in FEAT-001's technical-design); this entry's bindings will be updated when FEAT-002 designs that endpoint.",
+      "conformance": {
+        "result": "pass",
+        "corrections": [],
+        "escalations": []
+      },
+      "status": "designed",
+      "designed_at": "2026-07-21"
+    }
+  }
+}
