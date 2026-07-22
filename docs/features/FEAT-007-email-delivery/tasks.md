@@ -12,7 +12,7 @@
       Done when: `npm run db:migrate` applies clean and the down migration reverts
       (columns + index dropped), against the current schema.
 
-- [ ] T2 — Worker foundations: add `nodemailer` (+ types) dep, `config.ts`
+- [x] T2 — Worker foundations: add `nodemailer` (+ types) dep, `config.ts`
       (EMAIL_PROVIDER, SMTP_URL, EMAIL_FROM, PUBLIC_APP_URL, EMAIL_MAX_ATTEMPTS,
       EMAIL_BATCH_SIZE, backoff base/cap), and a jest `globalSetup` that applies
       migrations so worker integration tests are self-contained (design §2, §5).

@@ -14,6 +14,7 @@
     "@nestjs/core": "^11.0.1",
     "@todo/shared": "*",
     "dotenv": "17.4.2",
+    "nodemailer": "^9.0.3",
     "pg": "8.22.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
@@ -21,6 +22,7 @@
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "@types/node": "^22.10.0",
+    "@types/nodemailer": "^8.0.1",
     "@types/pg": "8.20.0",
     "jest": "^30.0.0",
     "ts-jest": "^29.2.5",
@@ -28,10 +30,17 @@
     "typescript": "^5.7.3"
   },
   "jest": {
-    "moduleFileExtensions": ["js", "json", "ts"],
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
-    "transform": { "^.+\\.(t|j)s$": "ts-jest" },
-    "testEnvironment": "node"
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "testEnvironment": "node",
+    "globalSetup": "<rootDir>/../test/global-setup.js"
   }
 }
