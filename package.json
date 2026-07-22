@@ -23,7 +23,8 @@
     "db:down": "docker compose down",
     "db:migrate": "node-pg-migrate up -m migrations --envPath .env",
     "dev:api": "npm run start:dev -w @todo/api",
-    "dev:web": "npm run dev -w @todo/web"
+    "dev:web": "npm run dev -w @todo/web",
+    "worker:run": "npm run start:dev -w @todo/worker"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
