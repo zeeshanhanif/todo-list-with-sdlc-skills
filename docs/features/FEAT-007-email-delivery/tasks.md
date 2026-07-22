@@ -29,7 +29,7 @@
       links from `PUBLIC_APP_URL` + token (design §5, D3; FR-AUTH-005 and FR-AUTH-013 content).
       Done when: unit tests assert subject + correct link per type; unknown type throws.
 
-- [ ] T5 — OutboxRepository: `claimDue(limit)` (atomic pre-increment + backoff +
+- [x] T5 — OutboxRepository: `claimDue(limit)` (atomic pre-increment + backoff +
       `FOR UPDATE SKIP LOCKED`), `markSent`, `markFailed`, `recordRetry` (design §5).
       Done when: integration tests — claim returns due rows and skips `sent` and
       not-yet-due rows; each mark updates the expected columns (AC-4, AC-5).
