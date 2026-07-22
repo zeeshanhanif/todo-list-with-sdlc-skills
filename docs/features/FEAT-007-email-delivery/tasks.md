@@ -34,7 +34,7 @@
       Done when: integration tests — claim returns due rows and skips `sent` and
       not-yet-due rows; each mark updates the expected columns (AC-4, AC-5).
 
-- [ ] T6 — OutboxDrainService.drain(): claim → render → `EmailPort.send` → mark;
+- [x] T6 — OutboxDrainService.drain(): claim → render → `EmailPort.send` → mark;
       dead-letter at `EMAIL_MAX_ATTEMPTS`; structured `{sent,retried,deadLettered}`
       summary (design §5; SW-002, ADR-007, NFR-OBS-001/003).
       Done when: integration tests for AC-1, AC-2, AC-3, AC-5, AC-6, AC-8 pass
