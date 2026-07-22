@@ -19,7 +19,7 @@
       Done when: worker builds; `npm run test -w @todo/worker` runs with the DB
       schema present.
 
-- [ ] T3 — EmailPort + adapters: `EmailPort`/`EmailMessage`, `LogEmailPort`,
+- [x] T3 — EmailPort + adapters: `EmailPort`/`EmailMessage`, `LogEmailPort`,
       `SmtpEmailPort` (nodemailer), and the `EMAIL_PROVIDER` factory
       (design §3, §5, D1; SW-001, C-7).
       Done when: unit tests pass — LogEmailPort captures the message; SmtpEmailPort
