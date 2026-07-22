@@ -45,7 +45,7 @@
       Done when: running the worker against local Postgres drains a real `pending`
       verification row end-to-end via `LogEmailPort` and marks it `sent`.
 
-- [ ] T8 — Verify: all acceptance criteria AC-1..AC-8 (design §6) demonstrably pass;
+- [x] T8 — Verify: all acceptance criteria AC-1..AC-8 (design §6) demonstrably pass;
       `npm run boundaries`, `npm run lint`, worker + whole-repo suites green;
       migration up/down clean; no WIP markers.
       Done when: the full gate passes.
