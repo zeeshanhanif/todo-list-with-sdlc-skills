@@ -40,7 +40,7 @@
       Done when: integration tests for AC-1, AC-2, AC-3, AC-5, AC-6, AC-8 pass
       against local Postgres with a fake EmailPort.
 
-- [ ] T7 — Wire the job: `main.ts` runs `OutboxDrainService.drain()`; remove the
+- [x] T7 — Wire the job: `main.ts` runs `OutboxDrainService.drain()`; remove the
       no-op `CleanupService` (+ its spec); update `worker.module.ts` (design §5).
       Done when: running the worker against local Postgres drains a real `pending`
       verification row end-to-end via `LogEmailPort` and marks it `sent`.
