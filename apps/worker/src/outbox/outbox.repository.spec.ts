@@ -106,4 +106,12 @@ describe("OutboxRepository (integration)", () => {
     expect(r.rows[0].status).toBe("pending");
     expect(r.rows[0].last_error).toBe("temporary blip");
   });
+
+  it("AC-5: concurrent claims never double-process a row (FOR UPDATE SKIP LOCKED)", async () => {
+    for (let i = 0; i < 10; i++) await insert({});
+    // Two claims race on the same due rows; SKIP LOCKED must partition them.
+    const [a, b] = await Promise.all([repo.claimDue(CLAIM), repo.claimDue(CLAIM)]);
+    const claimed = [...a, ...b].map((r) => r.id);
+    expect(new Set(claimed).size).toBe(claimed.length); // no id claimed twice
+  });
 });
