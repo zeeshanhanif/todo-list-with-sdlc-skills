@@ -7,7 +7,7 @@
 > tasks use Jest unit + integration (worker's established runner) against local
 > Postgres.
 
-- [ ] T1 — Migration 003: extend `email_outbox` with `attempts`, `next_attempt_at`,
+- [x] T1 — Migration 003: extend `email_outbox` with `attempts`, `next_attempt_at`,
       `sent_at`, `last_error` + partial due-index (design §4).
       Done when: `npm run db:migrate` applies clean and the down migration reverts
       (columns + index dropped), against the current schema.
