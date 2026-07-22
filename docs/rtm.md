@@ -15,11 +15,11 @@
 
 | Req ID | Requirement (short) | Priority | Status | Source | Use case(s) | Design ref | Plan ref | Test ref |
 | :----- | :------------------ | :------- | :----- | :----- | :---------- | :--------- | :------- | :------- |
-| FR-AUTH-001 | Register with email + password | Must | Active | SI | UC-001 | features/FEAT-001-register/technical-design.md; features/FEAT-001-register/ui-design.md | FEAT-001 | _TBD_ |
-| FR-AUTH-002 | Reject duplicate email at registration | Must | Active | SI | UC-001 | features/FEAT-001-register/technical-design.md; features/FEAT-001-register/ui-design.md | FEAT-001 | _TBD_ |
-| FR-AUTH-003 | Validate email format | Must | Active | SI | UC-001 | features/FEAT-001-register/technical-design.md; features/FEAT-001-register/ui-design.md | FEAT-001 | _TBD_ |
-| FR-AUTH-004 | Enforce password policy | Must | Active | SEC | UC-001 | arch §8; features/FEAT-001-register/technical-design.md; features/FEAT-001-register/ui-design.md | FEAT-001 | _TBD_ |
-| FR-AUTH-005 | Send verification email (single-use, time-limited) | Must | Active | SI | UC-001, UC-002 | ADR-007; features/FEAT-001-register/technical-design.md; features/FEAT-001-register/ui-design.md | FEAT-001, FEAT-007 | _TBD_ |
+| FR-AUTH-001 | Register with email + password | Must | Active | SI | UC-001 | features/FEAT-001-register/technical-design.md; features/FEAT-001-register/ui-design.md | FEAT-001 | features/FEAT-001-register/acceptance-report.md |
+| FR-AUTH-002 | Reject duplicate email at registration | Must | Active | SI | UC-001 | features/FEAT-001-register/technical-design.md; features/FEAT-001-register/ui-design.md | FEAT-001 | features/FEAT-001-register/acceptance-report.md |
+| FR-AUTH-003 | Validate email format | Must | Active | SI | UC-001 | features/FEAT-001-register/technical-design.md; features/FEAT-001-register/ui-design.md | FEAT-001 | features/FEAT-001-register/acceptance-report.md |
+| FR-AUTH-004 | Enforce password policy | Must | Active | SEC | UC-001 | arch §8; features/FEAT-001-register/technical-design.md; features/FEAT-001-register/ui-design.md | FEAT-001 | features/FEAT-001-register/acceptance-report.md |
+| FR-AUTH-005 | Send verification email (single-use, time-limited) | Must | Active | SI | UC-001, UC-002 | ADR-007; features/FEAT-001-register/technical-design.md; features/FEAT-001-register/ui-design.md | FEAT-001, FEAT-007 | features/FEAT-001-register/acceptance-report.md (partial) |
 | FR-AUTH-006 | Mark account verified on valid link | Must | Active | SI | UC-002 | _TBD_ | FEAT-002 | _TBD_ |
 | FR-AUTH-007 | Require verification before sign-in | Must | Active | SI | UC-002, UC-003 | _TBD_ | FEAT-002, FEAT-003 | _TBD_ |
 | FR-AUTH-008 | Resend verification email | Should | Active | SI | UC-002 | ADR-007 | FEAT-002 | _TBD_ |
@@ -46,7 +46,7 @@
 | FR-PROF-005 | Persist settings across devices | Must | Active | SI | UC-007 | ADR-003 | FEAT-008 | _TBD_ |
 | FR-LIST-001 | Create list with name | Must | Active | SI | UC-008 | ADR-003 | FEAT-009 | _TBD_ |
 | FR-LIST-002 | Validate list name | Must | Active | SI | UC-008 | _TBD_ | FEAT-009 | _TBD_ |
-| FR-LIST-003 | Auto-create default Inbox on registration | Must | Active | SI | UC-001 | ADR-003; features/FEAT-001-register/technical-design.md | FEAT-001 | _TBD_ |
+| FR-LIST-003 | Auto-create default Inbox on registration | Must | Active | SI | UC-001 | ADR-003; features/FEAT-001-register/technical-design.md | FEAT-001 | features/FEAT-001-register/acceptance-report.md |
 | FR-LIST-004 | Prevent deletion of Inbox (allow rename) | Must | Active | SI | UC-008 | ADR-003 | FEAT-009 | _TBD_ |
 | FR-LIST-005 | View lists with active-task counts | Must | Active | SI | UC-008 | ADR-003 | FEAT-009 | _TBD_ |
 | FR-LIST-006 | Rename a list | Must | Active | SI | UC-008 | ADR-003 | FEAT-009 | _TBD_ |
