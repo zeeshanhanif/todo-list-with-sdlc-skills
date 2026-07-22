@@ -25,7 +25,7 @@
       Done when: unit tests pass — LogEmailPort captures the message; SmtpEmailPort
       sends via nodemailer `jsonTransport` (no real server); factory selects by config (AC-7).
 
-- [ ] T4 — EmailRenderer: render `verification` and `password_reset` messages with
+- [x] T4 — EmailRenderer: render `verification` and `password_reset` messages with
       links from `PUBLIC_APP_URL` + token (design §5, D3; FR-AUTH-005 and FR-AUTH-013 content).
       Done when: unit tests assert subject + correct link per type; unknown type throws.
 
