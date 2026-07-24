@@ -1,7 +1,7 @@
 # Tasks: FEAT-002 — Verify email + resend
 
 > Executes: docs/features/FEAT-002-verify-email/technical-design.md
-> Status: pending per task · Last updated: 2026-07-23
+> Status: all tasks done · Last updated: 2026-07-24
 > Note: architecture names no critical E2E flows / test frameworks → no mandatory
 > Playwright E2E task (legitimate skip, tasks-guide, mirroring FEAT-001).
 > Behavioral tasks use Jest unit + supertest contract tests (the API's runner).
@@ -55,7 +55,7 @@
       expired/invalid from the response; the notice's Resend button posts the email
       and shows the neutral resend-sent confirmation.
 
-- [ ] T7 — Verify: all acceptance criteria AC-1..AC-9 (design §6) demonstrably
+- [x] T7 — Verify: all acceptance criteria AC-1..AC-9 (design §6) demonstrably
       pass; `npm run boundaries`, `npm run lint`, and the api + shared test suites
       are green; migration up/down clean.
       Done when: the full feature suite passes and the checklist above is satisfied.
