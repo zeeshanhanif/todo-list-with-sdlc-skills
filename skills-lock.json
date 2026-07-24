@@ -1,11 +1,23 @@
 {
   "version": 1,
   "skills": {
+    "acceptance-verification": {
+      "source": "zeeshanhanif/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/acceptance-verification/SKILL.md",
+      "computedHash": "cb57a4b7733025073605734183b8d2a9c5598435c3ca276bba8ceb8289cf7be1"
+    },
     "detailed-design": {
       "source": "zeeshanhanif/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/detailed-design/SKILL.md",
       "computedHash": "0547215eb10bf62af94c9b1e4e53464e2bf358c13cdd708256128b358907f519"
+    },
+    "feature-implementation": {
+      "source": "zeeshanhanif/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/feature-implementation/SKILL.md",
+      "computedHash": "f678262b393f6d343e53b7204c4d6ac2c3b4ff9cc1d5759b4e68db74c797539c"
     },
     "implementation-planning": {
       "source": "zeeshanhanif/agent-skills",
@@ -30,6 +42,12 @@
       "sourceType": "github",
       "skillPath": "skills/software-architecture/SKILL.md",
       "computedHash": "231ad892d1f5dec4eb887d59cf7a4001fda3fcfb6fb86ba2542f1bf09a43c561"
+    },
+    "ui-design": {
+      "source": "zeeshanhanif/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/ui-design/SKILL.md",
+      "computedHash": "5f07bfd736fca637382c18f740ba3abceb1beb7566cda9bc08243b562856d7da"
     },
     "ux-foundations": {
       "source": "zeeshanhanif/agent-skills",
