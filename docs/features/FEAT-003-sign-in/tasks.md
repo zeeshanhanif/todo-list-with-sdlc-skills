@@ -82,7 +82,7 @@
       endpoint), AC-7 (`GET /auth/session` 401 vs 200), AC-9 (400
       `validation_failed` + `fields[]`), each rendering the `ApiError` envelope.
 
-- [ ] T9 — UI integration point: build the `/login` page (SCR-WEB-004) consuming
+- [x] T9 — UI integration point: build the `/login` page (SCR-WEB-004) consuming
       `POST /auth/login` — default / submitting / error states, mapping
       `email_not_verified` to a verify+resend affordance (reusing FEAT-002's
       resend), `account_locked` / `rate_limited` to a retry-after message, and
