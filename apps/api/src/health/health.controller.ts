@@ -1,12 +1,9 @@
-import { Controller, Get } from "@nestjs/common";
-import {
-  type HealthResponse,
-  type SkeletonPingResponse,
-} from "@todo/shared";
-import { HealthService } from "./health.service";
-import { SkeletonService } from "./skeleton.service";
+import { Controller, Get } from '@nestjs/common';
+import { type HealthResponse, type SkeletonPingResponse } from '@todo/shared';
+import { HealthService } from './health.service';
+import { SkeletonService } from './skeleton.service';
 
-@Controller("healthz")
+@Controller('healthz')
 export class HealthController {
   constructor(
     private readonly health: HealthService,
@@ -25,7 +22,7 @@ export class HealthController {
   // (write + read), exercised by the web shell and the e2e test. A different,
   // sub-path route that no liveness monitor hits. Remove with SkeletonService
   // once the first real domain slice lands.
-  @Get("ping")
+  @Get('ping')
   ping(): Promise<SkeletonPingResponse> {
     return this.skeleton.ping();
   }

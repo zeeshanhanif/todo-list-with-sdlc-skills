@@ -1,5 +1,5 @@
-import { Injectable } from "@nestjs/common";
-import type { HealthResponse } from "@todo/shared";
+import { Injectable } from '@nestjs/common';
+import type { HealthResponse } from '@todo/shared';
 
 /**
  * Liveness (NFR-OBS-002): answers "is the process up and serving?" with no
@@ -11,8 +11,8 @@ import type { HealthResponse } from "@todo/shared";
 export class HealthService {
   check(): HealthResponse {
     return {
-      status: "ok",
-      service: "api",
+      status: 'ok',
+      service: 'api',
       time: new Date().toISOString(),
     };
   }
