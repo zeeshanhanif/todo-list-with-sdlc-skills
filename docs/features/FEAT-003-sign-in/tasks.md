@@ -70,7 +70,7 @@
       (Nth consecutive failure locks; correct pw while locked still rejected;
       success resets), AC-8 (success/failure audit rows written, no secrets).
 
-- [ ] T8 — Contract: `AuthController` `POST /auth/login` (`SignInDto`; maps
+- [x] T8 — Contract: `AuthController` `POST /auth/login` (`SignInDto`; maps
       domain errors → 401/403/423/429; sets `Set-Cookie` via passthrough `res`)
       + `GET /auth/session` (`@UseGuards(SessionGuard)`, `@CurrentUser()`); apply
       `@UseGuards(RateLimitGuard)` to `login` and **retrofit** onto the existing

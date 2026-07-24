@@ -9,8 +9,11 @@ import { ListsRepository } from './lists.repository';
 import { EmailOutboxRepository } from './email-outbox.repository';
 import { SessionService } from '../../common/authz/session.service';
 import { SessionsRepository } from '../../common/authz/sessions.repository';
+import { SessionGuard } from '../../common/authz/session.guard';
 import { AuditService } from '../../common/audit/audit.service';
 import { AuditRepository } from '../../common/audit/audit.repository';
+import { RateLimitGuard } from '../../common/rate-limit/rate-limit.guard';
+import { RateLimitRepository } from '../../common/rate-limit/rate-limit.repository';
 
 // Auth capability module (FR-AUTH-*). FEAT-001 wires registration; later auth
 // slices (verify, sign-in, reset, change password) add to it. FEAT-003 (sign in)
@@ -28,8 +31,11 @@ import { AuditRepository } from '../../common/audit/audit.repository';
     EmailOutboxRepository,
     SessionService,
     SessionsRepository,
+    SessionGuard,
     AuditService,
     AuditRepository,
+    RateLimitGuard,
+    RateLimitRepository,
   ],
 })
 export class AuthModule {}
