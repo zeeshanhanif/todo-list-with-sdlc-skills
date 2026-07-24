@@ -33,7 +33,7 @@
       (AC-4); `resolve` returns `{id,email}` for a live token and touches
       `last_used_at`; returns null for unknown/expired tokens.
 
-- [ ] T4 — `common/authz` guard: `SessionGuard` (`CanActivate`) reading the
+- [x] T4 — `common/authz` guard: `SessionGuard` (`CanActivate`) reading the
       session cookie via `SessionService.resolve`, attaching `req.user`, throwing
       `401 unauthenticated`; `@CurrentUser()` decorator; wire
       `app.use(cookieParser())` in `app-setup.ts` (add `cookie-parser` dep).

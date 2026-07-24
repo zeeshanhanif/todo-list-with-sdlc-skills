@@ -4,14 +4,19 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import type { ValidationError } from 'class-validator';
+import cookieParser from 'cookie-parser';
 import { HttpExceptionFilter } from './common/http-exception.filter';
 
 /**
- * Applies the app-wide HTTP conventions (technical-design §7 D6) — the global
- * ValidationPipe and the error-envelope filter. Called by both main.ts (runtime)
- * and the contract tests, so request handling is identical in both.
+ * Applies the app-wide HTTP conventions (technical-design §7 D6) — cookie
+ * parsing (session cookie, FEAT-003), the global ValidationPipe, and the
+ * error-envelope filter. Called by both main.ts (runtime) and the contract
+ * tests, so request handling is identical in both.
  */
 export function configureApp(app: INestApplication): void {
+  // Parse cookies so SessionGuard can read the session cookie (FEAT-003).
+  app.use(cookieParser());
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
