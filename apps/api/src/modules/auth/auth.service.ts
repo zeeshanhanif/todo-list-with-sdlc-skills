@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DbService } from '../../infra/db.service';
+import { loadConfig } from '../../infra/config';
 import { PasswordPolicyService } from './password-policy.service';
 import { PasswordHasher } from './password-hasher';
 import { VerificationTokenService } from './verification-token.service';
@@ -93,6 +94,47 @@ export class AuthService {
       // Lost a race to a concurrent verify; the account is verified either way.
       throw new TokenInvalidError();
     }
+  }
+
+  /**
+   * Resend a verification email (FR-AUTH-008; technical-design §5, D3/D4/D5).
+   * Always a no-throw, neutral operation for the caller: it performs its side
+   * effect (rotate token + enqueue a fresh verification email in one
+   * transaction) only for an existing, unverified account that is past the
+   * resend cooldown; an unknown address, an already-verified account, and a
+   * cooldown-active account are all silent no-ops (no enumeration).
+   */
+  async resendVerification(inputEmail: string): Promise<void> {
+    const email = inputEmail.trim().toLowerCase();
+
+    const user = await this.users.findUnverifiedByEmail(this.db, email);
+    if (!user) {
+      return; // unknown or already verified — neutral
+    }
+
+    const lastSentAt = await this.outbox.lastVerificationEnqueuedAt(
+      this.db,
+      email,
+    );
+    const cooldownMs = loadConfig().resendCooldownSeconds * 1000;
+    if (lastSentAt && Date.now() - lastSentAt.getTime() < cooldownMs) {
+      return; // within cooldown — neutral, no additional send
+    }
+
+    const token = this.tokens.issue();
+    await this.db.transaction(async (tx) => {
+      await this.users.rotateVerificationToken(
+        tx,
+        user.id,
+        token.hash,
+        token.expiresAt,
+      );
+      await this.outbox.enqueueVerification(tx, {
+        recipient: email,
+        userId: user.id,
+        token: token.raw,
+      });
+    });
   }
 
   private isEmailUniqueViolation(err: unknown): boolean {

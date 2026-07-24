@@ -64,6 +64,38 @@ export class UsersRepository {
     };
   }
 
+  /** Find an unverified user by normalized email (FEAT-002 resend). Returns null
+   * when the email is unknown OR the account is already verified — the caller
+   * treats both identically (neutral, no enumeration; technical-design D3). */
+  async findUnverifiedByEmail(
+    q: TxClient,
+    email: string,
+  ): Promise<{ id: string } | null> {
+    const res = await q.query<{ id: string }>(
+      `SELECT id FROM users WHERE email = $1 AND verified_at IS NULL`,
+      [email],
+    );
+    return res.rows[0] ?? null;
+  }
+
+  /** Replace a user's verification token with a freshly issued one (resend
+   * rotation — technical-design D5). Invalidates the prior link. */
+  async rotateVerificationToken(
+    tx: TxClient,
+    id: string,
+    tokenHash: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    await tx.query(
+      `UPDATE users
+          SET verification_token_hash = $2,
+              verification_token_expires_at = $3,
+              updated_at = now()
+        WHERE id = $1`,
+      [id, tokenHash, expiresAt],
+    );
+  }
+
   /** Mark a user verified and consume its token (single-use, NFR-SEC-004): set
    * verified_at and clear the token columns. Guarded `WHERE verified_at IS NULL`
    * so a concurrent second verify is a no-op. Returns true when this call did the

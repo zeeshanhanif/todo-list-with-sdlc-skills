@@ -26,7 +26,7 @@
       AC-2 (single-use replay → invalid), AC-3 (expired), AC-4 (no match) pass
       against the local test DB.
 
-- [ ] T4 — Domain (resend): `UsersRepository.findUnverifiedByEmail` +
+- [x] T4 — Domain (resend): `UsersRepository.findUnverifiedByEmail` +
       `rotateVerificationToken`; `EmailOutboxRepository.lastVerificationEnqueuedAt`;
       `AuthService.resendVerification(email)` — neutral no-op for absent/verified,
       cooldown check (`RESEND_COOLDOWN_SECONDS`), else rotate-token + enqueue in one

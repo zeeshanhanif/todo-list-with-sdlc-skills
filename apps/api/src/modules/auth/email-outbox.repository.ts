@@ -24,4 +24,20 @@ export class EmailOutboxRepository {
       ],
     );
   }
+
+  /** Timestamp of the most recent verification email enqueued for a recipient,
+   * or null if none. Drives the resend cooldown (FEAT-002 D4) without a schema
+   * addition. `q` is any query executor (pool or tx client). */
+  async lastVerificationEnqueuedAt(
+    q: TxClient,
+    recipient: string,
+  ): Promise<Date | null> {
+    const res = await q.query<{ last: Date | null }>(
+      `SELECT max(created_at) AS last
+         FROM email_outbox
+        WHERE recipient = $1 AND type = 'verification'`,
+      [recipient],
+    );
+    return res.rows[0]?.last ?? null;
+  }
 }
