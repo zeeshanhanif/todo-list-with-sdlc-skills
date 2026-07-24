@@ -45,7 +45,7 @@
       validation_failed` for missing token / malformed email (AC-9), each rendering
       the `ApiError` envelope.
 
-- [ ] T6 — UI integration point: build the `/verify` page (SCR-WEB-003) consuming
+- [x] T6 — UI integration point: build the `/verify` page (SCR-WEB-003) consuming
       `POST /auth/verify` — verifying / success / expired-or-invalid states, the
       last offering **sign in** and **resend**; wire the Resend control on the
       `/verify-email` notice (SCR-WEB-002) to `POST /auth/verify/resend` with its
