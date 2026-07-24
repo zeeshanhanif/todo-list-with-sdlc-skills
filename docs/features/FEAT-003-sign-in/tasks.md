@@ -1,7 +1,7 @@
 # Tasks: FEAT-003 — Sign in (session, lockout, rate-limit)
 
 > Executes: docs/features/FEAT-003-sign-in/technical-design.md
-> Status: pending per task · Last updated: 2026-07-24
+> Status: all tasks done · Last updated: 2026-07-24
 > Note: architecture names no critical E2E flows / test frameworks → no mandatory
 > Playwright E2E task (legitimate skip, tasks-guide, mirroring FEAT-001/002).
 > Behavioral tasks use Jest unit + supertest contract tests (the API's runner);
@@ -95,7 +95,7 @@
       BFF and lands in the app; the error branches render their designed states;
       `GET /api/auth/session` reflects auth state.
 
-- [ ] T10 — Verify: all acceptance criteria AC-1..AC-9 (design §6) demonstrably
+- [x] T10 — Verify: all acceptance criteria AC-1..AC-9 (design §6) demonstrably
       pass; `npm run boundaries`, `npm run lint`, and the api + shared test suites
       are green; migration 005 up/down clean.
       Done when: the full feature suite passes and the checklist above is
