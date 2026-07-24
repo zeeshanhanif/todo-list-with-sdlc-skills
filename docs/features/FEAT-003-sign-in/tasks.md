@@ -15,7 +15,7 @@
       Done when: `npm run db:migrate` applies clean and the down migration
       reverses all objects, against the current schema (last migration 004).
 
-- [ ] T2 — Shared contracts (`@todo/shared`): add `LOGIN_PATH`, `SESSION_PATH`,
+- [x] T2 — Shared contracts (`@todo/shared`): add `LOGIN_PATH`, `SESSION_PATH`,
       `SESSION_COOKIE`, `SignInRequest`, `SignInResponse`, `SessionResponse`,
       and the new error `code` literals (`invalid_credentials`,
       `email_not_verified`, `account_locked`, `rate_limited`, `unauthenticated`).
