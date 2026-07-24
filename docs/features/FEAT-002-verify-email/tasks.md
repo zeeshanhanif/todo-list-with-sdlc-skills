@@ -17,7 +17,7 @@
       `ResendVerificationResponse` to `@todo/shared` (design §3).
       Done when: `npm run build:shared` succeeds and api + web typecheck against them.
 
-- [ ] T3 — Domain (verify): `UsersRepository.findByVerificationTokenHash` +
+- [x] T3 — Domain (verify): `UsersRepository.findByVerificationTokenHash` +
       `markVerified` (guarded `WHERE verified_at IS NULL`, clears token columns);
       `TokenInvalidError` / `TokenExpiredError`; `AuthService.verifyEmail(token)`
       reusing `VerificationTokenService.hashToken` (design §5; FR-AUTH-006,

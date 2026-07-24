@@ -18,3 +18,22 @@ export class PasswordPolicyError extends Error {
     this.name = 'PasswordPolicyError';
   }
 }
+
+/** Presented verification token matches no live token — never issued, already
+ * consumed, or rotated away by a later resend (FEAT-002 → 400 token_invalid;
+ * UC-002 alt 2a / exc-3a). */
+export class TokenInvalidError extends Error {
+  constructor() {
+    super('This verification link is invalid or has already been used.');
+    this.name = 'TokenInvalidError';
+  }
+}
+
+/** Presented verification token matches a user but is past its expiry
+ * (FEAT-002 → 400 token_expired; NFR-SEC-004; UC-002 alt 2a). */
+export class TokenExpiredError extends Error {
+  constructor() {
+    super('This verification link has expired.');
+    this.name = 'TokenExpiredError';
+  }
+}

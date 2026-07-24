@@ -6,7 +6,12 @@ import { VerificationTokenService } from './verification-token.service';
 import { UsersRepository } from './users.repository';
 import { ListsRepository } from './lists.repository';
 import { EmailOutboxRepository } from './email-outbox.repository';
-import { EmailTakenError, PasswordPolicyError } from './auth.errors';
+import {
+  EmailTakenError,
+  PasswordPolicyError,
+  TokenExpiredError,
+  TokenInvalidError,
+} from './auth.errors';
 
 /**
  * Registration orchestration (FR-AUTH-001/002/005, FR-LIST-003; technical-design §5):
@@ -57,6 +62,36 @@ export class AuthService {
         throw new EmailTakenError();
       }
       throw err;
+    }
+  }
+
+  /**
+   * Verify an account from the token in its email link (FR-AUTH-006, NFR-SEC-004;
+   * technical-design §5). Hash the presented token, resolve the user, reject
+   * expired/unmatched tokens, else mark verified and consume the token (single-use,
+   * D2). No session is granted — the caller directs the user to sign in.
+   */
+  async verifyEmail(rawToken: string): Promise<void> {
+    const tokenHash = this.tokens.hashToken(rawToken);
+    const match = await this.users.findByVerificationTokenHash(
+      this.db,
+      tokenHash,
+    );
+    // No live token matches: never issued, already consumed, or rotated away
+    // (also covers an already-verified account clicking an old link — D2).
+    if (!match || match.verifiedAt !== null) {
+      throw new TokenInvalidError();
+    }
+    if (
+      !match.verificationTokenExpiresAt ||
+      match.verificationTokenExpiresAt.getTime() <= Date.now()
+    ) {
+      throw new TokenExpiredError();
+    }
+    const transitioned = await this.users.markVerified(this.db, match.id);
+    if (!transitioned) {
+      // Lost a race to a concurrent verify; the account is verified either way.
+      throw new TokenInvalidError();
     }
   }
 
