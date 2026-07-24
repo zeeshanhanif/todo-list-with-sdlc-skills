@@ -12,7 +12,7 @@
       Done when: `npm run db:migrate` applies clean and the down migration drops
       the index, against the current schema (last migration 003). No column changes.
 
-- [ ] T2 — Shared contracts: add `VERIFY_PATH`, `RESEND_VERIFICATION_PATH`,
+- [x] T2 — Shared contracts: add `VERIFY_PATH`, `RESEND_VERIFICATION_PATH`,
       `VerifyRequest`, `VerifyResponse`, `ResendVerificationRequest`,
       `ResendVerificationResponse` to `@todo/shared` (design §3).
       Done when: `npm run build:shared` succeeds and api + web typecheck against them.

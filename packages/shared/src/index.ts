@@ -70,3 +70,33 @@ export interface ApiError {
   message: string;
   fields?: Array<{ field: string; message: string }>;
 }
+
+// --- Auth: verify email + resend (FEAT-002) ---
+
+/** Path of the email-verification endpoint. Consumes a single-use token. */
+export const VERIFY_PATH = "/auth/verify";
+
+/** Path of the resend-verification endpoint. Neutral response (no enumeration). */
+export const RESEND_VERIFICATION_PATH = "/auth/verify/resend";
+
+/** Request body of POST /auth/verify — the raw token from the email link. */
+export interface VerifyRequest {
+  token: string;
+}
+
+/** Success response (200) of POST /auth/verify. */
+export interface VerifyResponse {
+  status: "verified";
+}
+
+/** Request body of POST /auth/verify/resend. */
+export interface ResendVerificationRequest {
+  email: string;
+}
+
+/** Success response (200) of POST /auth/verify/resend — neutral: the same body
+ * whether or not the address exists / is already verified / is in cooldown
+ * (FEAT-002 technical-design D3). */
+export interface ResendVerificationResponse {
+  status: "verification_sent";
+}
