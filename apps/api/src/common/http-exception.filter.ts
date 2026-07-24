@@ -28,7 +28,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         typeof raw === 'object' && raw !== null
           ? (raw as Record<string, unknown>)
           : {};
-      const envelope: ApiError = {
+      const envelope: ApiError & { retryAfterSeconds?: number } = {
         statusCode: status,
         code: (body.code as string) ?? 'error',
         message:
@@ -36,6 +36,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
           (typeof raw === 'string' ? raw : exception.message),
         ...(Array.isArray(body.fields)
           ? { fields: body.fields as ApiError['fields'] }
+          : {}),
+        // Relay retryAfterSeconds on throttle/lockout envelopes (FEAT-003:
+        // 429 rate_limited, 423 account_locked) so the UI can show a wait time.
+        ...(typeof body.retryAfterSeconds === 'number'
+          ? { retryAfterSeconds: body.retryAfterSeconds }
           : {}),
       };
       res.status(status).json(envelope);

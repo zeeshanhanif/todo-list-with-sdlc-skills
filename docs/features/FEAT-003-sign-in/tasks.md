@@ -49,7 +49,7 @@
       given `event`/`user_id`/`ip` and that a repository failure does not
       propagate to the caller.
 
-- [ ] T6 — `common/rate-limit`: `RateLimitRepository.hitAndCount(ip,route,
+- [x] T6 — `common/rate-limit`: `RateLimitRepository.hitAndCount(ip,route,
       windowStart)` (upsert-increment on `auth_rate_buckets`) + `RateLimitGuard`
       throwing `429 rate_limited` with `retryAfterSeconds` when over the max;
       `AUTH_RATELIMIT_WINDOW_SECONDS` / `AUTH_RATELIMIT_MAX` in `config.ts`.
