@@ -40,15 +40,39 @@
         "gaps": [],
         "supplements": []
       },
-      "contract_bindings": ["POST /auth/register"],
-      "notes": "Arrival state binds to POST /auth/register (201). The Resend action powering the resend-sent and rate-limited states binds to POST /auth/verify/resend, owned by FEAT-002 (not in FEAT-001's technical-design); this entry's bindings will be updated when FEAT-002 designs that endpoint.",
+      "contract_bindings": ["POST /auth/register", "POST /auth/verify/resend"],
+      "notes": "Arrival (default) state binds to POST /auth/register (201). The Resend control binds to POST /auth/verify/resend (FEAT-002); resend-sent renders the neutral 200. The rate-limited state is reinterpreted by FEAT-002 as a CLIENT-SIDE cooldown (RESEND_COOLDOWN_SECONDS), not a server-throttle response — the resend contract is neutral (technical-design D3/D4), so the UI must not infer throttling from the response. See features/FEAT-002-verify-email/ui-design.md#scr-web-002--verify-email--notice-resend-binding-completed.",
+      "conformance": {
+        "result": "pass",
+        "corrections": ["rate-limited state re-bound to a client-side cooldown to conform to FEAT-002's neutral resend contract (no server 429)"],
+        "escalations": []
+      },
+      "status": "designed",
+      "designed_at": "2026-07-21",
+      "updated_at": "2026-07-23"
+    },
+    "SCR-WEB-003": {
+      "name": "Verify Email — Result",
+      "surface": "WEB",
+      "feature": "FEAT-002",
+      "strategy": "code-native",
+      "source": {
+        "spec": "features/FEAT-002-verify-email/ui-design.md#scr-web-003--verify-email--result"
+      },
+      "states": {
+        "covered": ["verifying", "success", "expired", "invalid", "resend-sent"],
+        "gaps": [],
+        "supplements": []
+      },
+      "contract_bindings": ["POST /auth/verify", "POST /auth/verify/resend"],
+      "notes": "New web route /verify — target of the email verification link (${PUBLIC_APP_URL}/verify?token=…, FEAT-007 forward path). success routes to SCR-WEB-004 (FEAT-003). expired/invalid carry an email recovery form binding POST /auth/verify/resend; invalid folds in the already-verified case (UC-002 exc-3a) per technical-design D2.",
       "conformance": {
         "result": "pass",
         "corrections": [],
         "escalations": []
       },
       "status": "designed",
-      "designed_at": "2026-07-21"
+      "designed_at": "2026-07-23"
     }
   }
 }
