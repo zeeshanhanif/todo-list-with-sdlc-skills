@@ -21,20 +21,20 @@
 | FR-AUTH-004 | Enforce password policy | Must | Active | SEC | UC-001 | arch §8; features/FEAT-001-register/technical-design.md; features/FEAT-001-register/ui-design.md | FEAT-001 | features/FEAT-001-register/acceptance-report.md |
 | FR-AUTH-005 | Send verification email (single-use, time-limited) | Must | Active | SI | UC-001, UC-002 | ADR-007; features/FEAT-001-register/technical-design.md; features/FEAT-001-register/ui-design.md; features/FEAT-007-email-delivery/technical-design.md | FEAT-001, FEAT-007 | features/FEAT-001-register/acceptance-report.md (partial); features/FEAT-007-email-delivery/acceptance-report.md (partial) |
 | FR-AUTH-006 | Mark account verified on valid link | Must | Active | SI | UC-002 | features/FEAT-002-verify-email/technical-design.md; features/FEAT-002-verify-email/ui-design.md | FEAT-002 | features/FEAT-002-verify-email/acceptance-report.md |
-| FR-AUTH-007 | Require verification before sign-in | Must | Active | SI | UC-002, UC-003 | features/FEAT-002-verify-email/technical-design.md; features/FEAT-002-verify-email/ui-design.md | FEAT-002, FEAT-003 | features/FEAT-002-verify-email/acceptance-report.md (partial) |
+| FR-AUTH-007 | Require verification before sign-in | Must | Active | SI | UC-002, UC-003 | features/FEAT-002-verify-email/technical-design.md; features/FEAT-002-verify-email/ui-design.md; features/FEAT-003-sign-in/technical-design.md; features/FEAT-003-sign-in/ui-design.md | FEAT-002, FEAT-003 | features/FEAT-002-verify-email/acceptance-report.md (partial) |
 | FR-AUTH-008 | Resend verification email | Should | Active | SI | UC-002 | ADR-007; features/FEAT-002-verify-email/technical-design.md; features/FEAT-002-verify-email/ui-design.md | FEAT-002 | features/FEAT-002-verify-email/acceptance-report.md |
-| FR-AUTH-009 | Sign in with email + password | Must | Active | SI | UC-003 | ADR-005 | FEAT-003 | _TBD_ |
-| FR-AUTH-010 | Generic failure msg (no enumeration) | Must | Active | SEC | UC-003 | arch §8 | FEAT-003 | _TBD_ |
+| FR-AUTH-009 | Sign in with email + password | Must | Active | SI | UC-003 | ADR-005; features/FEAT-003-sign-in/technical-design.md; features/FEAT-003-sign-in/ui-design.md | FEAT-003 | _TBD_ |
+| FR-AUTH-010 | Generic failure msg (no enumeration) | Must | Active | SEC | UC-003 | arch §8; features/FEAT-003-sign-in/technical-design.md; features/FEAT-003-sign-in/ui-design.md | FEAT-003 | _TBD_ |
 | FR-AUTH-011 | Log out / terminate session | Must | Active | SI | UC-004 | ADR-005 | FEAT-004 | _TBD_ |
 | FR-AUTH-012 | Forgot-password request (neutral response) | Must | Active | SI | UC-005 | arch §8 | FEAT-005 | _TBD_ |
 | FR-AUTH-013 | Send single-use reset link | Must | Active | SI | UC-005 | ADR-007; features/FEAT-007-email-delivery/technical-design.md | FEAT-005, FEAT-007 | features/FEAT-007-email-delivery/acceptance-report.md (partial) |
 | FR-AUTH-014 | Set new password via reset link | Must | Active | SI | UC-005 | ADR-005 | FEAT-005 | _TBD_ |
 | FR-AUTH-015 | Change password (verify current) | Must | Active | SI | UC-006 | ADR-005 | FEAT-006 | _TBD_ |
-| FR-AUTH-016 | Establish long-lived session on sign-in | Must | Active | SI | UC-003 | ADR-005 | FEAT-003 | _TBD_ |
+| FR-AUTH-016 | Establish long-lived session on sign-in | Must | Active | SI | UC-003 | ADR-005; features/FEAT-003-sign-in/technical-design.md | FEAT-003 | _TBD_ |
 | FR-AUTH-017 | Invalidate sessions on password change/reset | Must | Active | SEC | UC-005, UC-006 | ADR-005 | FEAT-005, FEAT-006 | _TBD_ |
-| FR-AUTH-018 | Rate-limit auth endpoints | Must | Active | SEC | UC-003, UC-005 | arch §8 | FEAT-003 | _TBD_ |
-| FR-AUTH-019 | Lockout/throttle after failed attempts | Must | Active | SEC | UC-003 | arch §8 | FEAT-003 | _TBD_ |
-| FR-AUTHZ-001 | Require auth for all data operations | Must | Active | SEC | UC-003 (all auth UCs) | ADR-005; arch §8 | Foundations | _TBD_ |
+| FR-AUTH-018 | Rate-limit auth endpoints | Must | Active | SEC | UC-003, UC-005 | arch §8; features/FEAT-003-sign-in/technical-design.md; features/FEAT-003-sign-in/ui-design.md | FEAT-003 | _TBD_ |
+| FR-AUTH-019 | Lockout/throttle after failed attempts | Must | Active | SEC | UC-003 | arch §8; features/FEAT-003-sign-in/technical-design.md; features/FEAT-003-sign-in/ui-design.md | FEAT-003 | _TBD_ |
+| FR-AUTHZ-001 | Require auth for all data operations | Must | Active | SEC | UC-003 (all auth UCs) | ADR-005; arch §8; features/FEAT-003-sign-in/technical-design.md (partial — session auth) | Foundations | _TBD_ |
 | FR-AUTHZ-002 | User accesses only own data | Must | Active | SI | All authenticated UCs | ADR-003; arch §8 | Foundations | _TBD_ |
 | FR-AUTHZ-003 | Reject others' resources w/o disclosure | Must | Active | SEC | All authenticated UCs | arch §8 | Foundations | _TBD_ |
 | FR-AUTHZ-004 | Assign ownership at creation; no transfer | Must | Active | SI | UC-008, UC-009 | ADR-003 | Foundations | _TBD_ |
@@ -105,10 +105,10 @@
 | NFR-SEC-003 | Password policy (≥10, breach-checked) | Must | Active | SEC | UC-001, UC-005, UC-006 | arch §8 | Foundations | _TBD_ |
 | NFR-SEC-004 | Link expiry (verify 24h, reset 1h) | Must | Active | SEC | UC-002, UC-005 | arch §8 | FEAT-002, FEAT-005 | _TBD_ |
 | NFR-SEC-005 | Salted adaptive password hashing | Must | Active | SEC | — | arch §8 | Foundations | _TBD_ |
-| NFR-SEC-006 | Rate limiting thresholds | Must | Active | SEC | UC-003 | arch §8 | FEAT-003 | _TBD_ |
-| NFR-SEC-007 | Secure session tokens, CSRF, rotation | Must | Active | SEC | — | ADR-005 | Foundations | _TBD_ |
+| NFR-SEC-006 | Rate limiting thresholds | Must | Active | SEC | UC-003 | arch §8; features/FEAT-003-sign-in/technical-design.md | FEAT-003 | _TBD_ |
+| NFR-SEC-007 | Secure session tokens, CSRF, rotation | Must | Active | SEC | — | ADR-005; features/FEAT-003-sign-in/technical-design.md (partial — session cookie) | Foundations | _TBD_ |
 | NFR-SEC-008 | OWASP Top 10 protections | Must | Active | SEC | — | arch §8 | Foundations | _TBD_ |
-| NFR-SEC-009 | Audit log security events ≥ 90 days | Should | Active | SEC | — | arch §8 | Foundations | _TBD_ |
+| NFR-SEC-009 | Audit log security events ≥ 90 days | Should | Active | SEC | — | arch §8; features/FEAT-003-sign-in/technical-design.md (partial — sign-in events) | Foundations | _TBD_ |
 | NFR-SEC-010 | Dependency vuln remediation SLA | Should | Active | SEC | — | arch §8 | Foundations | _TBD_ |
 | NFR-USE-001 | Register + first task < 2 min | Should | Active | GOAL (G1) | UC-001, UC-009 | _TBD_ | FEAT-001, FEAT-010 | _TBD_ |
 | NFR-USE-002 | Destructive actions require confirmation | Must | Active | SI | UC-008, UC-012, UC-016 | _TBD_ | Foundations | _TBD_ |

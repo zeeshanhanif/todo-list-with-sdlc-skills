@@ -73,6 +73,29 @@
       },
       "status": "designed",
       "designed_at": "2026-07-23"
+    },
+    "SCR-WEB-004": {
+      "name": "Sign In",
+      "surface": "WEB",
+      "feature": "FEAT-003",
+      "strategy": "code-native",
+      "source": {
+        "spec": "features/FEAT-003-sign-in/ui-design.md#scr-web-004--sign-in"
+      },
+      "states": {
+        "covered": ["default", "error", "unverified-prompt"],
+        "gaps": [],
+        "supplements": []
+      },
+      "contract_bindings": ["POST /auth/login", "POST /auth/verify/resend"],
+      "notes": "Public auth zone, reusing the shared auth layout (centered 400px card + wordmark) from FEAT-001. 'error' folds the four designed login responses: 401 invalid_credentials (generic, no field highlight — no enumeration, FR-AUTH-010), 423 account_locked (FR-AUTH-019), 429 rate_limited (FR-AUTH-018), 400 validation_failed. 'unverified-prompt' is the 403 email_not_verified branch (FR-AUTH-007), reusing FEAT-002's POST /auth/verify/resend + client cooldown. Success (200) sets the session cookie via the web BFF (technical-design D6) and routes into the app-shell SCR-WEB-007.",
+      "conformance": {
+        "result": "pass",
+        "corrections": [],
+        "escalations": []
+      },
+      "status": "designed",
+      "designed_at": "2026-07-24"
     }
   }
 }
