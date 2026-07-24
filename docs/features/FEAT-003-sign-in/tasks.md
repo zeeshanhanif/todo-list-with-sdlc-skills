@@ -42,7 +42,7 @@
       invalid cookie (401 envelope) and admits one with a valid session cookie,
       exposing the current user (AC-7).
 
-- [ ] T5 — `common/audit`: `AuditRepository` (append-only insert) +
+- [x] T5 — `common/audit`: `AuditRepository` (append-only insert) +
       `AuditService.record(event,{userId?,ip?,detail?})`, best-effort (never
       throws into the caller). Design §5, §4.3; NFR-SEC-009 (partial).
       Done when: a unit/integration test shows `record` appends a row with the
