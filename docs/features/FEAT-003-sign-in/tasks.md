@@ -23,7 +23,7 @@
       Done when: `npm run build:shared` succeeds and api + web typecheck against
       them.
 
-- [ ] T3 — `common/authz` sessions: `SessionsRepository`
+- [x] T3 — `common/authz` sessions: `SessionsRepository`
       (`create`, `findLiveByTokenHash` joined to `users` with `expires_at >
       now()`, `touchLastUsed`) + `SessionService` (`issue`, `resolve`,
       `hashToken`) + session-cookie constants; session TTL in `config.ts`.
