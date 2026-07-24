@@ -108,4 +108,3 @@ endpoint. No session is granted in this state.
   SCR-WEB-007 (foundations). Both exist as targets; their behavior is owned by
   their features. Every state binding on this screen is to a contract that exists
   now (`POST /auth/login`, `POST /auth/verify/resend`).
-</content>

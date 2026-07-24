@@ -380,5 +380,4 @@ Verification: clean (self-check per Phase 5 — every FEAT-003 FR/NFR has ≥ 1
 acceptance criterion and ≥ 1 task; all cited IDs resolve; schema within the
 conceptual model with the one infra-table note above; contracts reuse the
 existing envelope).
-</content>
 </invoke>

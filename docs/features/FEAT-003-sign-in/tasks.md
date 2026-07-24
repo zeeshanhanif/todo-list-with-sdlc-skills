@@ -100,4 +100,3 @@
       are green; migration 005 up/down clean.
       Done when: the full feature suite passes and the checklist above is
       satisfied.
-</content>
