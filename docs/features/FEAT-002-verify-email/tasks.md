@@ -36,7 +36,7 @@
       invalid), AC-7 (neutral no-op for unknown / already-verified), AC-8 (cooldown
       suppresses a second send) pass against the local test DB.
 
-- [ ] T5 — Contract: add `POST /auth/verify` and `POST /auth/verify/resend` to
+- [x] T5 — Contract: add `POST /auth/verify` and `POST /auth/verify/resend` to
       `AuthController` with `VerifyDto` / `ResendVerificationDto`; map
       `TokenExpiredError`→`400 token_expired`, `TokenInvalidError`→`400
       token_invalid`; resend always returns neutral `200` (design §3; UC-002 flows).
