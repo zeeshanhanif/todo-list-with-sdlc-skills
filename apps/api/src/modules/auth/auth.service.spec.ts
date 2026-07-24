@@ -8,6 +8,10 @@ import { VerificationTokenService } from './verification-token.service';
 import { UsersRepository } from './users.repository';
 import { ListsRepository } from './lists.repository';
 import { EmailOutboxRepository } from './email-outbox.repository';
+import { SessionService } from '../../common/authz/session.service';
+import { SessionsRepository } from '../../common/authz/sessions.repository';
+import { AuditService } from '../../common/audit/audit.service';
+import { AuditRepository } from '../../common/audit/audit.repository';
 import { EmailTakenError } from './auth.errors';
 
 // Integration tests (need local Postgres; schema ensured by jest globalSetup).
@@ -21,6 +25,10 @@ const providers = [
   UsersRepository,
   ListsRepository,
   EmailOutboxRepository,
+  SessionService,
+  SessionsRepository,
+  AuditService,
+  AuditRepository,
   DbService,
 ];
 const VALID_PW = '9x!vQ2mLp0zR';

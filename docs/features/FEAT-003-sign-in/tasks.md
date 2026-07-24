@@ -58,7 +58,7 @@
       next returns `429 rate_limited` with `retryAfterSeconds`, and a new window
       resets the count (AC-6, mechanism).
 
-- [ ] T7 — Domain (sign-in + lockout): `UsersRepository.findByEmailForAuth` /
+- [x] T7 — Domain (sign-in + lockout): `UsersRepository.findByEmailForAuth` /
       `recordFailedLogin` / `resetFailedLogin`; `InvalidCredentialsError` /
       `EmailNotVerifiedError` / `AccountLockedError`; `AuthService.signIn` per the
       §5 order (lockout check → password verify → verification check → issue

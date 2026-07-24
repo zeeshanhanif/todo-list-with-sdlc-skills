@@ -8,11 +8,20 @@ import { UsersRepository } from './users.repository';
 import { ListsRepository } from './lists.repository';
 import { EmailOutboxRepository } from './email-outbox.repository';
 import {
+  SessionService,
+  IssuedSession,
+} from '../../common/authz/session.service';
+import { AuditService, AUDIT_EVENTS } from '../../common/audit/audit.service';
+import {
+  AccountLockedError,
+  EmailNotVerifiedError,
   EmailTakenError,
+  InvalidCredentialsError,
   PasswordPolicyError,
   TokenExpiredError,
   TokenInvalidError,
 } from './auth.errors';
+import type { SessionUser } from '@todo/shared';
 
 /**
  * Registration orchestration (FR-AUTH-001/002/005, FR-LIST-003; technical-design §5):
@@ -30,6 +39,8 @@ export class AuthService {
     private readonly users: UsersRepository,
     private readonly lists: ListsRepository,
     private readonly outbox: EmailOutboxRepository,
+    private readonly sessions: SessionService,
+    private readonly audit: AuditService,
   ) {}
 
   async register(input: { email: string; password: string }): Promise<void> {
@@ -94,6 +105,90 @@ export class AuthService {
       // Lost a race to a concurrent verify; the account is verified either way.
       throw new TokenInvalidError();
     }
+  }
+
+  /**
+   * Sign in with email + password (FR-AUTH-009/010/007/016/019; UC-003;
+   * technical-design §5). Order: lockout check → password verify → verification
+   * check → issue session. Failures are generic (no enumeration, FR-AUTH-010);
+   * consecutive failures lock the account (FR-AUTH-019); every attempt is
+   * audited (NFR-SEC-009). Returns the user + the issued session (raw token +
+   * cookie options); the controller sets the cookie.
+   */
+  async signIn(input: {
+    email: string;
+    password: string;
+    ip?: string | null;
+  }): Promise<{ user: SessionUser; session: IssuedSession }> {
+    const email = input.email.trim().toLowerCase();
+    const ip = input.ip ?? null;
+
+    const user = await this.users.findByEmailForAuth(this.db, email);
+    if (!user) {
+      // Unknown email — generic failure, nothing to lock (per-IP limiter guards
+      // this path). Audited without a user id.
+      await this.audit.record(AUDIT_EVENTS.signInFailure, {
+        ip,
+        detail: { reason: 'unknown_email' },
+      });
+      throw new InvalidCredentialsError();
+    }
+
+    // Lockout gate: while locked, every attempt (even a correct password) fails.
+    if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
+      const retryAfterSeconds = Math.ceil(
+        (user.lockedUntil.getTime() - Date.now()) / 1000,
+      );
+      await this.audit.record(AUDIT_EVENTS.signInFailure, {
+        userId: user.id,
+        ip,
+        detail: { reason: 'locked' },
+      });
+      throw new AccountLockedError(retryAfterSeconds);
+    }
+
+    const passwordOk = await this.hasher.verify(
+      user.passwordHash,
+      input.password,
+    );
+    if (!passwordOk) {
+      const cfg = loadConfig();
+      const nextCount = user.failedLoginCount + 1;
+      const lockUntil =
+        nextCount >= cfg.loginMaxFailedAttempts
+          ? new Date(Date.now() + cfg.loginLockoutMinutes * 60 * 1000)
+          : null;
+      await this.users.recordFailedLogin(this.db, user.id, lockUntil);
+      await this.audit.record(AUDIT_EVENTS.signInFailure, {
+        userId: user.id,
+        ip,
+        detail: {
+          reason: lockUntil ? 'bad_password_now_locked' : 'bad_password',
+        },
+      });
+      // The failing attempt itself reports invalid credentials; the lock (if
+      // just set) gates the next attempt (AC-5).
+      throw new InvalidCredentialsError();
+    }
+
+    // Credentials are valid — clear any accumulated failures.
+    await this.users.resetFailedLogin(this.db, user.id);
+
+    if (user.verifiedAt === null) {
+      await this.audit.record(AUDIT_EVENTS.signInFailure, {
+        userId: user.id,
+        ip,
+        detail: { reason: 'unverified' },
+      });
+      throw new EmailNotVerifiedError();
+    }
+
+    const session = await this.sessions.issue(user.id);
+    await this.audit.record(AUDIT_EVENTS.signInSuccess, {
+      userId: user.id,
+      ip,
+    });
+    return { user: { id: user.id, email: user.email }, session };
   }
 
   /**

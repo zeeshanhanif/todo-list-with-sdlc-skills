@@ -15,6 +15,16 @@ export interface VerificationTokenMatch {
   verificationTokenExpiresAt: Date | null;
 }
 
+/** A user loaded for the sign-in credential check (FEAT-003 sign-in flow). */
+export interface AuthUser {
+  id: string;
+  email: string;
+  passwordHash: string;
+  verifiedAt: Date | null;
+  failedLoginCount: number;
+  lockedUntil: Date | null;
+}
+
 @Injectable()
 export class UsersRepository {
   /** Insert an unverified user. Throws pg 23505 on users_email_key if the email
@@ -93,6 +103,68 @@ export class UsersRepository {
               updated_at = now()
         WHERE id = $1`,
       [id, tokenHash, expiresAt],
+    );
+  }
+
+  /** Load a user by normalized email for the sign-in credential check
+   * (FEAT-003 §5). Returns null when no account has that email. */
+  async findByEmailForAuth(
+    q: TxClient,
+    email: string,
+  ): Promise<AuthUser | null> {
+    const res = await q.query<{
+      id: string;
+      email: string;
+      password_hash: string;
+      verified_at: Date | null;
+      failed_login_count: number;
+      locked_until: Date | null;
+    }>(
+      `SELECT id, email, password_hash, verified_at, failed_login_count, locked_until
+         FROM users WHERE email = $1`,
+      [email],
+    );
+    const row = res.rows[0];
+    if (!row) {
+      return null;
+    }
+    return {
+      id: row.id,
+      email: row.email,
+      passwordHash: row.password_hash,
+      verifiedAt: row.verified_at,
+      failedLoginCount: row.failed_login_count,
+      lockedUntil: row.locked_until,
+    };
+  }
+
+  /** Record a failed sign-in: increment the consecutive-failure counter and,
+   * when a lock is triggered, set `locked_until` (FEAT-003 §5; FR-AUTH-019). */
+  async recordFailedLogin(
+    q: TxClient,
+    id: string,
+    lockUntil: Date | null,
+  ): Promise<void> {
+    await q.query(
+      `UPDATE users
+          SET failed_login_count = failed_login_count + 1,
+              locked_until = $2,
+              updated_at = now()
+        WHERE id = $1`,
+      [id, lockUntil],
+    );
+  }
+
+  /** Clear the failed-login counter and any lock after a successful credential
+   * check (FEAT-003 §5; FR-AUTH-019). */
+  async resetFailedLogin(q: TxClient, id: string): Promise<void> {
+    await q.query(
+      `UPDATE users
+          SET failed_login_count = 0,
+              locked_until = NULL,
+              updated_at = now()
+        WHERE id = $1`,
+      [id],
     );
   }
 
