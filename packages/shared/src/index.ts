@@ -169,3 +169,35 @@ export const LOGOUT_PATH = "/auth/logout";
 export interface SignOutResponse {
   status: "signed_out";
 }
+
+// --- Auth: forgot / reset password (FEAT-005) ---
+
+/** Path of the forgot-password (reset-request) endpoint. Neutral response. */
+export const FORGOT_PATH = "/auth/forgot";
+
+/** Path of the reset-password endpoint. Consumes a single-use reset token. */
+export const RESET_PATH = "/auth/reset";
+
+/** Request body of POST /auth/forgot. */
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+/** Success response (200) of POST /auth/forgot — neutral: the same body whether
+ * or not the address is registered (FEAT-005 technical-design §3.1, no enumeration). */
+export interface ForgotPasswordResponse {
+  status: "reset_requested";
+}
+
+/** Request body of POST /auth/reset — the raw token from the email link + the
+ * new password (validated against the policy, NFR-SEC-003). */
+export interface ResetPasswordRequest {
+  token: string;
+  password: string;
+}
+
+/** Success response (200) of POST /auth/reset. The reset invalidates all of the
+ * user's existing sessions (FR-AUTH-017). */
+export interface ResetPasswordResponse {
+  status: "password_reset";
+}

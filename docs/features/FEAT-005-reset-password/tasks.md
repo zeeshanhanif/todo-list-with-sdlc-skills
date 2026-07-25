@@ -14,7 +14,7 @@
       Done when: `npm run db:migrate` applies clean and the down migration drops
       the index + columns, against the current schema (last migration 005).
 
-- [ ] T2 — Shared contracts (`@todo/shared`): add `FORGOT_PATH`, `RESET_PATH`,
+- [x] T2 — Shared contracts (`@todo/shared`): add `FORGOT_PATH`, `RESET_PATH`,
       `ForgotPasswordRequest`, `ForgotPasswordResponse` (`{status:"reset_requested"}`),
       `ResetPasswordRequest` (`{token,password}`), `ResetPasswordResponse`
       (`{status:"password_reset"}`). Design §3.
