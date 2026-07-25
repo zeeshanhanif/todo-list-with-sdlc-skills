@@ -7,7 +7,7 @@
 > mandatory Playwright E2E task (legitimate skip, mirroring FEAT-001..004).
 > Behavioral tasks use Jest integration + supertest contract tests.
 
-- [ ] T1 — Migration 006 (`1721530000000_password-reset.js`): add
+- [x] T1 — Migration 006 (`1721530000000_password-reset.js`): add
       `reset_token_hash` + `reset_token_expires_at` to `users` and the partial
       index `users_reset_token_hash_idx … WHERE reset_token_hash IS NOT NULL`
       (design §4).
