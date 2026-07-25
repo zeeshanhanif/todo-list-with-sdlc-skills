@@ -52,7 +52,7 @@
       field), AC-7 (429 on forgot and on reset), AC-8 (400 validation_failed +
       fields[]), each rendering the `ApiError` envelope.
 
-- [ ] T6 — UI integration point: serve **SCR-WEB-005** (forgot request) at
+- [x] T6 — UI integration point: serve **SCR-WEB-005** (forgot request) at
       `/reset-password` (no token) consuming `POST /api/auth/forgot` with the
       neutral submitted state, and **SCR-WEB-006** (set new password) at
       `/reset-password?token=…` consuming `POST /api/auth/reset` with
