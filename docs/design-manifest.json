@@ -96,6 +96,29 @@
       },
       "status": "designed",
       "designed_at": "2026-07-24"
+    },
+    "SCR-WEB-007": {
+      "name": "App Shell — sign-out control",
+      "surface": "WEB",
+      "feature": "FEAT-004",
+      "strategy": "code-native",
+      "source": {
+        "spec": "features/FEAT-004-sign-out/ui-design.md#scr-web-007--app-shell-sign-out-control"
+      },
+      "states": {
+        "covered": ["default", "signing-out"],
+        "gaps": [],
+        "supplements": []
+      },
+      "contract_bindings": ["POST /auth/logout"],
+      "notes": "Scoped to the sign-out control FEAT-004 adds to the app shell (sidebar-footer button-tertiary + Lucide LogOut → POST /api/auth/logout → redirect /signin). The shell FRAME and its loading/ready states are the foundations skeleton (apps/web/src/app/page.tsx), not designed by this entry; later shell-touching features (sidebar lists FEAT-009, smart views FEAT-016, settings link SCR-WEB-014) extend this entry. Logout is idempotent so the control has no error state (technical-design D1). SCR-WEB-010's UC-004 tag is a likely source typo — no entry created for it (see feature ui-design.md §escalations).",
+      "conformance": {
+        "result": "pass",
+        "corrections": [],
+        "escalations": []
+      },
+      "status": "designed",
+      "designed_at": "2026-07-25"
     }
   }
 }

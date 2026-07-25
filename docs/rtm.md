@@ -25,7 +25,7 @@
 | FR-AUTH-008 | Resend verification email | Should | Active | SI | UC-002 | ADR-007; features/FEAT-002-verify-email/technical-design.md; features/FEAT-002-verify-email/ui-design.md | FEAT-002 | features/FEAT-002-verify-email/acceptance-report.md |
 | FR-AUTH-009 | Sign in with email + password | Must | Active | SI | UC-003 | ADR-005; features/FEAT-003-sign-in/technical-design.md; features/FEAT-003-sign-in/ui-design.md | FEAT-003 | features/FEAT-003-sign-in/acceptance-report.md |
 | FR-AUTH-010 | Generic failure msg (no enumeration) | Must | Active | SEC | UC-003 | arch §8; features/FEAT-003-sign-in/technical-design.md; features/FEAT-003-sign-in/ui-design.md | FEAT-003 | features/FEAT-003-sign-in/acceptance-report.md |
-| FR-AUTH-011 | Log out / terminate session | Must | Active | SI | UC-004 | ADR-005 | FEAT-004 | _TBD_ |
+| FR-AUTH-011 | Log out / terminate session | Must | Active | SI | UC-004 | ADR-005; features/FEAT-004-sign-out/technical-design.md; features/FEAT-004-sign-out/ui-design.md | FEAT-004 | _TBD_ |
 | FR-AUTH-012 | Forgot-password request (neutral response) | Must | Active | SI | UC-005 | arch §8 | FEAT-005 | _TBD_ |
 | FR-AUTH-013 | Send single-use reset link | Must | Active | SI | UC-005 | ADR-007; features/FEAT-007-email-delivery/technical-design.md | FEAT-005, FEAT-007 | features/FEAT-007-email-delivery/acceptance-report.md (partial) |
 | FR-AUTH-014 | Set new password via reset link | Must | Active | SI | UC-005 | ADR-005 | FEAT-005 | _TBD_ |
