@@ -119,6 +119,52 @@
       },
       "status": "designed",
       "designed_at": "2026-07-25"
+    },
+    "SCR-WEB-005": {
+      "name": "Forgot Password",
+      "surface": "WEB",
+      "feature": "FEAT-005",
+      "strategy": "code-native",
+      "source": {
+        "spec": "features/FEAT-005-reset-password/ui-design.md#scr-web-005--forgot-password"
+      },
+      "states": {
+        "covered": ["default", "submitted", "field-error", "rate-limited"],
+        "gaps": [],
+        "supplements": []
+      },
+      "contract_bindings": ["POST /auth/forgot"],
+      "notes": "Public auth zone (AuthShell). Served at /reset-password with no ?token=. Response is always the neutral 200 reset_requested; the 'submitted' state shows the same confirmation whether or not the email is registered (FR-AUTH-012, no enumeration). Shares the /reset-password route with SCR-WEB-006 (token-presence switch, ui-design D1).",
+      "conformance": {
+        "result": "pass",
+        "corrections": [],
+        "escalations": []
+      },
+      "status": "designed",
+      "designed_at": "2026-07-25"
+    },
+    "SCR-WEB-006": {
+      "name": "Reset Password",
+      "surface": "WEB",
+      "feature": "FEAT-005",
+      "strategy": "code-native",
+      "source": {
+        "spec": "features/FEAT-005-reset-password/ui-design.md#scr-web-006--reset-password"
+      },
+      "states": {
+        "covered": ["default", "success", "invalid", "expired", "field-error", "rate-limited"],
+        "gaps": [],
+        "supplements": []
+      },
+      "contract_bindings": ["POST /auth/reset"],
+      "notes": "Public auth zone (AuthShell). Served at /reset-password?token=… (the worker-fixed reset-email link target). success reflects FR-AUTH-017 (other sessions signed out) and routes to /signin; invalid/expired map 400 token_invalid/token_expired with a 'request a new link' path; field-error is the 400 validation_failed password-policy case with the token NOT consumed (retry-friendly, technical-design D3).",
+      "conformance": {
+        "result": "pass",
+        "corrections": [],
+        "escalations": []
+      },
+      "status": "designed",
+      "designed_at": "2026-07-25"
     }
   }
 }

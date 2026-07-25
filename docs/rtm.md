@@ -26,12 +26,12 @@
 | FR-AUTH-009 | Sign in with email + password | Must | Active | SI | UC-003 | ADR-005; features/FEAT-003-sign-in/technical-design.md; features/FEAT-003-sign-in/ui-design.md | FEAT-003 | features/FEAT-003-sign-in/acceptance-report.md |
 | FR-AUTH-010 | Generic failure msg (no enumeration) | Must | Active | SEC | UC-003 | arch §8; features/FEAT-003-sign-in/technical-design.md; features/FEAT-003-sign-in/ui-design.md | FEAT-003 | features/FEAT-003-sign-in/acceptance-report.md |
 | FR-AUTH-011 | Log out / terminate session | Must | Active | SI | UC-004 | ADR-005; features/FEAT-004-sign-out/technical-design.md; features/FEAT-004-sign-out/ui-design.md | FEAT-004 | features/FEAT-004-sign-out/acceptance-report.md |
-| FR-AUTH-012 | Forgot-password request (neutral response) | Must | Active | SI | UC-005 | arch §8 | FEAT-005 | _TBD_ |
-| FR-AUTH-013 | Send single-use reset link | Must | Active | SI | UC-005 | ADR-007; features/FEAT-007-email-delivery/technical-design.md | FEAT-005, FEAT-007 | features/FEAT-007-email-delivery/acceptance-report.md (partial) |
-| FR-AUTH-014 | Set new password via reset link | Must | Active | SI | UC-005 | ADR-005 | FEAT-005 | _TBD_ |
+| FR-AUTH-012 | Forgot-password request (neutral response) | Must | Active | SI | UC-005 | arch §8; features/FEAT-005-reset-password/technical-design.md; features/FEAT-005-reset-password/ui-design.md | FEAT-005 | _TBD_ |
+| FR-AUTH-013 | Send single-use reset link | Must | Active | SI | UC-005 | ADR-007; features/FEAT-007-email-delivery/technical-design.md; features/FEAT-005-reset-password/technical-design.md | FEAT-005, FEAT-007 | features/FEAT-007-email-delivery/acceptance-report.md (partial) |
+| FR-AUTH-014 | Set new password via reset link | Must | Active | SI | UC-005 | ADR-005; features/FEAT-005-reset-password/technical-design.md; features/FEAT-005-reset-password/ui-design.md | FEAT-005 | _TBD_ |
 | FR-AUTH-015 | Change password (verify current) | Must | Active | SI | UC-006 | ADR-005 | FEAT-006 | _TBD_ |
 | FR-AUTH-016 | Establish long-lived session on sign-in | Must | Active | SI | UC-003 | ADR-005; features/FEAT-003-sign-in/technical-design.md | FEAT-003 | features/FEAT-003-sign-in/acceptance-report.md |
-| FR-AUTH-017 | Invalidate sessions on password change/reset | Must | Active | SEC | UC-005, UC-006 | ADR-005 | FEAT-005, FEAT-006 | _TBD_ |
+| FR-AUTH-017 | Invalidate sessions on password change/reset | Must | Active | SEC | UC-005, UC-006 | ADR-005; features/FEAT-005-reset-password/technical-design.md | FEAT-005, FEAT-006 | _TBD_ |
 | FR-AUTH-018 | Rate-limit auth endpoints | Must | Active | SEC | UC-003, UC-005 | arch §8; features/FEAT-003-sign-in/technical-design.md; features/FEAT-003-sign-in/ui-design.md | FEAT-003 | features/FEAT-003-sign-in/acceptance-report.md (partial) |
 | FR-AUTH-019 | Lockout/throttle after failed attempts | Must | Active | SEC | UC-003 | arch §8; features/FEAT-003-sign-in/technical-design.md; features/FEAT-003-sign-in/ui-design.md | FEAT-003 | features/FEAT-003-sign-in/acceptance-report.md |
 | FR-AUTHZ-001 | Require auth for all data operations | Must | Active | SEC | UC-003 (all auth UCs) | ADR-005; arch §8; features/FEAT-003-sign-in/technical-design.md (partial — session auth) | Foundations | features/FEAT-003-sign-in/acceptance-report.md (partial) |
@@ -103,7 +103,7 @@
 | NFR-SEC-001 | TLS 1.2+ in transit | Must | Active | SEC | — | arch §8 | Foundations | _TBD_ |
 | NFR-SEC-002 | Encryption at rest | Must | Active | SEC | — | arch §8 | Foundations | _TBD_ |
 | NFR-SEC-003 | Password policy (≥10, breach-checked) | Must | Active | SEC | UC-001, UC-005, UC-006 | arch §8 | Foundations | _TBD_ |
-| NFR-SEC-004 | Link expiry (verify 24h, reset 1h) | Must | Active | SEC | UC-002, UC-005 | arch §8 | FEAT-002, FEAT-005 | _TBD_ |
+| NFR-SEC-004 | Link expiry (verify 24h, reset 1h) | Must | Active | SEC | UC-002, UC-005 | arch §8; features/FEAT-005-reset-password/technical-design.md | FEAT-002, FEAT-005 | _TBD_ |
 | NFR-SEC-005 | Salted adaptive password hashing | Must | Active | SEC | — | arch §8 | Foundations | _TBD_ |
 | NFR-SEC-006 | Rate limiting thresholds | Must | Active | SEC | UC-003 | arch §8; features/FEAT-003-sign-in/technical-design.md | FEAT-003 | features/FEAT-003-sign-in/acceptance-report.md (partial) |
 | NFR-SEC-007 | Secure session tokens, CSRF, rotation | Must | Active | SEC | — | ADR-005; features/FEAT-003-sign-in/technical-design.md (partial — session cookie) | Foundations | features/FEAT-003-sign-in/acceptance-report.md (partial) |
