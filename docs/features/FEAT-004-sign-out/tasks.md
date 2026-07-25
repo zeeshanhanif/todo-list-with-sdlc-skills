@@ -12,7 +12,7 @@
       Done when: `npm run build:shared` succeeds and api + web typecheck against
       them.
 
-- [ ] T2 — Domain (revoke): `SessionsRepository.deleteByTokenHash(tokenHash)`
+- [x] T2 — Domain (revoke): `SessionsRepository.deleteByTokenHash(tokenHash)`
       (returns deleted count) + `SessionService.revoke(rawToken)` (hash + delete,
       no-op on empty) + `AuthService.signOut(rawToken)` (thin delegate);
       `clearSessionCookieOptions(cookieSecure)` in `session.constants.ts`.

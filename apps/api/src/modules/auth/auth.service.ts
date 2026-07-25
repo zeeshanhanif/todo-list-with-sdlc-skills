@@ -192,6 +192,16 @@ export class AuthService {
   }
 
   /**
+   * Sign out (FR-AUTH-011; UC-004; FEAT-004 technical-design §5). Thin delegate
+   * to SessionService.revoke — terminates the current session server-side.
+   * Idempotent: an empty/unknown token is a no-op. The controller clears the
+   * session cookie.
+   */
+  async signOut(rawToken: string): Promise<void> {
+    await this.sessions.revoke(rawToken);
+  }
+
+  /**
    * Resend a verification email (FR-AUTH-008; technical-design §5, D3/D4/D5).
    * Always a no-throw, neutral operation for the caller: it performs its side
    * effect (rotate token + enqueue a fresh verification email in one

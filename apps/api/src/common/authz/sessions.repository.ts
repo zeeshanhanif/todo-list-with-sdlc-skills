@@ -64,4 +64,14 @@ export class SessionsRepository {
       [sessionId],
     );
   }
+
+  /** Delete the single session matching a token hash (sign-out revoke, FEAT-004).
+   * Returns the number of rows deleted (0 when nothing matched — idempotent). */
+  async deleteByTokenHash(tokenHash: string): Promise<number> {
+    const res = await this.db.query(
+      `DELETE FROM sessions WHERE token_hash = $1`,
+      [tokenHash],
+    );
+    return res.rowCount ?? 0;
+  }
 }

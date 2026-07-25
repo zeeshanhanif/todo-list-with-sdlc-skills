@@ -57,4 +57,13 @@ export class SessionService {
     await this.sessions.touchLastUsed(match.sessionId);
     return { id: match.userId, email: match.email };
   }
+
+  /** Revoke the session for a presented raw token (sign-out, FEAT-004).
+   * Idempotent: an empty or unknown token is a no-op, never an error. */
+  async revoke(rawToken: string): Promise<void> {
+    if (!rawToken) {
+      return;
+    }
+    await this.sessions.deleteByTokenHash(this.hashToken(rawToken));
+  }
 }
