@@ -1,7 +1,7 @@
 # Tasks: FEAT-005 — Forgot / reset password
 
 > Executes: docs/features/FEAT-005-reset-password/technical-design.md
-> Status: pending per task · Last updated: 2026-07-25
+> Status: all tasks done · Last updated: 2026-07-25
 > Note: the worker already renders the `password_reset` email (FEAT-007) — no
 > worker change. Architecture names no critical E2E flows / frameworks → no
 > mandatory Playwright E2E task (legitimate skip, mirroring FEAT-001..004).
@@ -64,7 +64,7 @@
       valid link sets a new password and routes to `/signin`; an expired/invalid
       link renders the recovery state.
 
-- [ ] T7 — Verify: acceptance criteria AC-1..AC-8 (design §6) demonstrably pass;
+- [x] T7 — Verify: acceptance criteria AC-1..AC-8 (design §6) demonstrably pass;
       `npm run boundaries`, `npm run lint`, and the api + shared test suites are
       green; migration 006 up/down clean.
       Done when: the full feature suite passes and the checklist above is satisfied.
