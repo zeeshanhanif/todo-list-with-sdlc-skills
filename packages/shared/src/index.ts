@@ -157,3 +157,15 @@ export const AUTH_ERROR_CODES = {
 export interface RetryAfterError extends ApiError {
   retryAfterSeconds: number;
 }
+
+// --- Auth: sign out (FEAT-004) ---
+
+/** Path of the sign-out endpoint. Idempotent; clears the session cookie. */
+export const LOGOUT_PATH = "/auth/logout";
+
+/** Success response (200) of POST /auth/logout — always neutral/idempotent
+ * (FEAT-004 technical-design §3.1). The session cookie is cleared via the
+ * response's Set-Cookie header. */
+export interface SignOutResponse {
+  status: "signed_out";
+}
