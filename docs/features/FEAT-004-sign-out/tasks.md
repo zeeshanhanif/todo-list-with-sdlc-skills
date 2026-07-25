@@ -30,7 +30,7 @@
       cookie / invalid cookie), AC-3 (only the current session removed), each
       rendering the designed response.
 
-- [ ] T4 — UI integration point: wire the sign-out control on the app shell
+- [x] T4 — UI integration point: wire the sign-out control on the app shell
       (SCR-WEB-007) to `POST /api/auth/logout`, then redirect to `/signin`; add
       the BFF route `POST /api/auth/logout` forwarding the browser `Cookie` and
       relaying the clear `Set-Cookie` (mirrors the login BFF, technical-design
