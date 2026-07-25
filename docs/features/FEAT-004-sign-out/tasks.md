@@ -21,7 +21,7 @@
       the token and leaves the user's other sessions intact (AC-3), and is a
       no-op (no throw) for an empty/unknown token (AC-2 domain half).
 
-- [ ] T3 — Contract: `AuthController` `POST /auth/logout` — read the session
+- [x] T3 — Contract: `AuthController` `POST /auth/logout` — read the session
       cookie, call `auth.signOut`, `res.clearCookie(SESSION_COOKIE, …)`, return
       `200 { status:"signed_out" }`; unguarded + idempotent (D1). Design §3;
       UC-004.

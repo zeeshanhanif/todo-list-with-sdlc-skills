@@ -22,8 +22,11 @@ import {
   type SessionResponse,
   type SessionUser,
   type SignInResponse,
+  type SignOutResponse,
   type VerifyResponse,
 } from '@todo/shared';
+import { loadConfig } from '../../infra/config';
+import { clearSessionCookieOptions } from '../../common/authz/session.constants';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { VerifyDto } from './dto/verify.dto';
@@ -127,6 +130,24 @@ export class AuthController {
   @UseGuards(SessionGuard)
   session(@CurrentUser() user: SessionUser): SessionResponse {
     return { user };
+  }
+
+  // POST /auth/logout (FR-AUTH-011; UC-004) — matches LOGOUT_PATH. Unguarded and
+  // idempotent (technical-design D1): revokes the current session if the cookie
+  // resolves to one, and always clears the cookie + returns 200.
+  @Post('logout')
+  @HttpCode(200)
+  async logout(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<SignOutResponse> {
+    const cookies = (req.cookies ?? {}) as Record<string, string | undefined>;
+    await this.auth.signOut(cookies[SESSION_COOKIE] ?? '');
+    res.clearCookie(
+      SESSION_COOKIE,
+      clearSessionCookieOptions(loadConfig().cookieSecure),
+    );
+    return { status: 'signed_out' };
   }
 
   // POST /auth/verify (FR-AUTH-006, NFR-SEC-004; UC-002) — matches VERIFY_PATH.
