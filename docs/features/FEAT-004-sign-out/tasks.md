@@ -1,7 +1,7 @@
 # Tasks: FEAT-004 — Sign out
 
 > Executes: docs/features/FEAT-004-sign-out/technical-design.md
-> Status: pending per task · Last updated: 2026-07-25
+> Status: all tasks done · Last updated: 2026-07-25
 > Note: no migration (reuses the sessions table from FEAT-003's migration 005).
 > Architecture names no critical E2E flows / frameworks → no mandatory Playwright
 > E2E task (legitimate skip, mirroring FEAT-001/002/003). Behavioral tasks use
@@ -40,7 +40,7 @@
       on `/signin`; a reload shows the signed-out state (`GET /api/auth/session`
       → 401).
 
-- [ ] T5 — Verify: acceptance criteria AC-1..AC-3 (design §6) demonstrably pass;
+- [x] T5 — Verify: acceptance criteria AC-1..AC-3 (design §6) demonstrably pass;
       `npm run boundaries`, `npm run lint`, and the api + shared test suites are
       green. (No migration in this feature.)
       Done when: the full feature suite passes and the checklist above is
