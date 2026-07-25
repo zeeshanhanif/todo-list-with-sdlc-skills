@@ -41,7 +41,7 @@
       password unchanged), AC-6 (policy fail → PasswordPolicyError, password + token
       untouched).
 
-- [ ] T5 — Contract: `AuthController` `POST /auth/forgot` (`ForgotPasswordDto`) +
+- [x] T5 — Contract: `AuthController` `POST /auth/forgot` (`ForgotPasswordDto`) +
       `POST /auth/reset` (`ResetPasswordDto`), both `@UseGuards(RateLimitGuard)`;
       map `TokenExpiredError`/`TokenInvalidError` → `400 token_expired`/`token_invalid`,
       `PasswordPolicyError` → `400 validation_failed` field=`password`. Design §3;
