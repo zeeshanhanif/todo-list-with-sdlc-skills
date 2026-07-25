@@ -21,7 +21,7 @@
       Done when: `npm run build:shared` succeeds and api + web typecheck against
       them.
 
-- [ ] T3 — Domain (forgot): `ResetTokenService` (issue + hashToken) +
+- [x] T3 — Domain (forgot): `ResetTokenService` (issue + hashToken) +
       `resetTokenTtlHours` in `config.ts`; `UsersRepository.findIdByEmail` +
       `setResetToken`; `EmailOutboxRepository.enqueuePasswordReset` (type
       `password_reset`); `AuthService.requestPasswordReset` (neutral no-op for

@@ -25,6 +25,23 @@ export class EmailOutboxRepository {
     );
   }
 
+  /** Enqueue a password-reset email (status 'pending', type 'password_reset').
+   * The worker's EmailRenderer already handles this type (FEAT-007), building the
+   * /reset-password?token= link. Same INSERT shape as enqueueVerification. */
+  async enqueuePasswordReset(
+    tx: TxClient,
+    intent: VerificationEmailIntent,
+  ): Promise<void> {
+    await tx.query(
+      `INSERT INTO email_outbox (type, recipient, payload)
+       VALUES ('password_reset', $1, $2)`,
+      [
+        intent.recipient,
+        JSON.stringify({ token: intent.token, userId: intent.userId }),
+      ],
+    );
+  }
+
   /** Timestamp of the most recent verification email enqueued for a recipient,
    * or null if none. Drives the resend cooldown (FEAT-002 D4) without a schema
    * addition. `q` is any query executor (pool or tx client). */

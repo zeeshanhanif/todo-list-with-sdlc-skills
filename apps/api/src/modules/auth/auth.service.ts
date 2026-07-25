@@ -4,6 +4,7 @@ import { loadConfig } from '../../infra/config';
 import { PasswordPolicyService } from './password-policy.service';
 import { PasswordHasher } from './password-hasher';
 import { VerificationTokenService } from './verification-token.service';
+import { ResetTokenService } from './reset-token.service';
 import { UsersRepository } from './users.repository';
 import { ListsRepository } from './lists.repository';
 import { EmailOutboxRepository } from './email-outbox.repository';
@@ -41,6 +42,7 @@ export class AuthService {
     private readonly outbox: EmailOutboxRepository,
     private readonly sessions: SessionService,
     private readonly audit: AuditService,
+    private readonly resetTokens: ResetTokenService,
   ) {}
 
   async register(input: { email: string; password: string }): Promise<void> {
@@ -189,6 +191,31 @@ export class AuthService {
       ip,
     });
     return { user: { id: user.id, email: user.email }, session };
+  }
+
+  /**
+   * Request a password reset (FR-AUTH-012/013; UC-005; FEAT-005 technical-design
+   * §5). Neutral for the caller: performs its side effect (issue + store a reset
+   * token, enqueue a password_reset email in one transaction) only for a
+   * registered address; an unknown address is a silent no-op (no enumeration).
+   */
+  async requestPasswordReset(inputEmail: string): Promise<void> {
+    const email = inputEmail.trim().toLowerCase();
+
+    const user = await this.users.findIdByEmail(this.db, email);
+    if (!user) {
+      return; // unknown address — neutral
+    }
+
+    const token = this.resetTokens.issue();
+    await this.db.transaction(async (tx) => {
+      await this.users.setResetToken(tx, user.id, token.hash, token.expiresAt);
+      await this.outbox.enqueuePasswordReset(tx, {
+        recipient: email,
+        userId: user.id,
+        token: token.raw,
+      });
+    });
   }
 
   /**

@@ -168,6 +168,76 @@ export class UsersRepository {
     );
   }
 
+  /** Look up a user id by normalized email (FEAT-005 forgot). Returns null when
+   * the address is unknown — the caller responds neutrally either way. */
+  async findIdByEmail(
+    q: TxClient,
+    email: string,
+  ): Promise<{ id: string } | null> {
+    const res = await q.query<{ id: string }>(
+      `SELECT id FROM users WHERE email = $1`,
+      [email],
+    );
+    return res.rows[0] ?? null;
+  }
+
+  /** Store a freshly issued reset token on the user row, replacing any prior one
+   * (FEAT-005 §5; rotates the previous reset link). */
+  async setResetToken(
+    tx: TxClient,
+    id: string,
+    tokenHash: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    await tx.query(
+      `UPDATE users
+          SET reset_token_hash = $2,
+              reset_token_expires_at = $3,
+              updated_at = now()
+        WHERE id = $1`,
+      [id, tokenHash, expiresAt],
+    );
+  }
+
+  /** Resolve a presented reset token hash to its user (FEAT-005 reset). Returns
+   * null when no live token matches — never issued, already consumed, or rotated. */
+  async findByResetTokenHash(
+    q: TxClient,
+    tokenHash: string,
+  ): Promise<{ id: string; resetTokenExpiresAt: Date | null } | null> {
+    const res = await q.query<{
+      id: string;
+      reset_token_expires_at: Date | null;
+    }>(
+      `SELECT id, reset_token_expires_at
+         FROM users WHERE reset_token_hash = $1`,
+      [tokenHash],
+    );
+    const row = res.rows[0];
+    if (!row) {
+      return null;
+    }
+    return { id: row.id, resetTokenExpiresAt: row.reset_token_expires_at };
+  }
+
+  /** Set a new password and consume the reset token (single-use): clear the reset
+   * columns in the same statement (FEAT-005 §5; FR-AUTH-014). */
+  async updatePasswordAndClearReset(
+    tx: TxClient,
+    id: string,
+    passwordHash: string,
+  ): Promise<void> {
+    await tx.query(
+      `UPDATE users
+          SET password_hash = $2,
+              reset_token_hash = NULL,
+              reset_token_expires_at = NULL,
+              updated_at = now()
+        WHERE id = $1`,
+      [id, passwordHash],
+    );
+  }
+
   /** Mark a user verified and consume its token (single-use, NFR-SEC-004): set
    * verified_at and clear the token columns. Guarded `WHERE verified_at IS NULL`
    * so a concurrent second verify is a no-op. Returns true when this call did the
