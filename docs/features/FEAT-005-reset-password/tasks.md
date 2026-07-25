@@ -31,7 +31,7 @@
       neutral outcome) and AC-2 (only the SHA-256 hash stored; raw only in the
       outbox payload; expiry ≈ now + TTL).
 
-- [ ] T4 — Domain (reset): `UsersRepository.findByResetTokenHash` +
+- [x] T4 — Domain (reset): `UsersRepository.findByResetTokenHash` +
       `updatePasswordAndClearReset`; `SessionsRepository.deleteByUserId` (FR-AUTH-017);
       `AuthService.resetPassword` per the §5 order (validate token → policy →
       update + consume + invalidate sessions, one tx). Design §5; FR-AUTH-014/017.

@@ -3,6 +3,7 @@ import type { CookieOptions } from 'express';
 import { Injectable } from '@nestjs/common';
 import type { SessionUser } from '@todo/shared';
 import { loadConfig } from '../../infra/config';
+import type { TxClient } from '../../infra/db.service';
 import { SessionsRepository } from './sessions.repository';
 import { sessionCookieOptions } from './session.constants';
 
@@ -65,5 +66,12 @@ export class SessionService {
       return;
     }
     await this.sessions.deleteByTokenHash(this.hashToken(rawToken));
+  }
+
+  /** Revoke ALL of a user's sessions — the "invalidate all" on password
+   * change/reset (FR-AUTH-017) and account deletion (FR-DATA-005). Accepts a tx
+   * client so it runs atomically with the credential change (FEAT-005). */
+  async revokeAllForUser(userId: string, tx?: TxClient): Promise<void> {
+    await this.sessions.deleteByUserId(userId, tx);
   }
 }
