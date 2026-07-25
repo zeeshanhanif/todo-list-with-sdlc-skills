@@ -22,8 +22,13 @@ describe('POST /auth/register (contract)', () => {
     return e;
   };
   const server = () => app.getHttpServer() as Parameters<typeof request>[0];
+  const prevRl = process.env.AUTH_RATELIMIT_MAX;
 
   beforeAll(async () => {
+    // /auth/register is behind the per-IP RateLimitGuard (FEAT-003). This spec
+    // shares the default IP and auth_rate_buckets rows persist across runs within
+    // the window, so lift the limit here to keep the contract assertions stable.
+    process.env.AUTH_RATELIMIT_MAX = '1000000';
     const mod = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -42,6 +47,8 @@ describe('POST /auth/register (contract)', () => {
   });
 
   afterAll(async () => {
+    if (prevRl === undefined) delete process.env.AUTH_RATELIMIT_MAX;
+    else process.env.AUTH_RATELIMIT_MAX = prevRl;
     await app.close();
   });
 
