@@ -3,6 +3,13 @@
 Monorepo for a private, multi-user personal task manager. This file is an index;
 follow the pointers.
 
+## Read first, every session
+**`.claude/memory/MEMORY.md`** — the project's memory index (working agreements
+and standing preferences, one file per memory). Read it and the memories it links
+before doing project work; add new ones there. Standing rule from it, repeated
+here because it's easy to violate by habit: **git commit messages carry no
+`Co-Authored-By` trailer.**
+
 ## Pipeline documents (source of truth — read before building)
 - Requirements: `docs/srs.md` · use cases: `docs/use-cases.md`
 - Architecture (the *how*, ADRs): `docs/architecture.md`
