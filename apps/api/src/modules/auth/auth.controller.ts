@@ -17,6 +17,7 @@ import type { Request, Response } from 'express';
 import {
   AUTH_ERROR_CODES,
   SESSION_COOKIE,
+  type ChangePasswordResponse,
   type ForgotPasswordResponse,
   type RegisterResponse,
   type ResendVerificationResponse,
@@ -36,8 +37,10 @@ import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { SignInDto } from './dto/sign-in.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import {
   AccountLockedError,
+  CurrentPasswordInvalidError,
   EmailNotVerifiedError,
   EmailTakenError,
   InvalidCredentialsError,
@@ -234,6 +237,48 @@ export class AuthController {
           code: 'validation_failed',
           message: 'Validation failed.',
           fields: [{ field: 'password', message: err.requirement }],
+        });
+      }
+      throw err; // → 500 internal_error via the filter
+    }
+  }
+
+  // POST /auth/change-password (FR-AUTH-015/017; UC-006) — matches
+  // CHANGE_PASSWORD_PATH. Authenticated: the user comes from the session, never
+  // the body (FR-AUTHZ-001). On success the caller's session is rotated — all
+  // prior sessions are revoked and a fresh cookie is set (technical-design D1,
+  // NFR-SEC-007). Rate-limited per IP (NFR-SEC-006, defense in depth).
+  @Post('change-password')
+  @UseGuards(SessionGuard, RateLimitGuard)
+  @HttpCode(200)
+  async changePassword(
+    @Body() dto: ChangePasswordDto,
+    @CurrentUser() user: SessionUser,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<ChangePasswordResponse> {
+    try {
+      const session = await this.auth.changePassword({
+        userId: user.id,
+        currentPassword: dto.currentPassword,
+        newPassword: dto.newPassword,
+        ip: clientIp(req),
+      });
+      res.cookie(SESSION_COOKIE, session.rawToken, session.cookieOptions);
+      return { status: 'password_changed' };
+    } catch (err) {
+      if (err instanceof CurrentPasswordInvalidError) {
+        throw new BadRequestException({
+          code: AUTH_ERROR_CODES.currentPasswordInvalid,
+          message: err.message,
+          fields: [{ field: 'currentPassword', message: err.message }],
+        });
+      }
+      if (err instanceof PasswordPolicyError) {
+        throw new BadRequestException({
+          code: 'validation_failed',
+          message: 'Validation failed.',
+          fields: [{ field: 'newPassword', message: err.requirement }],
         });
       }
       throw err; // → 500 internal_error via the filter

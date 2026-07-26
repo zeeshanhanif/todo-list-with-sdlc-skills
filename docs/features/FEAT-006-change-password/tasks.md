@@ -44,7 +44,7 @@
       AC-9 (`password_changed` / `password_change_failure` rows with no secrets),
       plus D6 (a pending reset token is cleared by the change).
 
-- [ ] T4 — Contract: `AuthController` `POST /auth/change-password` with
+- [x] T4 — Contract: `AuthController` `POST /auth/change-password` with
       `ChangePasswordDto` (`@IsString @IsNotEmpty` on both fields),
       `@UseGuards(SessionGuard, RateLimitGuard)`, `@CurrentUser()` for the user id
       and `clientIp(req)` for the audit/limiter; set the rotated cookie exactly as
