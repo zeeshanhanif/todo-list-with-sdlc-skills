@@ -4,6 +4,19 @@
    shell loses its colors — the wiring is the point (ux-foundations). */
 @import "../styles/tokens.generated.css";
 
+/* Form action rows (SCR-WEB-015, FEAT-006 ui-design): a row at ≥ sm, stacked
+   below it with the primary first. A media query can't be expressed in the
+   inline token styles the components otherwise use, so it lives here. */
+.form-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+@media (max-width: 640px) {
+  .form-actions {
+    flex-direction: column;
+  }
+}
+
 body {
   background: var(--color-background);
   color: var(--color-text);

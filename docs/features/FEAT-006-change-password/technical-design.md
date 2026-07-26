@@ -317,6 +317,17 @@ latency by design (NFR-SEC-005), the same as sign-in.
   Security & Account hub with only the change-password entry (export and
   delete-account entries land with their own features). Flagged for ui-design,
   which owns the screen; the plan needs no correction.
+- **Recorded by implementation (T5, 2026-07-26) — pre-existing shell gap, not
+  fixed here.** design.md §3 says the app shell's sidebar becomes a drawer below
+  `md` with a full-width main column; the skeleton shell
+  (`apps/web/src/components/app-shell.tsx`, extracted from `app/page.tsx` by T5)
+  has **no drawer** — the 280px sidebar stays fixed, so at a 390px viewport the
+  content column is ~115px wide. FEAT-006's screens inherit the shell (their
+  responsive notes say so) and no FEAT-006 acceptance criterion covers it; the
+  shell frame's states belong to the foundations skeleton (FEAT-004's manifest
+  entry records that explicitly). Surfaced as debt for the shell's owner —
+  FEAT-009 (sidebar lists) is the natural place, or a foundations task. Screens
+  verified at desktop width; the form's action row stacks correctly below `sm`.
 - **Deferred by decision, available as amendments:** a
   "new password must differ" rule (D7) and email notification of a password
   change (not in FR-AUTH-015/UC-006; FEAT-007's outbox would carry it) — both

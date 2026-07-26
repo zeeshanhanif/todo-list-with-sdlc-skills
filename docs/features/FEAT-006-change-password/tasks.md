@@ -62,7 +62,7 @@
       + `fields[]`), AC-8 (429 `rate_limited` in its own bucket — login's
       allowance unaffected), each rendering the `ApiError` envelope.
 
-- [ ] T5 — UI integration point: BFF route `POST /api/auth/change-password` that
+- [x] T5 — UI integration point: BFF route `POST /api/auth/change-password` that
       forwards the browser `cookie` + `x-forwarded-for` to the API and **relays
       the API's `set-cookie`** back (login's relay + session's forward, design
       §5/D1); wire **SCR-WEB-015** (change-password form: default / field-error /
