@@ -1,7 +1,7 @@
 # Tasks: FEAT-006 — Change password (signed-in)
 
 > Executes: docs/features/FEAT-006-change-password/technical-design.md
-> Status: pending per task · Last updated: 2026-07-26
+> Status: all tasks done · Last updated: 2026-07-26
 > Notes: **no migration** (design §4/D5) — the list starts at the contract layer.
 > Architecture names no critical E2E flows / frameworks → no mandatory Playwright
 > E2E task (legitimate skip, mirroring FEAT-001..005). Behavioral tasks use the
@@ -75,7 +75,7 @@
       `currentPassword` field error; a weak new password renders the policy
       requirement on `newPassword`.
 
-- [ ] T6 — Verify: acceptance criteria AC-1..AC-9 (design §6) demonstrably pass;
+- [x] T6 — Verify: acceptance criteria AC-1..AC-9 (design §6) demonstrably pass;
       `npm run boundaries`, `npm run lint`, and the api + shared test suites are
       green; no migration to apply (design §4) — confirm `npm run db:migrate` is
       a no-op at migration 006.
