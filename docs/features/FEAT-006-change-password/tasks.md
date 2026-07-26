@@ -28,7 +28,7 @@
       `issue(userId, tx)` leaves no `sessions` row (mirroring
       `db.service.transaction.spec.ts`).
 
-- [ ] T3 — Domain: `UsersRepository.findPasswordHashById`;
+- [x] T3 — Domain: `UsersRepository.findPasswordHashById`;
       `CurrentPasswordInvalidError` in `auth.errors.ts`; `AUDIT_EVENTS`
       `passwordChanged` + `passwordChangeFailure`;
       `AuthService.changePassword({ userId, currentPassword, newPassword, ip })`

@@ -181,6 +181,22 @@ export class UsersRepository {
     return res.rows[0] ?? null;
   }
 
+  /** Load a user's stored password hash by id, for the current-password check on
+   * change-password (FEAT-006 §5; FR-AUTH-015). Returns null only if the id has
+   * no row — unreachable through the session guard (sessions cascade with their
+   * user), so the caller treats it as an invariant violation, not a user error. */
+  async findPasswordHashById(
+    q: TxClient,
+    id: string,
+  ): Promise<{ passwordHash: string } | null> {
+    const res = await q.query<{ password_hash: string }>(
+      `SELECT password_hash FROM users WHERE id = $1`,
+      [id],
+    );
+    const row = res.rows[0];
+    return row ? { passwordHash: row.password_hash } : null;
+  }
+
   /** Store a freshly issued reset token on the user row, replacing any prior one
    * (FEAT-005 §5; rotates the previous reset link). */
   async setResetToken(

@@ -7,6 +7,11 @@ import { AuditEvent, AuditRepository } from './audit.repository';
 export const AUDIT_EVENTS = {
   signInSuccess: 'sign_in_success',
   signInFailure: 'sign_in_failure',
+  /** A signed-in user changed their own password (FEAT-006; FR-AUTH-015). */
+  passwordChanged: 'password_changed',
+  /** A change-password attempt failed the current-password check (FEAT-006;
+   * UC-006 alt 3a). Never carries the submitted password. */
+  passwordChangeFailure: 'password_change_failure',
 } as const;
 
 /**
