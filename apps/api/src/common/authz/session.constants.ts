@@ -23,3 +23,19 @@ export function sessionCookieOptions(
     maxAge: ttlMs,
   };
 }
+
+/**
+ * Options for clearing the session cookie on sign-out (FEAT-004). Express
+ * requires the clearing Set-Cookie to match the original's path/sameSite/secure/
+ * httpOnly, so this mirrors `sessionCookieOptions` minus `maxAge`.
+ */
+export function clearSessionCookieOptions(
+  cookieSecure: boolean,
+): CookieOptions {
+  return {
+    httpOnly: true,
+    secure: cookieSecure,
+    sameSite: 'lax',
+    path: '/',
+  };
+}

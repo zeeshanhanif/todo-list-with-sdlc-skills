@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 import { PasswordPolicyService } from './password-policy.service';
 import { PasswordHasher } from './password-hasher';
 import { VerificationTokenService } from './verification-token.service';
+import { ResetTokenService } from './reset-token.service';
 import { UsersRepository } from './users.repository';
 import { ListsRepository } from './lists.repository';
 import { EmailOutboxRepository } from './email-outbox.repository';
@@ -26,6 +27,7 @@ import { RateLimitRepository } from '../../common/rate-limit/rate-limit.reposito
     PasswordPolicyService,
     PasswordHasher,
     VerificationTokenService,
+    ResetTokenService,
     UsersRepository,
     ListsRepository,
     EmailOutboxRepository,

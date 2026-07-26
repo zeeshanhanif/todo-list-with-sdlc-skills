@@ -27,6 +27,7 @@ describe('POST /auth/verify + /auth/verify/resend (contract)', () => {
     return e;
   };
   const server = () => app.getHttpServer() as Parameters<typeof request>[0];
+  const prevRl = process.env.AUTH_RATELIMIT_MAX;
 
   // Register over HTTP and return the raw verification token enqueued for it.
   const registerAndGetToken = async (): Promise<{
@@ -46,6 +47,11 @@ describe('POST /auth/verify + /auth/verify/resend (contract)', () => {
   };
 
   beforeAll(async () => {
+    // /auth/register + /auth/verify + /auth/verify/resend are behind the per-IP
+    // RateLimitGuard (FEAT-003). This spec shares the default IP and rate buckets
+    // persist across runs within the window, so lift the limit here to keep the
+    // contract assertions stable.
+    process.env.AUTH_RATELIMIT_MAX = '1000000';
     const mod = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -64,6 +70,8 @@ describe('POST /auth/verify + /auth/verify/resend (contract)', () => {
   });
 
   afterAll(async () => {
+    if (prevRl === undefined) delete process.env.AUTH_RATELIMIT_MAX;
+    else process.env.AUTH_RATELIMIT_MAX = prevRl;
     await app.close();
   });
 

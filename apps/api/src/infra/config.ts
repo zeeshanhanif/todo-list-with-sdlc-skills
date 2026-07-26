@@ -7,6 +7,8 @@ export interface AppConfig {
   webOrigin: string;
   /** Verification-link lifetime in hours (NFR-SEC-004, default 24). */
   verificationTokenTtlHours: number;
+  /** Password-reset-link lifetime in hours (NFR-SEC-004, default 1). */
+  resetTokenTtlHours: number;
   /** Minimum seconds between verification-email resends for one recipient
    * (FEAT-002 D4 feature-local cooldown; default 60). */
   resendCooldownSeconds: number;
@@ -45,6 +47,7 @@ export function loadConfig(): AppConfig {
     verificationTokenTtlHours: Number(
       process.env.VERIFICATION_TOKEN_TTL_HOURS ?? 24,
     ),
+    resetTokenTtlHours: Number(process.env.RESET_TOKEN_TTL_HOURS ?? 1),
     resendCooldownSeconds: Number(process.env.RESEND_COOLDOWN_SECONDS ?? 60),
     sessionTtlDays: Number(process.env.SESSION_TTL_DAYS ?? 30),
     cookieSecure:

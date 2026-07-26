@@ -64,4 +64,25 @@ export class SessionsRepository {
       [sessionId],
     );
   }
+
+  /** Delete the single session matching a token hash (sign-out revoke, FEAT-004).
+   * Returns the number of rows deleted (0 when nothing matched — idempotent). */
+  async deleteByTokenHash(tokenHash: string): Promise<number> {
+    const res = await this.db.query(
+      `DELETE FROM sessions WHERE token_hash = $1`,
+      [tokenHash],
+    );
+    return res.rowCount ?? 0;
+  }
+
+  /** Delete ALL of a user's sessions — the "invalidate all" revoke for password
+   * change/reset (FR-AUTH-017) and account deletion (FR-DATA-005). Returns the
+   * number deleted. `q` accepts a tx client so it can run in the same transaction
+   * as the credential change (FEAT-005). */
+  async deleteByUserId(userId: string, q: TxClient = this.db): Promise<number> {
+    const res = await q.query(`DELETE FROM sessions WHERE user_id = $1`, [
+      userId,
+    ]);
+    return res.rowCount ?? 0;
+  }
 }

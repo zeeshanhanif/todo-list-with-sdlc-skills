@@ -1,4 +1,5 @@
 import { fetchSkeletonPing } from "@/lib/api";
+import { SignOutButton } from "@/components/sign-out-button";
 
 // The skeleton shell: the app-shell frame (SCR-WEB-007 — sidebar + content) with
 // the design system wired in, plus a card proving the end-to-end path
@@ -20,6 +21,8 @@ export default async function Home() {
           borderRight: "var(--border-width-hairline) solid var(--color-border)",
           padding: "var(--space-6)",
           boxSizing: "border-box",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         <div
@@ -55,6 +58,7 @@ export default async function Home() {
         >
           App shell (SCR-WEB-007). Feature screens land here per slice.
         </p>
+        <SignOutButton />
       </aside>
 
       <main style={{ flex: 1, padding: "var(--space-8)" }}>

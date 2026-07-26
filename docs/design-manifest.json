@@ -96,6 +96,75 @@
       },
       "status": "designed",
       "designed_at": "2026-07-24"
+    },
+    "SCR-WEB-007": {
+      "name": "App Shell — sign-out control",
+      "surface": "WEB",
+      "feature": "FEAT-004",
+      "strategy": "code-native",
+      "source": {
+        "spec": "features/FEAT-004-sign-out/ui-design.md#scr-web-007--app-shell-sign-out-control"
+      },
+      "states": {
+        "covered": ["default", "signing-out"],
+        "gaps": [],
+        "supplements": []
+      },
+      "contract_bindings": ["POST /auth/logout"],
+      "notes": "Scoped to the sign-out control FEAT-004 adds to the app shell (sidebar-footer button-tertiary + Lucide LogOut → POST /api/auth/logout → redirect /signin). The shell FRAME and its loading/ready states are the foundations skeleton (apps/web/src/app/page.tsx), not designed by this entry; later shell-touching features (sidebar lists FEAT-009, smart views FEAT-016, settings link SCR-WEB-014) extend this entry. Logout is idempotent so the control has no error state (technical-design D1). SCR-WEB-010's UC-004 tag is a likely source typo — no entry created for it (see feature ui-design.md §escalations).",
+      "conformance": {
+        "result": "pass",
+        "corrections": [],
+        "escalations": []
+      },
+      "status": "designed",
+      "designed_at": "2026-07-25"
+    },
+    "SCR-WEB-005": {
+      "name": "Forgot Password",
+      "surface": "WEB",
+      "feature": "FEAT-005",
+      "strategy": "code-native",
+      "source": {
+        "spec": "features/FEAT-005-reset-password/ui-design.md#scr-web-005--forgot-password"
+      },
+      "states": {
+        "covered": ["default", "submitted", "field-error", "rate-limited"],
+        "gaps": [],
+        "supplements": []
+      },
+      "contract_bindings": ["POST /auth/forgot"],
+      "notes": "Public auth zone (AuthShell). Served at /reset-password with no ?token=. Response is always the neutral 200 reset_requested; the 'submitted' state shows the same confirmation whether or not the email is registered (FR-AUTH-012, no enumeration). Shares the /reset-password route with SCR-WEB-006 (token-presence switch, ui-design D1).",
+      "conformance": {
+        "result": "pass",
+        "corrections": [],
+        "escalations": []
+      },
+      "status": "designed",
+      "designed_at": "2026-07-25"
+    },
+    "SCR-WEB-006": {
+      "name": "Reset Password",
+      "surface": "WEB",
+      "feature": "FEAT-005",
+      "strategy": "code-native",
+      "source": {
+        "spec": "features/FEAT-005-reset-password/ui-design.md#scr-web-006--reset-password"
+      },
+      "states": {
+        "covered": ["default", "success", "invalid", "expired", "field-error", "rate-limited"],
+        "gaps": [],
+        "supplements": []
+      },
+      "contract_bindings": ["POST /auth/reset"],
+      "notes": "Public auth zone (AuthShell). Served at /reset-password?token=… (the worker-fixed reset-email link target). success reflects FR-AUTH-017 (other sessions signed out) and routes to /signin; invalid/expired map 400 token_invalid/token_expired with a 'request a new link' path; field-error is the 400 validation_failed password-policy case with the token NOT consumed (retry-friendly, technical-design D3).",
+      "conformance": {
+        "result": "pass",
+        "corrections": [],
+        "escalations": []
+      },
+      "status": "designed",
+      "designed_at": "2026-07-25"
     }
   }
 }
