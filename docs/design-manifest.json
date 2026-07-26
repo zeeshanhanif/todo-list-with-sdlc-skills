@@ -14,11 +14,17 @@
         "spec": "features/FEAT-001-register/ui-design.md#scr-web-001--sign-up"
       },
       "states": {
-        "covered": ["default", "validating", "field-error"],
+        "covered": [
+          "default",
+          "validating",
+          "field-error"
+        ],
         "gaps": [],
         "supplements": []
       },
-      "contract_bindings": ["POST /auth/register"],
+      "contract_bindings": [
+        "POST /auth/register"
+      ],
       "conformance": {
         "result": "pass",
         "corrections": [],
@@ -36,15 +42,24 @@
         "spec": "features/FEAT-001-register/ui-design.md#scr-web-002--verify-email--notice"
       },
       "states": {
-        "covered": ["default", "resend-sent", "rate-limited"],
+        "covered": [
+          "default",
+          "resend-sent",
+          "rate-limited"
+        ],
         "gaps": [],
         "supplements": []
       },
-      "contract_bindings": ["POST /auth/register", "POST /auth/verify/resend"],
+      "contract_bindings": [
+        "POST /auth/register",
+        "POST /auth/verify/resend"
+      ],
       "notes": "Arrival (default) state binds to POST /auth/register (201). The Resend control binds to POST /auth/verify/resend (FEAT-002); resend-sent renders the neutral 200. The rate-limited state is reinterpreted by FEAT-002 as a CLIENT-SIDE cooldown (RESEND_COOLDOWN_SECONDS), not a server-throttle response — the resend contract is neutral (technical-design D3/D4), so the UI must not infer throttling from the response. See features/FEAT-002-verify-email/ui-design.md#scr-web-002--verify-email--notice-resend-binding-completed.",
       "conformance": {
         "result": "pass",
-        "corrections": ["rate-limited state re-bound to a client-side cooldown to conform to FEAT-002's neutral resend contract (no server 429)"],
+        "corrections": [
+          "rate-limited state re-bound to a client-side cooldown to conform to FEAT-002's neutral resend contract (no server 429)"
+        ],
         "escalations": []
       },
       "status": "designed",
@@ -60,11 +75,20 @@
         "spec": "features/FEAT-002-verify-email/ui-design.md#scr-web-003--verify-email--result"
       },
       "states": {
-        "covered": ["verifying", "success", "expired", "invalid", "resend-sent"],
+        "covered": [
+          "verifying",
+          "success",
+          "expired",
+          "invalid",
+          "resend-sent"
+        ],
         "gaps": [],
         "supplements": []
       },
-      "contract_bindings": ["POST /auth/verify", "POST /auth/verify/resend"],
+      "contract_bindings": [
+        "POST /auth/verify",
+        "POST /auth/verify/resend"
+      ],
       "notes": "New web route /verify — target of the email verification link (${PUBLIC_APP_URL}/verify?token=…, FEAT-007 forward path). success routes to SCR-WEB-004 (FEAT-003). expired/invalid carry an email recovery form binding POST /auth/verify/resend; invalid folds in the already-verified case (UC-002 exc-3a) per technical-design D2.",
       "conformance": {
         "result": "pass",
@@ -83,11 +107,18 @@
         "spec": "features/FEAT-003-sign-in/ui-design.md#scr-web-004--sign-in"
       },
       "states": {
-        "covered": ["default", "error", "unverified-prompt"],
+        "covered": [
+          "default",
+          "error",
+          "unverified-prompt"
+        ],
         "gaps": [],
         "supplements": []
       },
-      "contract_bindings": ["POST /auth/login", "POST /auth/verify/resend"],
+      "contract_bindings": [
+        "POST /auth/login",
+        "POST /auth/verify/resend"
+      ],
       "notes": "Public auth zone, reusing the shared auth layout (centered 400px card + wordmark) from FEAT-001. 'error' folds the four designed login responses: 401 invalid_credentials (generic, no field highlight — no enumeration, FR-AUTH-010), 423 account_locked (FR-AUTH-019), 429 rate_limited (FR-AUTH-018), 400 validation_failed. 'unverified-prompt' is the 403 email_not_verified branch (FR-AUTH-007), reusing FEAT-002's POST /auth/verify/resend + client cooldown. Success (200) sets the session cookie via the web BFF (technical-design D6) and routes into the app-shell SCR-WEB-007.",
       "conformance": {
         "result": "pass",
@@ -96,29 +127,6 @@
       },
       "status": "designed",
       "designed_at": "2026-07-24"
-    },
-    "SCR-WEB-007": {
-      "name": "App Shell — sign-out control",
-      "surface": "WEB",
-      "feature": "FEAT-004",
-      "strategy": "code-native",
-      "source": {
-        "spec": "features/FEAT-004-sign-out/ui-design.md#scr-web-007--app-shell-sign-out-control"
-      },
-      "states": {
-        "covered": ["default", "signing-out"],
-        "gaps": [],
-        "supplements": []
-      },
-      "contract_bindings": ["POST /auth/logout"],
-      "notes": "Scoped to the sign-out control FEAT-004 adds to the app shell (sidebar-footer button-tertiary + Lucide LogOut → POST /api/auth/logout → redirect /signin). The shell FRAME and its loading/ready states are the foundations skeleton (apps/web/src/app/page.tsx), not designed by this entry; later shell-touching features (sidebar lists FEAT-009, smart views FEAT-016, settings link SCR-WEB-014) extend this entry. Logout is idempotent so the control has no error state (technical-design D1). SCR-WEB-010's UC-004 tag is a likely source typo — no entry created for it (see feature ui-design.md §escalations).",
-      "conformance": {
-        "result": "pass",
-        "corrections": [],
-        "escalations": []
-      },
-      "status": "designed",
-      "designed_at": "2026-07-25"
     },
     "SCR-WEB-005": {
       "name": "Forgot Password",
@@ -129,11 +137,18 @@
         "spec": "features/FEAT-005-reset-password/ui-design.md#scr-web-005--forgot-password"
       },
       "states": {
-        "covered": ["default", "submitted", "field-error", "rate-limited"],
+        "covered": [
+          "default",
+          "submitted",
+          "field-error",
+          "rate-limited"
+        ],
         "gaps": [],
         "supplements": []
       },
-      "contract_bindings": ["POST /auth/forgot"],
+      "contract_bindings": [
+        "POST /auth/forgot"
+      ],
       "notes": "Public auth zone (AuthShell). Served at /reset-password with no ?token=. Response is always the neutral 200 reset_requested; the 'submitted' state shows the same confirmation whether or not the email is registered (FR-AUTH-012, no enumeration). Shares the /reset-password route with SCR-WEB-006 (token-presence switch, ui-design D1).",
       "conformance": {
         "result": "pass",
@@ -152,11 +167,20 @@
         "spec": "features/FEAT-005-reset-password/ui-design.md#scr-web-006--reset-password"
       },
       "states": {
-        "covered": ["default", "success", "invalid", "expired", "field-error", "rate-limited"],
+        "covered": [
+          "default",
+          "success",
+          "invalid",
+          "expired",
+          "field-error",
+          "rate-limited"
+        ],
         "gaps": [],
         "supplements": []
       },
-      "contract_bindings": ["POST /auth/reset"],
+      "contract_bindings": [
+        "POST /auth/reset"
+      ],
       "notes": "Public auth zone (AuthShell). Served at /reset-password?token=… (the worker-fixed reset-email link target). success reflects FR-AUTH-017 (other sessions signed out) and routes to /signin; invalid/expired map 400 token_invalid/token_expired with a 'request a new link' path; field-error is the 400 validation_failed password-policy case with the token NOT consumed (retry-friendly, technical-design D3).",
       "conformance": {
         "result": "pass",
@@ -165,6 +189,89 @@
       },
       "status": "designed",
       "designed_at": "2026-07-25"
+    },
+    "SCR-WEB-007": {
+      "name": "App Shell — sign-out control",
+      "surface": "WEB",
+      "feature": "FEAT-004",
+      "strategy": "code-native",
+      "source": {
+        "spec": "features/FEAT-004-sign-out/ui-design.md#scr-web-007--app-shell-sign-out-control"
+      },
+      "states": {
+        "covered": [
+          "default",
+          "signing-out"
+        ],
+        "gaps": [],
+        "supplements": []
+      },
+      "contract_bindings": [
+        "POST /auth/logout"
+      ],
+      "notes": "Scoped to the sign-out control FEAT-004 adds to the app shell (sidebar-footer button-tertiary + Lucide LogOut → POST /api/auth/logout → redirect /signin). The shell FRAME and its loading/ready states are the foundations skeleton (apps/web/src/app/page.tsx), not designed by this entry; later shell-touching features (sidebar lists FEAT-009, smart views FEAT-016, settings link SCR-WEB-014) extend this entry. Logout is idempotent so the control has no error state (technical-design D1). SCR-WEB-010's UC-004 tag is a likely source typo — no entry created for it (see feature ui-design.md §escalations). FEAT-006 extends this entry with the sidebar 'Settings' sidebar-nav-item → /settings/security (SCR-WEB-014), realized text-only for the same reason the sign-out control is (no icon library wired); see features/FEAT-006-change-password/ui-design.md D2.",
+      "conformance": {
+        "result": "pass",
+        "corrections": [],
+        "escalations": []
+      },
+      "status": "designed",
+      "designed_at": "2026-07-25"
+    },
+    "SCR-WEB-014": {
+      "name": "Settings — Security & Account",
+      "surface": "WEB",
+      "feature": "FEAT-006",
+      "strategy": "code-native",
+      "source": {
+        "spec": "features/FEAT-006-change-password/ui-design.md#scr-web-014--settings--security--account"
+      },
+      "states": {
+        "covered": [
+          "default"
+        ],
+        "gaps": [],
+        "supplements": []
+      },
+      "contract_bindings": [],
+      "notes": "Authenticated settings zone (app shell), served at /settings/security; reached from the new sidebar 'Settings' nav item (SCR-WEB-007 entry extended). Pure navigation hub — consumes no endpoint, so no loading/empty/error states apply (not gaps); an unresolved session redirects to /signin server-side (ui-design D4). Renders one list-row today (Change password → SCR-WEB-015); Export data (SCR-WEB-016, FEAT-017) and Delete account (SCR-WEB-017, FEAT-018) add rows to this same entry later.",
+      "conformance": {
+        "result": "pass",
+        "corrections": [],
+        "escalations": []
+      },
+      "status": "designed",
+      "designed_at": "2026-07-26"
+    },
+    "SCR-WEB-015": {
+      "name": "Change Password",
+      "surface": "WEB",
+      "feature": "FEAT-006",
+      "strategy": "code-native",
+      "source": {
+        "spec": "features/FEAT-006-change-password/ui-design.md#scr-web-015--change-password"
+      },
+      "states": {
+        "covered": [
+          "default",
+          "success",
+          "error",
+          "unauthenticated"
+        ],
+        "gaps": [],
+        "supplements": []
+      },
+      "contract_bindings": [
+        "POST /auth/change-password"
+      ],
+      "notes": "Authenticated settings zone, served at /settings/security/password — the first guarded form. 'error' covers three server failures on one screen: 400 current_password_invalid on the currentPassword field (UC-006 alt 3a), 400 validation_failed on newPassword (policy, alt 3b), and 429 rate_limited as a form-level alert; typed input is preserved in all three (NFR-REL-004). 'success' keeps the user signed in on the rotated cookie and names the FR-AUTH-017 consequence (other devices signed out) — no bounce to /signin (ui-design D3). 'unauthenticated' is a supplementary state beyond the inventory's three: a 401 on submit routes to /signin (ui-design D4).",
+      "conformance": {
+        "result": "pass",
+        "corrections": [],
+        "escalations": []
+      },
+      "status": "designed",
+      "designed_at": "2026-07-26"
     }
   }
 }
