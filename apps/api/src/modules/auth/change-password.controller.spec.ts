@@ -3,6 +3,8 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import {
+  AUTH_ERROR_CODES,
+  PASSWORD_MIN_LENGTH,
   SESSION_COOKIE,
   type ApiError,
   type ChangePasswordResponse,
@@ -222,11 +224,13 @@ describe('POST /auth/change-password (contract)', () => {
     expect(res.status).toBe(400);
     const body = res.body as ApiError;
     expect(body.code).toBe('validation_failed');
-    expect(
-      body.fields?.some(
-        (f) => f.field === 'newPassword' && f.message.length > 0,
-      ),
-    ).toBe(true);
+    // AC-5 requires the *specific requirement* (NFR-SEC-003's bound), not merely
+    // a non-empty string: assert the message states the policy that was missed.
+    const newPwField = body.fields?.find((f) => f.field === 'newPassword');
+    expect(newPwField).toBeDefined();
+    expect(newPwField?.message).toMatch(
+      new RegExp(`at least ${PASSWORD_MIN_LENGTH} characters`, 'i'),
+    );
 
     // Unchanged: the session survives and the current password still authenticates.
     const session = await request(server())
@@ -280,14 +284,20 @@ describe('POST /auth/change-password (contract)', () => {
     expect(missingBoth.status).toBe(400);
     const body = missingBoth.body as ApiError;
     expect(body.code).toBe('validation_failed');
-    expect(body.fields?.length).toBeGreaterThan(0);
+    // AC-7 requires fields[] to NAME the offending field — a non-empty array is
+    // not the criterion.
+    const named = body.fields?.map((f) => f.field) ?? [];
+    expect(named).toContain('currentPassword');
+    expect(named).toContain('newPassword');
 
     const blankCurrent = await change(cookies[0], {
       currentPassword: '',
       newPassword: NEW_PW,
     });
     expect(blankCurrent.status).toBe(400);
-    expect((blankCurrent.body as ApiError).code).toBe('validation_failed');
+    const blankBody = blankCurrent.body as ApiError;
+    expect(blankBody.code).toBe('validation_failed');
+    expect(blankBody.fields?.map((f) => f.field)).toContain('currentPassword');
   });
 
   it("AC-8: per-IP rate-limited (429) in its own bucket — login's allowance is unaffected", async () => {
@@ -295,16 +305,20 @@ describe('POST /auth/change-password (contract)', () => {
     process.env.AUTH_RATELIMIT_MAX = '2';
     try {
       const ip = `${IP_PREFIX}251`;
-      let status = 0;
+      let last: { status: number; body: unknown } = { status: 0, body: null };
       for (let i = 0; i < 3; i++) {
         const r = await request(server())
           .post('/auth/change-password')
           .set('X-Forwarded-For', ip)
           .set('Cookie', cookies[0])
           .send({ currentPassword: 'wrong', newPassword: NEW_PW });
-        status = r.status;
+        last = { status: r.status, body: r.body };
       }
-      expect(status).toBe(429);
+      expect(last.status).toBe(429);
+      // AC-8 names the code and the retry hint, not just the status.
+      const limited = last.body as ApiError & { retryAfterSeconds?: number };
+      expect(limited.code).toBe(AUTH_ERROR_CODES.rateLimited);
+      expect(limited.retryAfterSeconds).toBeGreaterThan(0);
 
       // Same IP, different route: the login bucket is untouched.
       const loginRes = await request(server())
@@ -312,10 +326,29 @@ describe('POST /auth/change-password (contract)', () => {
         .set('X-Forwarded-For', ip)
         .send({ email, password: OLD_PW });
       expect(loginRes.status).toBe(200);
+
+      // …and the reverse direction ("and vice versa"): exhausting login's bucket
+      // on a fresh IP must not rate-limit change-password from that same IP.
+      const ip2 = `${IP_PREFIX}252`;
+      let loginStatus = 0;
+      for (let i = 0; i < 3; i++) {
+        const r = await request(server())
+          .post('/auth/login')
+          .set('X-Forwarded-For', ip2)
+          .send({ email: 'nobody@example.com', password: OLD_PW });
+        loginStatus = r.status;
+      }
+      expect(loginStatus).toBe(429);
+      const changeAfter = await request(server())
+        .post('/auth/change-password')
+        .set('X-Forwarded-For', ip2)
+        .set('Cookie', cookies[0])
+        .send({ currentPassword: 'wrong', newPassword: NEW_PW });
+      expect(changeAfter.status).toBe(400); // reached the handler, not throttled
     } finally {
       process.env.AUTH_RATELIMIT_MAX = '1000';
-      await db.query('DELETE FROM auth_rate_buckets WHERE ip = $1', [
-        `${IP_PREFIX}251`,
+      await db.query('DELETE FROM auth_rate_buckets WHERE ip LIKE $1', [
+        `${IP_PREFIX}25%`,
       ]);
     }
   });

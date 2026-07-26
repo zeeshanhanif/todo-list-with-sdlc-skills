@@ -207,16 +207,19 @@ describe('AuthService.changePassword (integration)', () => {
         ip: '198.51.100.7',
       }),
     ).rejects.toBeInstanceOf(CurrentPasswordInvalidError);
-    await auth.changePassword({
+    const issued = await auth.changePassword({
       userId: id,
       currentPassword: OLD_PW,
       newPassword: NEW_PW,
       ip: '198.51.100.7',
     });
 
+    // AC-9 says ONE row of each kind — assert the counts, not mere presence.
     const events = await auditEvents(id);
-    expect(events).toContain('password_change_failure');
-    expect(events).toContain('password_changed');
+    expect(events.filter((e) => e === 'password_change_failure')).toHaveLength(
+      1,
+    );
+    expect(events.filter((e) => e === 'password_changed')).toHaveLength(1);
 
     const rows = await db.query<{ detail: unknown; event: string }>(
       `SELECT event, detail FROM audit_log
@@ -225,10 +228,12 @@ describe('AuthService.changePassword (integration)', () => {
     );
     const serialized = JSON.stringify(rows.rows);
     expect(serialized).toContain('wrong_current_password');
-    // No secrets in the audit trail.
+    // No secrets in the audit trail: neither password, nor a hash, nor the
+    // session token minted by the rotation (AC-9).
     expect(serialized).not.toContain(OLD_PW);
     expect(serialized).not.toContain(NEW_PW);
     expect(serialized).not.toContain('$argon2id$');
+    expect(serialized).not.toContain(issued.rawToken);
   });
 
   it('D6: the change consumes any pending reset token', async () => {
