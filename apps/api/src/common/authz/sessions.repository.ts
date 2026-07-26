@@ -18,13 +18,16 @@ export interface ResolvedSession {
 export class SessionsRepository {
   constructor(private readonly db: DbService) {}
 
-  /** Insert a session row for `userId` with the token hash and expiry. */
+  /** Insert a session row for `userId` with the token hash and expiry. `q`
+   * defaults to the pool; a tx client may be passed so issuance runs in the same
+   * transaction as a credential change (FEAT-006 D2 — atomic rotation). */
   async create(
     userId: string,
     tokenHash: string,
     expiresAt: Date,
+    q: TxClient = this.db,
   ): Promise<{ id: string }> {
-    const res = await this.db.query<{ id: string }>(
+    const res = await q.query<{ id: string }>(
       `INSERT INTO sessions (user_id, token_hash, expires_at)
        VALUES ($1, $2, $3)
        RETURNING id`,

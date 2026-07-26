@@ -30,13 +30,15 @@ export class SessionService {
     return createHash('sha256').update(raw).digest('hex');
   }
 
-  /** Create a session for `userId`; returns the raw token + cookie options. */
-  async issue(userId: string): Promise<IssuedSession> {
+  /** Create a session for `userId`; returns the raw token + cookie options.
+   * `tx` lets issuance join an open transaction, so a password change can
+   * revoke-all and reissue atomically (FEAT-006 D2). */
+  async issue(userId: string, tx?: TxClient): Promise<IssuedSession> {
     const cfg = loadConfig();
     const rawToken = randomBytes(32).toString('base64url');
     const ttlMs = cfg.sessionTtlDays * 24 * 60 * 60 * 1000;
     const expiresAt = new Date(Date.now() + ttlMs);
-    await this.sessions.create(userId, this.hashToken(rawToken), expiresAt);
+    await this.sessions.create(userId, this.hashToken(rawToken), expiresAt, tx);
     return {
       rawToken,
       cookieOptions: sessionCookieOptions(cfg.cookieSecure, ttlMs),

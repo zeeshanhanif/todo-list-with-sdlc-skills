@@ -18,7 +18,7 @@
       Done when: `npm run build:shared` succeeds and api + web typecheck against
       the new symbols.
 
-- [ ] T2 — Session-rotation seam: give `SessionsRepository.create` and
+- [x] T2 — Session-rotation seam: give `SessionsRepository.create` and
       `SessionService.issue` the optional `TxClient` parameter its sibling
       `deleteByUserId` already has, so issuance can join a transaction
       (design §5, D2). No behavior change for existing callers.

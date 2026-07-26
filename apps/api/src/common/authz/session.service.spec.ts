@@ -94,6 +94,32 @@ describe('SessionService (integration)', () => {
     expect(await service.resolve('')).toBeNull();
   });
 
+  // FEAT-006 T2/D2: issuance can join a transaction so a password change can
+  // revoke-all and reissue atomically. If the transaction rolls back, the
+  // reissued session must not survive.
+  it('issue(userId, tx) participates in the transaction — a rollback leaves no session', async () => {
+    const { id } = await freshUser();
+
+    await expect(
+      db.transaction(async (tx) => {
+        await service.issue(id, tx);
+        // Visible inside the transaction…
+        const inTx = await tx.query(
+          'SELECT id FROM sessions WHERE user_id = $1',
+          [id],
+        );
+        expect(inTx.rows).toHaveLength(1);
+        throw new Error('rollback');
+      }),
+    ).rejects.toThrow('rollback');
+
+    // …and gone after the rollback.
+    const after = await db.query('SELECT id FROM sessions WHERE user_id = $1', [
+      id,
+    ]);
+    expect(after.rows).toHaveLength(0);
+  });
+
   it('resolves to null for an expired session', async () => {
     const { id } = await freshUser();
     const { rawToken } = await service.issue(id);
