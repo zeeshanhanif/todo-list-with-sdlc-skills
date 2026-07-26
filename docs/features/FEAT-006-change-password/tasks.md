@@ -9,7 +9,7 @@
 > (`reset-password.*.spec.ts` are the closest models). `apps/web/AGENTS.md`: read
 > `node_modules/next/dist/docs/` before writing web code.
 
-- [ ] T1 — Shared contracts (`@todo/shared`): add `CHANGE_PASSWORD_PATH`
+- [x] T1 — Shared contracts (`@todo/shared`): add `CHANGE_PASSWORD_PATH`
       (`/auth/change-password`), `ChangePasswordRequest
       { currentPassword, newPassword }`, `ChangePasswordResponse
       { status: "password_changed" }`, and
