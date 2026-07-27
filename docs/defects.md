@@ -6,7 +6,7 @@ recycled.
 
 | DEF | Reported | FR / Feature | Symptom (one line) | Fixed by | Re-verified |
 | :-- | :------- | :----------- | :----------------- | :------- | :---------- |
-| DEF-001 | 2026-07-27 | *(no FR — test infrastructure)* / FEAT-003, FEAT-005, FEAT-006 suites | Specs sharing an IP range delete each other's `auth_rate_buckets` rows mid-test, breaking `429` assertions | `e0f1a2b` (disjoint ranges + `rate-limit-isolation.spec.ts` guard) | 2026-07-27 — guard red before / green after; flake rate ~25% → ~8% |
+| DEF-001 | 2026-07-27 | *(no FR — test infrastructure)* / FEAT-003, FEAT-005, FEAT-006 suites | Specs sharing an IP range delete each other's `auth_rate_buckets` rows mid-test, breaking `429` assertions | `24ae0d3` (disjoint ranges + `rate-limit-isolation.spec.ts` guard) | 2026-07-27 — guard red before / green after; flake rate ~25% → ~8% |
 | DEF-002 | 2026-07-27 | *(no FR — test infrastructure)* / api suite | **Open.** Residual ~8% parallel-run flakiness remains after DEF-001: a *different* test fails each run, always "a row that should exist doesn't" | _open_ | _open_ |
 
 ## DEF-001 — parallel specs wipe each other's rate-limit buckets
