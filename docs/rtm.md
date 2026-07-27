@@ -52,10 +52,10 @@
 | FR-LIST-006 | Rename a list | Must | Active | SI | UC-008 | ADR-003; features/FEAT-009-lists/technical-design.md; features/FEAT-009-lists/ui-design.md | FEAT-009 | features/FEAT-009-lists/acceptance-report.md |
 | FR-LIST-007 | Delete non-default list (cascade tasks) | Must | Active | SI | UC-008 | ADR-003; features/FEAT-009-lists/technical-design.md; features/FEAT-009-lists/ui-design.md | FEAT-009 | features/FEAT-009-lists/acceptance-report.md |
 | FR-LIST-008 | Manually reorder lists, persisted | Should | Active | SI | UC-008 | ADR-003; features/FEAT-009-lists/technical-design.md; features/FEAT-009-lists/ui-design.md | FEAT-009 | features/FEAT-009-lists/acceptance-report.md |
-| FR-LIST-009 | Task belongs to exactly one list | Must | Active | SI | UC-008, UC-009 | ADR-003; features/FEAT-009-lists/technical-design.md | FEAT-009, FEAT-010 | features/FEAT-009-lists/acceptance-report.md (partial) |
-| FR-TASK-001 | Create task with title in a list | Must | Active | SI | UC-009 | ADR-003 | FEAT-010 | _TBD_ |
-| FR-TASK-002 | Validate task title | Must | Active | SI | UC-009 | _TBD_ | FEAT-010 | _TBD_ |
-| FR-TASK-003 | View tasks (active vs completed) | Must | Active | SI | UC-011, UC-013 | ADR-003 | FEAT-010, FEAT-012 | _TBD_ |
+| FR-LIST-009 | Task belongs to exactly one list | Must | Active | SI | UC-008, UC-009 | ADR-003; features/FEAT-009-lists/technical-design.md; features/FEAT-010-create-task/technical-design.md | FEAT-009, FEAT-010 | features/FEAT-009-lists/acceptance-report.md (partial) |
+| FR-TASK-001 | Create task with title in a list | Must | Active | SI | UC-009 | ADR-003; features/FEAT-010-create-task/technical-design.md; features/FEAT-010-create-task/ui-design.md | FEAT-010 | _TBD_ |
+| FR-TASK-002 | Validate task title | Must | Active | SI | UC-009 | features/FEAT-010-create-task/technical-design.md; features/FEAT-010-create-task/ui-design.md | FEAT-010 | _TBD_ |
+| FR-TASK-003 | View tasks (active vs completed) | Must | Active | SI | UC-011, UC-013 | ADR-003; features/FEAT-010-create-task/technical-design.md; features/FEAT-010-create-task/ui-design.md | FEAT-010, FEAT-012 | _TBD_ |
 | FR-TASK-004 | View task details | Must | Active | SI | UC-010 | ADR-003 | FEAT-011 | _TBD_ |
 | FR-TASK-005 | Edit task title | Must | Active | SI | UC-010 | ADR-003 | FEAT-011 | _TBD_ |
 | FR-TASK-006 | Set/change/clear due date+time | Must | Active | SI | UC-009, UC-010 | ADR-003 | FEAT-011 | _TBD_ |
@@ -110,9 +110,9 @@
 | NFR-SEC-008 | OWASP Top 10 protections | Must | Active | SEC | — | arch §8 | Foundations | _TBD_ |
 | NFR-SEC-009 | Audit log security events ≥ 90 days | Should | Active | SEC | — | arch §8; features/FEAT-003-sign-in/technical-design.md (partial — sign-in events) | Foundations | features/FEAT-003-sign-in/acceptance-report.md (partial); features/FEAT-006-change-password/acceptance-report.md (partial — password-change events) |
 | NFR-SEC-010 | Dependency vuln remediation SLA | Should | Active | SEC | — | arch §8 | Foundations | _TBD_ |
-| NFR-USE-001 | Register + first task < 2 min | Should | Active | GOAL (G1) | UC-001, UC-009 | _TBD_ | FEAT-001, FEAT-010 | _TBD_ |
+| NFR-USE-001 | Register + first task < 2 min | Should | Active | GOAL (G1) | UC-001, UC-009 | features/FEAT-010-create-task/technical-design.md; features/FEAT-010-create-task/ui-design.md | FEAT-001, FEAT-010 | _TBD_ |
 | NFR-USE-002 | Destructive actions require confirmation | Must | Active | SI | UC-008, UC-012, UC-016 | _TBD_ | Foundations | _TBD_ |
-| NFR-USE-003 | Loading/empty/error states everywhere | Must | Active | SI | UC-013 | arch §8 | Foundations | _TBD_ |
+| NFR-USE-003 | Loading/empty/error states everywhere | Must | Active | SI | UC-013 | arch §8; features/FEAT-010-create-task/technical-design.md; features/FEAT-010-create-task/ui-design.md | Foundations | _TBD_ |
 | NFR-USE-004 | Accessibility best practices | Should | Active | SI | — | _TBD_ | Foundations | _TBD_ |
 | NFR-COMPAT-001 | Latest 2 versions of major browsers | Must | Active | SI | — | ADR-002 | Foundations | _TBD_ |
 | NFR-COMPAT-002 | Responsive 320px→desktop | Must | Active | SI | — | ADR-002 | Foundations | _TBD_ |

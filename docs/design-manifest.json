@@ -213,12 +213,52 @@
         "POST /lists/reorder",
         "POST /auth/logout"
       ],
-      "notes": "Cumulative entry for the app shell, extended once per shell-touching feature; the `source` locator points at the newest and most complete spec, and the earlier ones remain valid for their own parts: FEAT-004 sign-out control (features/FEAT-004-sign-out/ui-design.md#scr-web-007--app-shell-sign-out-control), FEAT-006 Settings nav item (features/FEAT-006-change-password/ui-design.md, D2), FEAT-009 lists section (current spec). FEAT-009 makes the sidebar the product's primary navigation: one `sidebar-nav-item` per list in `position` order with an activeTaskCount `badge` (hidden at zero — ui-design D2), a per-row `dropdown-menu` (rename / move up / move down / delete, with Delete absent on the default list — D1), and a 'New list' action, all opening SCR-WEB-011. Reorder is menu-driven, not drag-and-drop (D5) — design.md specifies a drag handle only on task-row, and §5 requires the move-up/down keyboard path regardless. FEAT-009 also implements the shell's `< md` full drawer that design.md §3 specified and FEAT-006 §8 recorded as unbuilt (D3), so 'ready' now covers both the desktop sidebar and the mobile drawer. No `empty` state exists by design: FR-LIST-003 guarantees every account has an Inbox. Sidebar rows are not navigational until FEAT-010 mints /lists/{id} (SCR-WEB-008), and the `/` content column is an interim placeholder, not a designed screen. Lucide icons remain unwired — controls are text/glyph with aria-labels (carried deviation, not an escalation). SCR-WEB-010's UC-004 tag is a likely source typo — no entry created for it.",
+      "notes": "Cumulative entry for the app shell, extended once per shell-touching feature; the `source` locator points at the newest and most complete spec, and the earlier ones remain valid for their own parts: FEAT-004 sign-out control (features/FEAT-004-sign-out/ui-design.md#scr-web-007--app-shell-sign-out-control), FEAT-006 Settings nav item (features/FEAT-006-change-password/ui-design.md, D2), FEAT-009 lists section (current spec). FEAT-009 makes the sidebar the product's primary navigation: one `sidebar-nav-item` per list in `position` order with an activeTaskCount `badge` (hidden at zero — ui-design D2), a per-row `dropdown-menu` (rename / move up / move down / delete, with Delete absent on the default list — D1), and a 'New list' action, all opening SCR-WEB-011. Reorder is menu-driven, not drag-and-drop (D5) — design.md specifies a drag handle only on task-row, and §5 requires the move-up/down keyboard path regardless. FEAT-009 also implements the shell's `< md` full drawer that design.md §3 specified and FEAT-006 §8 recorded as unbuilt (D3), so 'ready' now covers both the desktop sidebar and the mobile drawer. No `empty` state exists by design: FR-LIST-003 guarantees every account has an Inbox. FEAT-010 is the entry's fourth extension: sidebar rows become LINKS to /lists/{id} and gain design.md's `sidebar-nav-item` selected state (primary-subtle bg + primary text + left accent bar, aria-current=page) for the open list, the drawer closes when a row is followed, and the count badge finally moves on its own now that tasks can be created; the `/` placeholder is replaced by SCR-WEB-008 rendering the default list (FEAT-010 technical-design D2). Delta spec: features/FEAT-010-create-task/ui-design.md#scr-web-007--app-shell-this-features-extension. Lucide icons remain unwired — controls are text/glyph with aria-labels (carried deviation, not an escalation). SCR-WEB-010's UC-004 tag is a likely source typo — no entry created for it.",
       "conformance": {
         "result": "pass",
         "corrections": [],
         "escalations": []
       },
+      "status": "designed",
+      "designed_at": "2026-07-27"
+    },
+    "SCR-WEB-008": {
+      "name": "List View",
+      "surface": "WEB",
+      "feature": "FEAT-010",
+      "strategy": "code-native",
+      "source": {
+        "spec": "features/FEAT-010-create-task/ui-design.md#scr-web-008--list-view"
+      },
+      "states": {
+        "covered": [
+          "loading",
+          "populated",
+          "empty",
+          "error",
+          "not-found"
+        ],
+        "gaps": [
+          "responsive: design.md §3 specifies a bottom-anchored quick-add below md; this slice keeps the composer under the header at every width (ui-design D5). Owner: FEAT-013 or a foundations pass, once the bottom region's other tenants (undo-snackbar) exist."
+        ],
+        "supplements": [
+          {
+            "state": "not-found",
+            "strategy": "code-native",
+            "source": "features/FEAT-010-create-task/ui-design.md#not-found"
+          }
+        ]
+      },
+      "contract_bindings": [
+        "GET /lists/{listId}/tasks",
+        "POST /lists/{listId}/tasks"
+      ],
+      "conformance": {
+        "result": "pass",
+        "corrections": [],
+        "escalations": []
+      },
+      "notes": "The product's main working surface, served at /lists/{id} and at / for the caller's default list (technical-design D2) — one component, two routes. `task-row` is realized as a DELIBERATE SUBSET (ui-design D2): title only. The complete-checkbox (FEAT-012), due-date chip and priority dot (FEAT-011), row-click to SCR-WEB-010 (FEAT-011) and drag handle (FEAT-014) are omitted rather than faked — a control that looks live but isn't is worse than an absent one; each later feature ADDS to this row rather than reworking it. The completed section is specified but renders only when non-empty (D3), since nothing can complete a task until FEAT-012. The composer is the empty state's primary action rather than a second button (D4). `loading` is covered by server rendering, not a skeleton — recorded honestly. `not-found` is a supplementary state beyond the inventory's four: /lists/{id} for an unknown OR unowned id gets one uniform in-shell alert, never a disclosure of which (technical-design §3.1).",
       "status": "designed",
       "designed_at": "2026-07-27"
     },
@@ -307,6 +347,34 @@
       },
       "status": "designed",
       "designed_at": "2026-07-26"
+    },
+    "SCR-WEB-018": {
+      "name": "First-run / Onboarding",
+      "surface": "WEB",
+      "feature": "FEAT-010",
+      "strategy": "code-native",
+      "source": {
+        "spec": "features/FEAT-010-create-task/ui-design.md#scr-web-018--first-run--onboarding"
+      },
+      "states": {
+        "covered": [
+          "default (empty)"
+        ],
+        "gaps": [],
+        "supplements": []
+      },
+      "contract_bindings": [
+        "GET /lists/{listId}/tasks",
+        "POST /lists/{listId}/tasks"
+      ],
+      "conformance": {
+        "result": "pass",
+        "corrections": [],
+        "escalations": []
+      },
+      "notes": "Not a route: it is the state SCR-WEB-008 renders at / for a brand-new account (ui-design D1). Trigger is explicit so implementation doesn't guess — the caller has EXACTLY ONE list (a single isDefault entry from GET /lists) AND it has no tasks; any other empty list, including the Inbox once a second list exists, gets SCR-WEB-008's generic empty state. First-run is about the account, not the list. On the first successful create it becomes SCR-WEB-008 'populated' — the transition is the onboarding's completion, with nothing to dismiss. Shares SCR-WEB-008's bindings; owns no endpoint.",
+      "status": "designed",
+      "designed_at": "2026-07-27"
     }
   }
 }
