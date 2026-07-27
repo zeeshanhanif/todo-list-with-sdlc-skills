@@ -226,3 +226,90 @@ export interface ChangePasswordRequest {
 export interface ChangePasswordResponse {
   status: "password_changed";
 }
+
+// --- Lists: list management (FEAT-009) ---
+
+/** Path of the list collection: GET (all with counts) and POST (create). */
+export const LISTS_PATH = "/lists";
+
+/** Path of the reorder endpoint. Declared before `/lists/:id` on the server so
+ * the static segment isn't captured as an id (FEAT-009 technical-design §3). */
+export const LIST_REORDER_PATH = "/lists/reorder";
+
+/** Maximum list-name length (FR-LIST-002). Shared so the client bound can never
+ * drift from the server rule — the constant-sharing convention FEAT-001 set with
+ * PASSWORD_MIN_LENGTH. Names are trimmed before validation; duplicates are legal. */
+export const LIST_NAME_MAX_LENGTH = 100;
+
+/** A list as every list endpoint returns it. `activeTaskCount` counts incomplete,
+ * not-soft-deleted tasks (FR-LIST-005); `taskCount` counts every task in the list
+ * and exists so the delete confirmation can quantify what will be permanently
+ * lost (FR-LIST-007, NFR-USE-002 — FEAT-009 technical-design D8). */
+export interface ListSummary {
+  id: string;
+  name: string;
+  /** The Inbox (FR-LIST-003): renameable, never deletable (FR-LIST-004). */
+  isDefault: boolean;
+  /** 0-based rank within the owner's lists (FR-LIST-008). */
+  position: number;
+  activeTaskCount: number;
+  taskCount: number;
+}
+
+/** Success response (200) of GET /lists — ordered by position (FR-LIST-005/008). */
+export interface ListsResponse {
+  lists: ListSummary[];
+}
+
+/** Request body of POST /lists. Ownership comes from the session, never the
+ * body (FR-AUTHZ-004). */
+export interface CreateListRequest {
+  name: string;
+}
+
+/** Success response (201) of POST /lists — the new list, appended last. */
+export interface CreateListResponse {
+  list: ListSummary;
+}
+
+/** Request body of PATCH /lists/{id} — rename only (FR-LIST-006). */
+export interface RenameListRequest {
+  name: string;
+}
+
+/** Success response (200) of PATCH /lists/{id}. */
+export interface RenameListResponse {
+  list: ListSummary;
+}
+
+/** Success response (200) of DELETE /lists/{id}. The contained tasks are
+ * permanently deleted with the list (FR-LIST-007); `deletedTaskCount` is how
+ * many rows went. Irreversible — there is no restore (technical-design D4). */
+export interface DeleteListResponse {
+  status: "list_deleted";
+  deletedTaskCount: number;
+}
+
+/** Request body of POST /lists/reorder — the caller's **complete** set of list
+ * ids in the desired order. The server rewrites positions to 0..n-1 in one
+ * transaction, which makes the operation idempotent (technical-design D2). */
+export interface ReorderListsRequest {
+  listIds: string[];
+}
+
+/** Success response (200) of POST /lists/reorder — the full collection in its
+ * new order, so the client renders from the server's truth. */
+export interface ReorderListsResponse {
+  lists: ListSummary[];
+}
+
+/** Error `code` values the list endpoints add to the ApiError envelope
+ * (FEAT-009 technical-design §3). Shared so the web branches on codes without
+ * string-drift: 404 list_not_found (unknown **or** not owned — uniform, so the
+ * response never discloses another user's ids, FR-AUTHZ-003), 409
+ * list_not_deletable (the default Inbox list, FR-LIST-004). Field-level name
+ * failures reuse the existing `validation_failed` + `fields[]` convention. */
+export const LIST_ERROR_CODES = {
+  listNotFound: "list_not_found",
+  listNotDeletable: "list_not_deletable",
+} as const;

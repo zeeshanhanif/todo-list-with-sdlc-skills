@@ -28,7 +28,7 @@
       down migration reverses it, and an existing account's Inbox row has
       `position = 0`.
 
-- [ ] T2 — Shared contracts (`@todo/shared`, design §5): `LISTS_PATH`,
+- [x] T2 — Shared contracts (`@todo/shared`, design §5): `LISTS_PATH`,
       `LIST_REORDER_PATH`, `LIST_NAME_MAX_LENGTH = 100`, `ListSummary`,
       `ListsResponse`, `CreateListRequest/Response`, `RenameListRequest/Response`,
       `DeleteListResponse`, `ReorderListsRequest/Response`, and
