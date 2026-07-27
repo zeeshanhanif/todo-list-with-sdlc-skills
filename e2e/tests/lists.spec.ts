@@ -61,7 +61,7 @@ const rowNames = (page: Page) =>
 const openMenu = (page: Page, index: number) =>
   page.getByTestId("list-row").nth(index).getByTestId("list-menu-trigger").click();
 
-test("a signed-in user creates, renames, reorders and deletes lists", async ({
+test("AC-2/4/5/6/7: a signed-in user creates, renames, reorders and deletes lists", async ({
   page,
   request,
 }) => {
@@ -135,12 +135,13 @@ test("a signed-in user creates, renames, reorders and deletes lists", async ({
   await expect(page.getByTestId("list-toast")).toContainText("Shopping");
 });
 
-test("counts drive the sidebar badge and the delete warning", async ({
+test("AC-12/AC-13: counts drive the sidebar badge and the delete warning", async ({
   page,
   request,
 }) => {
   // AC-13 (badge shows the active-task count) and AC-12 (the confirmation
-  // quantifies what will be permanently deleted, NFR-USE-002).
+  // quantifies what will be permanently deleted, and dismissing it issues no
+  // request and deletes nothing — NFR-USE-002).
   const email = uniqueEmail();
   expect(
     (
@@ -169,6 +170,18 @@ test("counts drive the sidebar badge and the delete warning", async ({
   await expect(page.getByTestId("list-row")).toHaveCount(2);
   await expect(page.getByTestId("list-count")).toHaveCount(1); // still just Inbox's
 
+  // AC-12 has two conjuncts and both are asserted: nothing is requested until
+  // the user confirms (watched from before the menu opens) and nothing is
+  // deleted (re-read below). A client that fired the DELETE and then restored
+  // would satisfy the second alone while violating the confirmation
+  // requirement, so watching the wire is the assertion that carries NFR-USE-002.
+  const deleteCalls: string[] = [];
+  page.on("request", (r) => {
+    if (r.method() === "DELETE" && r.url().includes("/api/lists/")) {
+      deleteCalls.push(r.url());
+    }
+  });
+
   // The warning names the list and the exact number of tasks going with it.
   await seedTasks(email, "Errands", 2);
   await page.reload();
@@ -177,15 +190,19 @@ test("counts drive the sidebar badge and the delete warning", async ({
   await page.getByTestId("menu-delete").click();
   await expect(page.getByTestId("delete-warning")).toContainText("Errands");
   await expect(page.getByTestId("delete-warning")).toContainText("2 tasks");
+  expect(deleteCalls).toEqual([]); // nothing sent just by opening the warning
 
-  // Dismissing sends nothing: the list and its tasks survive.
   await page.getByTestId("dialog-cancel").click();
+  await expect(page.getByTestId("list-dialog")).toHaveCount(0);
+  expect(deleteCalls).toEqual([]);
   await expect(page.getByTestId("list-row")).toHaveCount(2);
   await page.reload();
   expect(await rowNames(page)).toEqual(["Inbox", "Errands"]);
+  // ...and the tasks the warning counted are still there.
+  await expect(page.getByTestId("list-count")).toHaveCount(2);
 });
 
-test("the app home requires a session", async ({ page }) => {
+test("AC-9: the app home requires a session", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/signin/);
 });
