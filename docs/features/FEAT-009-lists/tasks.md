@@ -111,7 +111,7 @@
       with no dangling references to the removed symbols, `GET /healthz` still
       answers `200`, and both migrations apply and reverse cleanly.
 
-- [ ] T7 — Cross-feature guard: the `session.guard.ts` header comment that
+- [x] T7 — Cross-feature guard: the `session.guard.ts` header comment that
       promises an ownership *guard* in FEAT-009 is corrected to point at the
       design's D3 (ownership is enforced by repository query scoping), so the
       next data module inherits the actual convention (design §8).
