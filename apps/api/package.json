@@ -1,7 +1,7 @@
 {
   "name": "@todo/api",
   "version": "0.0.1",
-  "description": "To-Do API service — NestJS modular monolith (ADR-001/002).",
+  "description": "To-Do API service \u2014 NestJS modular monolith (ADR-001/002).",
   "author": "",
   "private": true,
   "license": "UNLICENSED",

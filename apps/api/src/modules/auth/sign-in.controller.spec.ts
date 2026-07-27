@@ -19,6 +19,10 @@ import { sessionCookieOptions } from '../../common/authz/session.constants';
 // AC-7 (session 401/200), AC-9 (400 validation).
 const VALID_PW = '9x!vQ2mLp0zR';
 const WRONG_PW = 'nope-not-it-000';
+// DEF-001: this spec owns this synthetic-IP range exclusively — specs run in
+// parallel workers against one database and clean their own auth_rate_buckets
+// rows by prefix, so a shared range lets one suite reset another's counter
+// mid-test. Enforced by common/rate-limit/rate-limit-isolation.spec.ts.
 const IP_PREFIX = `192.0.2.`; // TEST-NET; unique last octet per test isolates buckets
 
 describe('POST /auth/login + GET /auth/session (contract)', () => {

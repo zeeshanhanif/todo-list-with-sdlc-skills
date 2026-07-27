@@ -37,7 +37,7 @@ describe('list endpoints (contract)', () => {
   const prevRl = process.env.AUTH_RATELIMIT_MAX;
 
   const server = () => app.getHttpServer() as Parameters<typeof request>[0];
-  const nextIp = (): string => `198.51.100.${(ipCounter++ % 250) + 1}`;
+  const nextIp = (): string => `198.18.13.${(ipCounter++ % 250) + 1}`;
 
   const freshEmail = (): string => {
     const e = `listc-${randomUUID()}@example.com`;
