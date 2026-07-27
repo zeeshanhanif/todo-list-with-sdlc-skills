@@ -36,7 +36,7 @@
       Done when: `npm run build:shared` succeeds and api + web typecheck against
       the new symbols.
 
-- [ ] T3 — Domain: `modules/lists/` repository + service + errors (design §5;
+- [x] T3 — Domain: `modules/lists/` repository + service + errors (design §5;
       FR-LIST-001/002/004/005/006/007/008, FR-AUTHZ-002/003/004/005).
       `ListsRepository` with `findAllWithCounts` (one LEFT JOIN +
       `FILTER`-aggregate statement), `findById`, `create` (position =
