@@ -49,7 +49,7 @@
       asserted against `TaskSummary` shapes rather than raw rows), including AC-9's
       `completedAt: null` for an active task.
 
-- [ ] T4 — Contract: `TasksController` + `CreateTaskDto` + `TasksModule`
+- [x] T4 — Contract: `TasksController` + `CreateTaskDto` + `TasksModule`
       registered in `AppModule` (design §3). `@Controller('lists/:listId/tasks')`,
       class-level `@UseGuards(SessionGuard)`, `@CurrentUser()` for the owner id;
       error mapping `TaskTitleInvalidError` → `400 validation_failed`
