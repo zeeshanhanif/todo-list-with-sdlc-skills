@@ -28,6 +28,31 @@ async function markVerified(email: string): Promise<void> {
   }
 }
 
+/** Seed tasks into a named list. Task creation is FEAT-010's endpoint, which does
+ * not exist yet — the rows go in directly so the count-dependent behavior this
+ * feature owns (badges, the delete warning) can be exercised end to end. */
+async function seedTasks(
+  email: string,
+  listName: string,
+  count: number,
+): Promise<void> {
+  const client = new Client({ connectionString: DATABASE_URL });
+  await client.connect();
+  try {
+    await client.query(
+      `INSERT INTO tasks (owner_id, list_id, title)
+       SELECT u.id, l.id, 'seeded'
+         FROM users u
+         JOIN lists l ON l.owner_id = u.id AND l.name = $2
+         CROSS JOIN generate_series(1, $3::int)
+        WHERE u.email = $1`,
+      [email, listName, count],
+    );
+  } finally {
+    await client.end();
+  }
+}
+
 const rowNames = (page: Page) =>
   page
     .getByTestId("list-row")
@@ -108,6 +133,56 @@ test("a signed-in user creates, renames, reorders and deletes lists", async ({
   await expect(page.getByTestId("list-row")).toHaveCount(1);
   expect(await rowNames(page)).toEqual(["Inbox"]);
   await expect(page.getByTestId("list-toast")).toContainText("Shopping");
+});
+
+test("counts drive the sidebar badge and the delete warning", async ({
+  page,
+  request,
+}) => {
+  // AC-13 (badge shows the active-task count) and AC-12 (the confirmation
+  // quantifies what will be permanently deleted, NFR-USE-002).
+  const email = uniqueEmail();
+  expect(
+    (
+      await request.post(`${API}/auth/register`, {
+        data: { email, password: PW },
+      })
+    ).status(),
+  ).toBe(201);
+  await markVerified(email);
+  await seedTasks(email, "Inbox", 3);
+
+  await page.goto("/signin");
+  await page.getByTestId("email-input").fill(email);
+  await page.getByTestId("password-input").fill(PW);
+  await page.getByTestId("submit").click();
+  await page.waitForURL("/");
+
+  // The Inbox badge carries its active count; a list with none has no badge at
+  // all (ui-design D2 — the badge's presence is what carries meaning).
+  await expect(page.getByTestId("list-count")).toHaveCount(1);
+  await expect(page.getByTestId("list-count")).toHaveText("3");
+
+  await page.getByTestId("new-list").click();
+  await page.getByTestId("list-name-input").fill("Errands");
+  await page.getByTestId("dialog-confirm").click();
+  await expect(page.getByTestId("list-row")).toHaveCount(2);
+  await expect(page.getByTestId("list-count")).toHaveCount(1); // still just Inbox's
+
+  // The warning names the list and the exact number of tasks going with it.
+  await seedTasks(email, "Errands", 2);
+  await page.reload();
+  await expect(page.getByTestId("list-count")).toHaveCount(2);
+  await openMenu(page, 1);
+  await page.getByTestId("menu-delete").click();
+  await expect(page.getByTestId("delete-warning")).toContainText("Errands");
+  await expect(page.getByTestId("delete-warning")).toContainText("2 tasks");
+
+  // Dismissing sends nothing: the list and its tasks survive.
+  await page.getByTestId("dialog-cancel").click();
+  await expect(page.getByTestId("list-row")).toHaveCount(2);
+  await page.reload();
+  expect(await rowNames(page)).toEqual(["Inbox", "Errands"]);
 });
 
 test("the app home requires a session", async ({ page }) => {

@@ -1,7 +1,7 @@
 # Tasks: FEAT-009 — List management
 
 > Executes: docs/features/FEAT-009-lists/technical-design.md
-> Status: pending · Last updated: 2026-07-27
+> Status: all tasks done · Last updated: 2026-07-27
 > Notes: first slice of Phase 2 and the **first owned-data module** — the
 > ownership-scoping convention set in T3 (design D3: every repository statement
 > carries `WHERE owner_id = $1`; missing-or-forbidden is a uniform `404`) is
@@ -125,7 +125,7 @@
       Done when: `npm run test:e2e` passes against the local stack (Docker + DB
       up) with the lists spec replacing the skeleton spec.
 
-- [ ] T9 — Verify: acceptance criteria AC-1..AC-13 (design §6) demonstrably pass;
+- [x] T9 — Verify: acceptance criteria AC-1..AC-13 (design §6) demonstrably pass;
       `npm run boundaries`, `npm run lint`, `npm run build` and the api + shared +
       web test suites green; migrations 007 and 008 applied and reversible.
       Done when: the full feature suite passes and the checklist above is
