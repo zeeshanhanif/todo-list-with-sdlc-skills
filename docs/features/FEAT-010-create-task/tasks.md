@@ -1,7 +1,7 @@
 # Tasks: FEAT-010 — Create task + list view
 
 > Executes: docs/features/FEAT-010-create-task/technical-design.md
-> Status: pending · Last updated: 2026-07-27
+> Status: all tasks done · Last updated: 2026-07-27
 > Notes: **no migration** (design §4/D1) — the list starts at the contract layer,
 > because FEAT-009's migration 007 already created every column this slice reads.
 > The `tasks` module copies `modules/lists` as its worked example: every repository
@@ -99,7 +99,7 @@
       Done when: `npm run test:e2e` passes against the local stack (Docker + DB
       up), with the FEAT-009 lists spec still green.
 
-- [ ] T8 — Verify: acceptance criteria AC-1..AC-12 (design §6) demonstrably pass;
+- [x] T8 — Verify: acceptance criteria AC-1..AC-12 (design §6) demonstrably pass;
       `npm run boundaries` (confirming **no** `modules/tasks → modules/lists`
       import crept in — D8), `npm run lint`, `npm run build`, and the api + shared +
       web + e2e suites green; no migration to apply (design §4) — confirm
