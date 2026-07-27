@@ -34,11 +34,11 @@
 | FR-AUTH-017 | Invalidate sessions on password change/reset | Must | Active | SEC | UC-005, UC-006 | ADR-005; features/FEAT-005-reset-password/technical-design.md; features/FEAT-006-change-password/technical-design.md; features/FEAT-006-change-password/ui-design.md | FEAT-005, FEAT-006 | features/FEAT-005-reset-password/acceptance-report.md (partial); features/FEAT-006-change-password/acceptance-report.md (partial) |
 | FR-AUTH-018 | Rate-limit auth endpoints | Must | Active | SEC | UC-003, UC-005 | arch §8; features/FEAT-003-sign-in/technical-design.md; features/FEAT-003-sign-in/ui-design.md | FEAT-003 | features/FEAT-003-sign-in/acceptance-report.md (partial); features/FEAT-005-reset-password/acceptance-report.md (partial) |
 | FR-AUTH-019 | Lockout/throttle after failed attempts | Must | Active | SEC | UC-003 | arch §8; features/FEAT-003-sign-in/technical-design.md; features/FEAT-003-sign-in/ui-design.md | FEAT-003 | features/FEAT-003-sign-in/acceptance-report.md |
-| FR-AUTHZ-001 | Require auth for all data operations | Must | Active | SEC | UC-003 (all auth UCs) | ADR-005; arch §8; features/FEAT-003-sign-in/technical-design.md (partial — session auth) | Foundations | features/FEAT-003-sign-in/acceptance-report.md (partial); features/FEAT-006-change-password/acceptance-report.md (partial — authenticated endpoint); features/FEAT-009-lists/acceptance-report.md (partial) |
-| FR-AUTHZ-002 | User accesses only own data | Must | Active | SI | All authenticated UCs | ADR-003; arch §8; features/FEAT-009-lists/technical-design.md (ownership scoping — first data module) | Foundations | features/FEAT-009-lists/acceptance-report.md (partial) |
-| FR-AUTHZ-003 | Reject others' resources w/o disclosure | Must | Active | SEC | All authenticated UCs | arch §8; features/FEAT-009-lists/technical-design.md (ownership scoping — first data module) | Foundations | features/FEAT-009-lists/acceptance-report.md (partial) |
-| FR-AUTHZ-004 | Assign ownership at creation; no transfer | Must | Active | SI | UC-008, UC-009 | ADR-003; features/FEAT-009-lists/technical-design.md (ownership scoping — first data module) | Foundations | features/FEAT-009-lists/acceptance-report.md (partial) |
-| FR-AUTHZ-005 | Server-authoritative authorization | Must | Active | SEC | All authenticated UCs | arch §8; features/FEAT-009-lists/technical-design.md (ownership scoping — first data module) | Foundations | features/FEAT-009-lists/acceptance-report.md (partial) |
+| FR-AUTHZ-001 | Require auth for all data operations | Must | Active | SEC | UC-003 (all auth UCs) | ADR-005; arch §8; features/FEAT-003-sign-in/technical-design.md (partial — session auth) | Foundations | features/FEAT-003-sign-in/acceptance-report.md (partial); features/FEAT-006-change-password/acceptance-report.md (partial — authenticated endpoint); features/FEAT-009-lists/acceptance-report.md (partial); features/FEAT-010-create-task/acceptance-report.md (partial) |
+| FR-AUTHZ-002 | User accesses only own data | Must | Active | SI | All authenticated UCs | ADR-003; arch §8; features/FEAT-009-lists/technical-design.md (ownership scoping — first data module) | Foundations | features/FEAT-009-lists/acceptance-report.md (partial); features/FEAT-010-create-task/acceptance-report.md (partial) |
+| FR-AUTHZ-003 | Reject others' resources w/o disclosure | Must | Active | SEC | All authenticated UCs | arch §8; features/FEAT-009-lists/technical-design.md (ownership scoping — first data module) | Foundations | features/FEAT-009-lists/acceptance-report.md (partial); features/FEAT-010-create-task/acceptance-report.md (partial) |
+| FR-AUTHZ-004 | Assign ownership at creation; no transfer | Must | Active | SI | UC-008, UC-009 | ADR-003; features/FEAT-009-lists/technical-design.md (ownership scoping — first data module) | Foundations | features/FEAT-009-lists/acceptance-report.md (partial); features/FEAT-010-create-task/acceptance-report.md (partial) |
+| FR-AUTHZ-005 | Server-authoritative authorization | Must | Active | SEC | All authenticated UCs | arch §8; features/FEAT-009-lists/technical-design.md (ownership scoping — first data module) | Foundations | features/FEAT-009-lists/acceptance-report.md (partial); features/FEAT-010-create-task/acceptance-report.md (partial) |
 | FR-PROF-001 | View profile (email, display name) | Must | Active | SI | UC-007 | _TBD_ | FEAT-008 | _TBD_ |
 | FR-PROF-002 | Set/edit display name | Should | Active | SI | UC-007 | _TBD_ | FEAT-008 | _TBD_ |
 | FR-PROF-003 | Set timezone (due/overdue calc) | Must | Active | SI | UC-007 | _TBD_ | FEAT-008 | _TBD_ |
@@ -52,10 +52,10 @@
 | FR-LIST-006 | Rename a list | Must | Active | SI | UC-008 | ADR-003; features/FEAT-009-lists/technical-design.md; features/FEAT-009-lists/ui-design.md | FEAT-009 | features/FEAT-009-lists/acceptance-report.md |
 | FR-LIST-007 | Delete non-default list (cascade tasks) | Must | Active | SI | UC-008 | ADR-003; features/FEAT-009-lists/technical-design.md; features/FEAT-009-lists/ui-design.md | FEAT-009 | features/FEAT-009-lists/acceptance-report.md |
 | FR-LIST-008 | Manually reorder lists, persisted | Should | Active | SI | UC-008 | ADR-003; features/FEAT-009-lists/technical-design.md; features/FEAT-009-lists/ui-design.md | FEAT-009 | features/FEAT-009-lists/acceptance-report.md |
-| FR-LIST-009 | Task belongs to exactly one list | Must | Active | SI | UC-008, UC-009 | ADR-003; features/FEAT-009-lists/technical-design.md; features/FEAT-010-create-task/technical-design.md | FEAT-009, FEAT-010 | features/FEAT-009-lists/acceptance-report.md (partial) |
-| FR-TASK-001 | Create task with title in a list | Must | Active | SI | UC-009 | ADR-003; features/FEAT-010-create-task/technical-design.md; features/FEAT-010-create-task/ui-design.md | FEAT-010 | _TBD_ |
-| FR-TASK-002 | Validate task title | Must | Active | SI | UC-009 | features/FEAT-010-create-task/technical-design.md; features/FEAT-010-create-task/ui-design.md | FEAT-010 | _TBD_ |
-| FR-TASK-003 | View tasks (active vs completed) | Must | Active | SI | UC-011, UC-013 | ADR-003; features/FEAT-010-create-task/technical-design.md; features/FEAT-010-create-task/ui-design.md | FEAT-010, FEAT-012 | _TBD_ |
+| FR-LIST-009 | Task belongs to exactly one list | Must | Active | SI | UC-008, UC-009 | ADR-003; features/FEAT-009-lists/technical-design.md; features/FEAT-010-create-task/technical-design.md | FEAT-009, FEAT-010 | features/FEAT-009-lists/acceptance-report.md (partial); features/FEAT-010-create-task/acceptance-report.md (partial) |
+| FR-TASK-001 | Create task with title in a list | Must | Active | SI | UC-009 | ADR-003; features/FEAT-010-create-task/technical-design.md; features/FEAT-010-create-task/ui-design.md | FEAT-010 | features/FEAT-010-create-task/acceptance-report.md |
+| FR-TASK-002 | Validate task title | Must | Active | SI | UC-009 | features/FEAT-010-create-task/technical-design.md; features/FEAT-010-create-task/ui-design.md | FEAT-010 | features/FEAT-010-create-task/acceptance-report.md |
+| FR-TASK-003 | View tasks (active vs completed) | Must | Active | SI | UC-011, UC-013 | ADR-003; features/FEAT-010-create-task/technical-design.md; features/FEAT-010-create-task/ui-design.md | FEAT-010, FEAT-012 | features/FEAT-010-create-task/acceptance-report.md (partial) |
 | FR-TASK-004 | View task details | Must | Active | SI | UC-010 | ADR-003 | FEAT-011 | _TBD_ |
 | FR-TASK-005 | Edit task title | Must | Active | SI | UC-010 | ADR-003 | FEAT-011 | _TBD_ |
 | FR-TASK-006 | Set/change/clear due date+time | Must | Active | SI | UC-009, UC-010 | ADR-003 | FEAT-011 | _TBD_ |
@@ -88,7 +88,7 @@
 
 | Req ID | Requirement (short) | Priority | Status | Source | Use case(s) | Design ref | Plan ref | Test ref |
 | :----- | :------------------ | :------- | :----- | :----- | :---------- | :--------- | :------- | :------- |
-| NFR-PERF-001 | p95 core ops < 300 ms | Must | Active | GOAL (G4) | — | arch §8, §10 | Foundations | _TBD_ |
+| NFR-PERF-001 | p95 core ops < 300 ms | Must | Active | GOAL (G4) | — | arch §8, §10 | Foundations | features/FEAT-010-create-task/acceptance-report.md (partial) |
 | NFR-PERF-002 | FCP < 2.5 s, interactive < 3.5 s | Should | Active | GOAL (G4) | — | ADR-002; arch §8 | Foundations | _TBD_ |
 | NFR-PERF-003 | p95 search < 500 ms @ 5k tasks | Should | Active | GOAL (G4) | UC-013 | ADR-003 | FEAT-015 | _TBD_ |
 | NFR-PERF-004 | Cross-device sync < 5 s | Should | Active | GOAL (G3) | — | ADR-006 | FEAT-019 | _TBD_ |
@@ -110,9 +110,9 @@
 | NFR-SEC-008 | OWASP Top 10 protections | Must | Active | SEC | — | arch §8 | Foundations | _TBD_ |
 | NFR-SEC-009 | Audit log security events ≥ 90 days | Should | Active | SEC | — | arch §8; features/FEAT-003-sign-in/technical-design.md (partial — sign-in events) | Foundations | features/FEAT-003-sign-in/acceptance-report.md (partial); features/FEAT-006-change-password/acceptance-report.md (partial — password-change events) |
 | NFR-SEC-010 | Dependency vuln remediation SLA | Should | Active | SEC | — | arch §8 | Foundations | _TBD_ |
-| NFR-USE-001 | Register + first task < 2 min | Should | Active | GOAL (G1) | UC-001, UC-009 | features/FEAT-010-create-task/technical-design.md; features/FEAT-010-create-task/ui-design.md | FEAT-001, FEAT-010 | _TBD_ |
+| NFR-USE-001 | Register + first task < 2 min | Should | Active | GOAL (G1) | UC-001, UC-009 | features/FEAT-010-create-task/technical-design.md; features/FEAT-010-create-task/ui-design.md | FEAT-001, FEAT-010 | features/FEAT-010-create-task/acceptance-report.md (partial) |
 | NFR-USE-002 | Destructive actions require confirmation | Must | Active | SI | UC-008, UC-012, UC-016 | _TBD_ | Foundations | _TBD_ |
-| NFR-USE-003 | Loading/empty/error states everywhere | Must | Active | SI | UC-013 | arch §8; features/FEAT-010-create-task/technical-design.md; features/FEAT-010-create-task/ui-design.md | Foundations | _TBD_ |
+| NFR-USE-003 | Loading/empty/error states everywhere | Must | Active | SI | UC-013 | arch §8; features/FEAT-010-create-task/technical-design.md; features/FEAT-010-create-task/ui-design.md | Foundations | features/FEAT-010-create-task/acceptance-report.md (partial) |
 | NFR-USE-004 | Accessibility best practices | Should | Active | SI | — | _TBD_ | Foundations | _TBD_ |
 | NFR-COMPAT-001 | Latest 2 versions of major browsers | Must | Active | SI | — | ADR-002 | Foundations | _TBD_ |
 | NFR-COMPAT-002 | Responsive 320px→desktop | Must | Active | SI | — | ADR-002 | Foundations | _TBD_ |
@@ -124,7 +124,7 @@
 | NFR-OBS-001 | Structured centralized logging | Should | Active | SI | — | arch §8 | Foundations | _TBD_ |
 | NFR-OBS-002 | Health-check endpoint | Should | Active | SI | — | arch §8 | Foundations | _TBD_ |
 | NFR-OBS-003 | Latency/error metrics + alerting | Should | Active | SI | — | arch §8 | Foundations | _TBD_ |
-| NFR-LOC-001 | Store UTC, display user timezone | Must | Active | SI | UC-007 | arch §8 | Foundations, FEAT-008 | _TBD_ |
+| NFR-LOC-001 | Store UTC, display user timezone | Must | Active | SI | UC-007 | arch §8 | Foundations, FEAT-008 | features/FEAT-010-create-task/acceptance-report.md (partial) |
 | NFR-LOC-002 | English-only, strings externalized | Should | Active | SI | — | _TBD_ | Foundations | _TBD_ |
 | NFR-COMP-001 | Privacy good practice; export/delete supported | Should | Active | PRIV | UC-015, UC-016 | _TBD_ | FEAT-017, FEAT-018 | _TBD_ |
 
