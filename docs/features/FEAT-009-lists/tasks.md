@@ -61,7 +61,7 @@
       unknown uuid), and AC-10 (NULL/dangling `list_id` inserts are rejected by
       the constraints).
 
-- [ ] T4 — Contract: `ListsController` + DTOs + `ListsModule` registered in
+- [x] T4 — Contract: `ListsController` + DTOs + `ListsModule` registered in
       `AppModule` (design §3). Class-level `@UseGuards(SessionGuard)`,
       `@CurrentUser()` for the owner id; `POST /lists/reorder` declared **before**
       `PATCH /lists/:id`; error mapping `ListNameInvalidError` → `400
