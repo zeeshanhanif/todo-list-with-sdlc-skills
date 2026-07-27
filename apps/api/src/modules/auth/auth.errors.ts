@@ -58,6 +58,17 @@ export class EmailNotVerifiedError extends Error {
   }
 }
 
+/** The `currentPassword` supplied to a change-password request does not verify
+ * against the stored hash (FEAT-006 → 400 current_password_invalid, field
+ * `currentPassword`; FR-AUTH-015; UC-006 alt 3a). Not 401: on an authenticated
+ * route 401 means the session is gone (technical-design D3). */
+export class CurrentPasswordInvalidError extends Error {
+  constructor() {
+    super('That current password is incorrect.');
+    this.name = 'CurrentPasswordInvalidError';
+  }
+}
+
 /** The account is within its lockout window after too many failed sign-ins
  * (FEAT-003 → 423 account_locked; FR-AUTH-019; UC-003 exc-3c). Carries the
  * seconds until the lock lifts, for the retry-after message. */

@@ -15,6 +15,7 @@ import {
 import { AuditService, AUDIT_EVENTS } from '../../common/audit/audit.service';
 import {
   AccountLockedError,
+  CurrentPasswordInvalidError,
   EmailNotVerifiedError,
   EmailTakenError,
   InvalidCredentialsError,
@@ -249,6 +250,66 @@ export class AuthService {
       await this.users.updatePasswordAndClearReset(tx, match.id, passwordHash);
       await this.sessions.revokeAllForUser(match.id, tx); // FR-AUTH-017
     });
+  }
+
+  /**
+   * Change the signed-in user's own password (FR-AUTH-015/017; UC-006; FEAT-006
+   * technical-design §5). Order: verify the current password (failure audits and
+   * throws, touching nothing — D4: no lockout counters) → validate the new
+   * password policy → in one transaction: update the password (also consuming any
+   * pending reset token, D6), delete ALL the user's sessions (FR-AUTH-017), and
+   * issue a replacement session for this device (D1/D2 — rotation, NFR-SEC-007).
+   * Returns the issued session; the controller sets the cookie.
+   */
+  async changePassword(input: {
+    userId: string;
+    currentPassword: string;
+    newPassword: string;
+    ip?: string | null;
+  }): Promise<IssuedSession> {
+    const ip = input.ip ?? null;
+
+    const stored = await this.users.findPasswordHashById(this.db, input.userId);
+    if (!stored) {
+      // Unreachable via SessionGuard (sessions cascade with their user).
+      throw new Error(`change-password: no user row for id ${input.userId}`);
+    }
+
+    const currentOk = await this.hasher.verify(
+      stored.passwordHash,
+      input.currentPassword,
+    );
+    if (!currentOk) {
+      await this.audit.record(AUDIT_EVENTS.passwordChangeFailure, {
+        userId: input.userId,
+        ip,
+        detail: { reason: 'wrong_current_password' },
+      });
+      throw new CurrentPasswordInvalidError();
+    }
+
+    // Policy gate before any write, so a rejected new password changes nothing.
+    const requirement = this.policy.check(input.newPassword);
+    if (requirement) {
+      throw new PasswordPolicyError(requirement);
+    }
+
+    const passwordHash = await this.hasher.hash(input.newPassword);
+    const session = await this.db.transaction(async (tx) => {
+      await this.users.updatePasswordAndClearReset(
+        tx,
+        input.userId,
+        passwordHash,
+      );
+      await this.sessions.revokeAllForUser(input.userId, tx); // FR-AUTH-017
+      return this.sessions.issue(input.userId, tx); // rotation (NFR-SEC-007)
+    });
+
+    await this.audit.record(AUDIT_EVENTS.passwordChanged, {
+      userId: input.userId,
+      ip,
+    });
+    return session;
   }
 
   /**

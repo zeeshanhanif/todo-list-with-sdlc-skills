@@ -150,6 +150,10 @@ export const AUTH_ERROR_CODES = {
   accountLocked: "account_locked",
   rateLimited: "rate_limited",
   unauthenticated: "unauthenticated",
+  /** 400 on POST /auth/change-password when `currentPassword` doesn't verify
+   * (FEAT-006 technical-design D3). Deliberately NOT 401 — on an authenticated
+   * route 401 means "your session is gone" and the client redirects to sign-in. */
+  currentPasswordInvalid: "current_password_invalid",
 } as const;
 
 /** Extra fields carried on 423/429 error envelopes so the UI can render a
@@ -200,4 +204,25 @@ export interface ResetPasswordRequest {
  * user's existing sessions (FR-AUTH-017). */
 export interface ResetPasswordResponse {
   status: "password_reset";
+}
+
+// --- Auth: change password (FEAT-006) ---
+
+/** Path of the change-password endpoint. Authenticated; rotates the caller's
+ * session cookie (FEAT-006 technical-design D1). */
+export const CHANGE_PASSWORD_PATH = "/auth/change-password";
+
+/** Request body of POST /auth/change-password. The user is taken from the
+ * session, never from the body (FR-AUTHZ-001). */
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+/** Success response (200) of POST /auth/change-password. All sessions that
+ * existed before the change are invalidated (FR-AUTH-017) and the response
+ * carries a freshly issued session cookie for the calling device
+ * (NFR-SEC-007 — rotation on privilege change). */
+export interface ChangePasswordResponse {
+  status: "password_changed";
 }

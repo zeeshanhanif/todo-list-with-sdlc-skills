@@ -1,0 +1,100 @@
+import Link from "next/link";
+import { AppShell } from "@/components/app-shell";
+import { requireSession } from "@/lib/session";
+
+// SCR-WEB-014 — Settings › Security & Account (ui-design.md). The hub for the
+// account-security actions: change password now, export (FEAT-017) and delete
+// account (FEAT-018) later. Pure navigation — consumes no endpoint; an
+// unresolved session redirects to /signin server-side (ui-design D4). Rows are
+// real links (keyboard navigable). All values are design tokens.
+export const dynamic = "force-dynamic";
+
+export default async function SecuritySettingsPage() {
+  const user = await requireSession();
+
+  return (
+    <AppShell active="settings">
+      <h1
+        style={{
+          fontSize: "var(--font-size-h1)",
+          lineHeight: "var(--font-line-height-h1)",
+          color: "var(--color-text)",
+          margin: "0 0 var(--space-2)",
+        }}
+      >
+        Security &amp; account
+      </h1>
+      <p
+        style={{
+          margin: "0 0 var(--space-6)",
+          color: "var(--color-text-muted)",
+          fontSize: "var(--font-size-body)",
+        }}
+      >
+        Signed in as {user.email}
+      </p>
+
+      <section
+        data-testid="security-hub"
+        style={{
+          background: "var(--color-surface)",
+          border: "var(--border-width-hairline) solid var(--color-border)",
+          borderRadius: "var(--radius-lg)",
+          boxShadow: "var(--shadow-sm)",
+          overflow: "hidden",
+        }}
+      >
+        <HubRow
+          href="/settings/security/password"
+          label="Change password"
+          help="Update your password. Other devices will be signed out."
+        />
+      </section>
+    </AppShell>
+  );
+}
+
+/** design.md §4 generic `list-row`: label over one line of help, full row is the
+ * target, 44px minimum height (§5). */
+function HubRow({
+  href,
+  label,
+  help,
+}: {
+  href: string;
+  label: string;
+  help: string;
+}) {
+  return (
+    <Link
+      href={href}
+      data-testid="row-change-password"
+      style={{
+        display: "block",
+        minHeight: 44,
+        padding: "var(--space-4) var(--space-5)",
+        textDecoration: "none",
+      }}
+    >
+      <span
+        style={{
+          display: "block",
+          color: "var(--color-text)",
+          fontSize: "var(--font-size-body)",
+        }}
+      >
+        {label}
+      </span>
+      <span
+        style={{
+          display: "block",
+          marginTop: "var(--space-1)",
+          color: "var(--color-text-muted)",
+          fontSize: "var(--font-size-small)",
+        }}
+      >
+        {help}
+      </span>
+    </Link>
+  );
+}
