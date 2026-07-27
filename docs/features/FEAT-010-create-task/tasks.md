@@ -92,7 +92,7 @@
       `POST /lists/{id}/tasks`, deletes the list via `DELETE /lists/{id}`, and
       observes `deletedTaskCount` matching and zero surviving rows.
 
-- [ ] T7 — E2E: extend `e2e/tests/` with the path this feature completes —
+- [x] T7 — E2E: extend `e2e/tests/` with the path this feature completes —
       sign in → land on `/` → see the Inbox view → add a task → it appears in the
       active section with the sidebar badge updated → open another list from the
       sidebar and see its own (empty) state. [UC-009]
