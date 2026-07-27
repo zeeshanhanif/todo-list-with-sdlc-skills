@@ -41,7 +41,7 @@
       (the task is returned by that list only; deleting the list removes it),
       and AC-9 (timestamps are UTC `timestamptz` round-tripping as ISO-8601).
 
-- [ ] T3 — Domain: `TasksService` (design §5) — title normalization + FR-TASK-002
+- [x] T3 — Domain: `TasksService` (design §5) — title normalization + FR-TASK-002
       bounds, the owned-list guard before both operations, the active/completed
       partition, and row → `TaskSummary` mapping with ISO-8601 UTC timestamps
       (NFR-LOC-001).
