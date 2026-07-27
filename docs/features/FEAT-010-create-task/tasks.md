@@ -24,7 +24,7 @@
       Done when: `npm run build:shared` succeeds and api + web typecheck against
       the new symbols.
 
-- [ ] T2 — Domain: `modules/tasks/` repository + errors (design §5;
+- [x] T2 — Domain: `modules/tasks/` repository + errors (design §5;
       FR-TASK-001/002, FR-LIST-009, FR-AUTHZ-002/003/004/005).
       `TasksRepository` with `findOwnedList(ownerId, listId)` (the one-statement
       ownership check against `lists` — D8, no cross-module import),
