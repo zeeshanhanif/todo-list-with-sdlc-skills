@@ -35,24 +35,24 @@
 | FR-AUTH-018 | Rate-limit auth endpoints | Must | Active | SEC | UC-003, UC-005 | arch §8; features/FEAT-003-sign-in/technical-design.md; features/FEAT-003-sign-in/ui-design.md | FEAT-003 | features/FEAT-003-sign-in/acceptance-report.md (partial); features/FEAT-005-reset-password/acceptance-report.md (partial) |
 | FR-AUTH-019 | Lockout/throttle after failed attempts | Must | Active | SEC | UC-003 | arch §8; features/FEAT-003-sign-in/technical-design.md; features/FEAT-003-sign-in/ui-design.md | FEAT-003 | features/FEAT-003-sign-in/acceptance-report.md |
 | FR-AUTHZ-001 | Require auth for all data operations | Must | Active | SEC | UC-003 (all auth UCs) | ADR-005; arch §8; features/FEAT-003-sign-in/technical-design.md (partial — session auth) | Foundations | features/FEAT-003-sign-in/acceptance-report.md (partial); features/FEAT-006-change-password/acceptance-report.md (partial — authenticated endpoint) |
-| FR-AUTHZ-002 | User accesses only own data | Must | Active | SI | All authenticated UCs | ADR-003; arch §8 | Foundations | _TBD_ |
-| FR-AUTHZ-003 | Reject others' resources w/o disclosure | Must | Active | SEC | All authenticated UCs | arch §8 | Foundations | _TBD_ |
-| FR-AUTHZ-004 | Assign ownership at creation; no transfer | Must | Active | SI | UC-008, UC-009 | ADR-003 | Foundations | _TBD_ |
-| FR-AUTHZ-005 | Server-authoritative authorization | Must | Active | SEC | All authenticated UCs | arch §8 | Foundations | _TBD_ |
+| FR-AUTHZ-002 | User accesses only own data | Must | Active | SI | All authenticated UCs | ADR-003; arch §8; features/FEAT-009-lists/technical-design.md (ownership scoping — first data module) | Foundations | _TBD_ |
+| FR-AUTHZ-003 | Reject others' resources w/o disclosure | Must | Active | SEC | All authenticated UCs | arch §8; features/FEAT-009-lists/technical-design.md (ownership scoping — first data module) | Foundations | _TBD_ |
+| FR-AUTHZ-004 | Assign ownership at creation; no transfer | Must | Active | SI | UC-008, UC-009 | ADR-003; features/FEAT-009-lists/technical-design.md (ownership scoping — first data module) | Foundations | _TBD_ |
+| FR-AUTHZ-005 | Server-authoritative authorization | Must | Active | SEC | All authenticated UCs | arch §8; features/FEAT-009-lists/technical-design.md (ownership scoping — first data module) | Foundations | _TBD_ |
 | FR-PROF-001 | View profile (email, display name) | Must | Active | SI | UC-007 | _TBD_ | FEAT-008 | _TBD_ |
 | FR-PROF-002 | Set/edit display name | Should | Active | SI | UC-007 | _TBD_ | FEAT-008 | _TBD_ |
 | FR-PROF-003 | Set timezone (due/overdue calc) | Must | Active | SI | UC-007 | _TBD_ | FEAT-008 | _TBD_ |
 | FR-PROF-004 | Select UI theme, persisted | Should | Active | SI | UC-007 | _TBD_ | FEAT-008 | _TBD_ |
 | FR-PROF-005 | Persist settings across devices | Must | Active | SI | UC-007 | ADR-003 | FEAT-008 | _TBD_ |
-| FR-LIST-001 | Create list with name | Must | Active | SI | UC-008 | ADR-003 | FEAT-009 | _TBD_ |
-| FR-LIST-002 | Validate list name | Must | Active | SI | UC-008 | _TBD_ | FEAT-009 | _TBD_ |
+| FR-LIST-001 | Create list with name | Must | Active | SI | UC-008 | ADR-003; features/FEAT-009-lists/technical-design.md; features/FEAT-009-lists/ui-design.md | FEAT-009 | _TBD_ |
+| FR-LIST-002 | Validate list name | Must | Active | SI | UC-008 | features/FEAT-009-lists/technical-design.md; features/FEAT-009-lists/ui-design.md | FEAT-009 | _TBD_ |
 | FR-LIST-003 | Auto-create default Inbox on registration | Must | Active | SI | UC-001 | ADR-003; features/FEAT-001-register/technical-design.md | FEAT-001 | features/FEAT-001-register/acceptance-report.md |
-| FR-LIST-004 | Prevent deletion of Inbox (allow rename) | Must | Active | SI | UC-008 | ADR-003 | FEAT-009 | _TBD_ |
-| FR-LIST-005 | View lists with active-task counts | Must | Active | SI | UC-008 | ADR-003 | FEAT-009 | _TBD_ |
-| FR-LIST-006 | Rename a list | Must | Active | SI | UC-008 | ADR-003 | FEAT-009 | _TBD_ |
-| FR-LIST-007 | Delete non-default list (cascade tasks) | Must | Active | SI | UC-008 | ADR-003 | FEAT-009 | _TBD_ |
-| FR-LIST-008 | Manually reorder lists, persisted | Should | Active | SI | UC-008 | ADR-003 | FEAT-009 | _TBD_ |
-| FR-LIST-009 | Task belongs to exactly one list | Must | Active | SI | UC-008, UC-009 | ADR-003 | FEAT-009, FEAT-010 | _TBD_ |
+| FR-LIST-004 | Prevent deletion of Inbox (allow rename) | Must | Active | SI | UC-008 | ADR-003; features/FEAT-009-lists/technical-design.md; features/FEAT-009-lists/ui-design.md | FEAT-009 | _TBD_ |
+| FR-LIST-005 | View lists with active-task counts | Must | Active | SI | UC-008 | ADR-003; features/FEAT-009-lists/technical-design.md; features/FEAT-009-lists/ui-design.md | FEAT-009 | _TBD_ |
+| FR-LIST-006 | Rename a list | Must | Active | SI | UC-008 | ADR-003; features/FEAT-009-lists/technical-design.md; features/FEAT-009-lists/ui-design.md | FEAT-009 | _TBD_ |
+| FR-LIST-007 | Delete non-default list (cascade tasks) | Must | Active | SI | UC-008 | ADR-003; features/FEAT-009-lists/technical-design.md; features/FEAT-009-lists/ui-design.md | FEAT-009 | _TBD_ |
+| FR-LIST-008 | Manually reorder lists, persisted | Should | Active | SI | UC-008 | ADR-003; features/FEAT-009-lists/technical-design.md; features/FEAT-009-lists/ui-design.md | FEAT-009 | _TBD_ |
+| FR-LIST-009 | Task belongs to exactly one list | Must | Active | SI | UC-008, UC-009 | ADR-003; features/FEAT-009-lists/technical-design.md | FEAT-009, FEAT-010 | _TBD_ |
 | FR-TASK-001 | Create task with title in a list | Must | Active | SI | UC-009 | ADR-003 | FEAT-010 | _TBD_ |
 | FR-TASK-002 | Validate task title | Must | Active | SI | UC-009 | _TBD_ | FEAT-010 | _TBD_ |
 | FR-TASK-003 | View tasks (active vs completed) | Must | Active | SI | UC-011, UC-013 | ADR-003 | FEAT-010, FEAT-012 | _TBD_ |

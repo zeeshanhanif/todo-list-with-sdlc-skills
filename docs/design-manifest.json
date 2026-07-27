@@ -191,32 +191,67 @@
       "designed_at": "2026-07-25"
     },
     "SCR-WEB-007": {
-      "name": "App Shell — sign-out control",
+      "name": "App Shell — sidebar (lists, settings, sign-out)",
       "surface": "WEB",
       "feature": "FEAT-004",
       "strategy": "code-native",
       "source": {
-        "spec": "features/FEAT-004-sign-out/ui-design.md#scr-web-007--app-shell-sign-out-control"
+        "spec": "features/FEAT-009-lists/ui-design.md#scr-web-007--app-shell--lists-sidebar"
       },
       "states": {
         "covered": [
-          "default",
+          "loading",
+          "ready",
+          "error",
           "signing-out"
         ],
         "gaps": [],
         "supplements": []
       },
       "contract_bindings": [
+        "GET /lists",
+        "POST /lists/reorder",
         "POST /auth/logout"
       ],
-      "notes": "Scoped to the sign-out control FEAT-004 adds to the app shell (sidebar-footer button-tertiary + Lucide LogOut → POST /api/auth/logout → redirect /signin). The shell FRAME and its loading/ready states are the foundations skeleton (apps/web/src/app/page.tsx), not designed by this entry; later shell-touching features (sidebar lists FEAT-009, smart views FEAT-016, settings link SCR-WEB-014) extend this entry. Logout is idempotent so the control has no error state (technical-design D1). SCR-WEB-010's UC-004 tag is a likely source typo — no entry created for it (see feature ui-design.md §escalations). FEAT-006 extends this entry with the sidebar 'Settings' sidebar-nav-item → /settings/security (SCR-WEB-014), realized text-only for the same reason the sign-out control is (no icon library wired); see features/FEAT-006-change-password/ui-design.md D2.",
+      "notes": "Cumulative entry for the app shell, extended once per shell-touching feature; the `source` locator points at the newest and most complete spec, and the earlier ones remain valid for their own parts: FEAT-004 sign-out control (features/FEAT-004-sign-out/ui-design.md#scr-web-007--app-shell-sign-out-control), FEAT-006 Settings nav item (features/FEAT-006-change-password/ui-design.md, D2), FEAT-009 lists section (current spec). FEAT-009 makes the sidebar the product's primary navigation: one `sidebar-nav-item` per list in `position` order with an activeTaskCount `badge` (hidden at zero — ui-design D2), a per-row `dropdown-menu` (rename / move up / move down / delete, with Delete absent on the default list — D1), and a 'New list' action, all opening SCR-WEB-011. Reorder is menu-driven, not drag-and-drop (D5) — design.md specifies a drag handle only on task-row, and §5 requires the move-up/down keyboard path regardless. FEAT-009 also implements the shell's `< md` full drawer that design.md §3 specified and FEAT-006 §8 recorded as unbuilt (D3), so 'ready' now covers both the desktop sidebar and the mobile drawer. No `empty` state exists by design: FR-LIST-003 guarantees every account has an Inbox. Sidebar rows are not navigational until FEAT-010 mints /lists/{id} (SCR-WEB-008), and the `/` content column is an interim placeholder, not a designed screen. Lucide icons remain unwired — controls are text/glyph with aria-labels (carried deviation, not an escalation). SCR-WEB-010's UC-004 tag is a likely source typo — no entry created for it.",
       "conformance": {
         "result": "pass",
         "corrections": [],
         "escalations": []
       },
       "status": "designed",
-      "designed_at": "2026-07-25"
+      "designed_at": "2026-07-27"
+    },
+    "SCR-WEB-011": {
+      "name": "Create/Edit List",
+      "surface": "WEB",
+      "feature": "FEAT-009",
+      "strategy": "code-native",
+      "source": {
+        "spec": "features/FEAT-009-lists/ui-design.md#scr-web-011--createedit-list"
+      },
+      "states": {
+        "covered": [
+          "default",
+          "validation-error",
+          "delete-confirm"
+        ],
+        "gaps": [],
+        "supplements": []
+      },
+      "contract_bindings": [
+        "POST /lists",
+        "PATCH /lists/{id}",
+        "DELETE /lists/{id}"
+      ],
+      "conformance": {
+        "result": "pass",
+        "corrections": [],
+        "escalations": []
+      },
+      "notes": "One dialog screen carrying three UC-008 paths (create, rename, delete-confirm); no route of its own (ui-design D4). Delete uses design.md's `confirm-dialog`, which the system names for 'delete list' by name (NFR-USE-002); the confirmation quantifies the loss from ListSummary.taskCount (technical-design D8) and offers NO undo — list deletion hard-deletes its tasks (technical-design D4). The 409 list_not_deletable branch is rendered but unreachable through the UI, because the Inbox row omits Delete entirely (ui-design D1).",
+      "status": "designed",
+      "designed_at": "2026-07-27"
     },
     "SCR-WEB-014": {
       "name": "Settings — Security & Account",
