@@ -80,7 +80,7 @@
       envelope. Also: `modules/auth/lists.repository.ts` states `position = 0`
       explicitly (D6) with the auth suites still green.
 
-- [ ] T5 — UI integration point (design §5): BFF routes
+- [x] T5 — UI integration point (design §5): BFF routes
       `app/api/lists/route.ts` (GET, POST), `app/api/lists/[id]/route.ts`
       (PATCH, DELETE), `app/api/lists/reorder/route.ts` (POST) forwarding the
       browser `cookie` and relaying status + JSON verbatim; `lib/lists.ts`
