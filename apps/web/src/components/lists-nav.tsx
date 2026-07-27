@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ListSummary } from "@todo/shared";
 import { ListDialog, type ListDialogMode } from "@/components/list-dialog";
@@ -11,14 +12,19 @@ import { ListDialog, type ListDialogMode } from "@/components/list-dialog";
 // (rename / move up / move down / delete), and a "New list" action. The Inbox
 // row omits Delete entirely rather than disabling it (D1). Reorder is
 // menu-driven, not drag-and-drop (D5) — each move posts the whole order.
-// Rows are not navigational yet: /lists/{id} (SCR-WEB-008) is FEAT-010's.
+// FEAT-010 made rows navigational: each is a link to /lists/{id} (SCR-WEB-008)
+// with design.md's selected state for the open list.
 // All values are design tokens.
 
 export function ListsNav({
   lists,
+  activeListId,
   onNavigate,
 }: {
   lists: ListSummary[] | null;
+  /** The list currently open — takes the `sidebar-nav-item` selected state
+   * (FEAT-010 ui-design; design.md §4). */
+  activeListId?: string;
   /** Closes the mobile drawer when a row action is taken. */
   onNavigate?: () => void;
 }) {
@@ -143,36 +149,53 @@ export function ListsNav({
             gap: "var(--space-1)",
           }}
         >
-          {lists.map((list, index) => (
+          {lists.map((list, index) => {
+            const selected = list.id === activeListId;
+            return (
             <li key={list.id} style={{ position: "relative" }}>
               <div
                 data-testid="list-row"
                 data-list-name={list.name}
+                data-selected={selected ? "true" : undefined}
                 style={{
                   display: "flex",
                   alignItems: "center",
                   gap: "var(--space-2)",
-                  minHeight: 44,
+                  minHeight: "var(--size-touch-target)",
                   padding: "var(--space-2) var(--space-3)",
                   borderRadius: "var(--radius-md)",
-                  borderLeft:
-                    "var(--border-width-thick) solid transparent",
-                  color: "var(--color-text-muted)",
+                  // design.md §4 selected state: primary-subtle bg + primary
+                  // text + a left accent bar.
+                  borderLeft: selected
+                    ? "var(--border-width-thick) solid var(--color-primary)"
+                    : "var(--border-width-thick) solid transparent",
+                  background: selected
+                    ? "var(--color-primary-subtle)"
+                    : "transparent",
+                  color: selected
+                    ? "var(--color-primary)"
+                    : "var(--color-text-muted)",
                   fontSize: "var(--font-size-body)",
                 }}
               >
-                <span
+                <Link
+                  href={`/lists/${list.id}`}
                   title={list.name}
+                  data-testid="list-link"
+                  aria-current={selected ? "page" : undefined}
+                  onClick={onNavigate}
                   style={{
                     flex: 1,
                     minWidth: 0,
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
+                    color: "inherit",
+                    textDecoration: "none",
                   }}
                 >
                   {list.name}
-                </span>
+                </Link>
 
                 {/* Badge hidden at zero — its presence is what carries meaning (D2). */}
                 {list.activeTaskCount > 0 && (
@@ -258,7 +281,8 @@ export function ListsNav({
                 </div>
               )}
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
 

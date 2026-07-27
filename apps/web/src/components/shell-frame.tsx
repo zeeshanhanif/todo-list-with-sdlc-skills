@@ -24,11 +24,14 @@ export function ShellFrame({
   children,
   active = "none",
   lists,
+  activeListId,
 }: {
   children: ReactNode;
   active?: ShellNav;
   /** The caller's lists, or null when the fetch failed (sidebar error state). */
   lists: ListSummary[] | null;
+  /** The list currently open, for the selected state (FEAT-010). */
+  activeListId?: string;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerRef = useRef<HTMLElement | null>(null);
@@ -120,7 +123,11 @@ export function ShellFrame({
           <span>Overdue</span>
         </nav>
 
-        <ListsNav lists={lists} onNavigate={() => setDrawerOpen(false)} />
+        <ListsNav
+          lists={lists}
+          activeListId={activeListId}
+          onNavigate={() => setDrawerOpen(false)}
+        />
 
         <div style={{ marginTop: "var(--space-6)" }}>
           <SidebarNavItem

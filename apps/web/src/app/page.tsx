@@ -1,46 +1,50 @@
 import { requireSession } from "@/lib/session";
+import { fetchLists } from "@/lib/lists";
+import { fetchListTasks } from "@/lib/tasks";
 import { AppShell } from "@/components/app-shell";
+import { ListView } from "@/components/list-view";
+import { ListViewFailure } from "@/components/list-view-failure";
 
-// The authenticated app home (SCR-WEB-007) — where sign-in lands. FEAT-009
-// replaced the walking-skeleton health card here (technical-design D7): the
-// sidebar is now the product's primary navigation, carrying the user's real
-// lists with their active-task counts.
-//
-// The content column below is an INTERIM placeholder, deliberately not a
-// designed screen: SCR-WEB-008 (List View) and SCR-WEB-018 (first-run) belong to
-// FEAT-010, which replaces this. Sidebar rows are correspondingly not
-// navigational yet — there is no /lists/{id} route to reach.
+// The authenticated app home (where sign-in lands): the caller's **default
+// list**, rendered by the same component as /lists/{id} rather than redirecting
+// to it (FEAT-010 technical-design D2). For a brand-new account this is
+// SCR-WEB-018's first-run state (ui-design D1).
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
   await requireSession();
+  const lists = await fetchLists();
+  const defaultList = lists?.find((l) => l.isDefault) ?? lists?.[0];
+
+  if (!defaultList) {
+    // The lists fetch failed — every account has an Inbox (FR-LIST-003), so an
+    // empty result here is an outage, not a state. The sidebar renders its own
+    // error; the column says so too.
+    return (
+      <AppShell>
+        <ListViewFailure kind="error" />
+      </AppShell>
+    );
+  }
+
+  const result = await fetchListTasks(defaultList.id);
 
   return (
-    <AppShell>
-      <section
-        data-testid="home-placeholder"
-        style={{
-          background: "var(--color-surface)",
-          border: "var(--border-width-hairline) solid var(--color-border)",
-          borderRadius: "var(--radius-lg)",
-          padding: "var(--space-8)",
-          textAlign: "center",
-          color: "var(--color-text-muted)",
-        }}
-      >
-        <h1
-          style={{
-            margin: `0 0 var(--space-2)`,
-            fontSize: "var(--font-size-h2)",
-            color: "var(--color-text)",
-          }}
-        >
-          Your lists are in the sidebar
-        </h1>
-        <p style={{ margin: 0, fontSize: "var(--font-size-body)" }}>
-          Pick a list to see its tasks — coming with the next slice.
-        </p>
-      </section>
+    <AppShell activeListId={defaultList.id}>
+      {result.kind === "ok" ? (
+        <ListView
+          data={result.data}
+          firstRun={
+            lists?.length === 1 &&
+            result.data.active.length === 0 &&
+            result.data.completed.length === 0
+          }
+        />
+      ) : (
+        <ListViewFailure
+          kind={result.kind === "not-found" ? "not-found" : "error"}
+        />
+      )}
     </AppShell>
   );
 }

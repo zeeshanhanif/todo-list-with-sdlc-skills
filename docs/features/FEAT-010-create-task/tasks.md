@@ -63,7 +63,7 @@
       and AC-8 (**two** `DbService` queries for the view — no query per task — and
       500 tasks served well inside 300 ms), each rendering the `ApiError` envelope.
 
-- [ ] T5 — UI integration point (design §5): BFF route
+- [x] T5 — UI integration point (design §5): BFF route
       `app/api/lists/[id]/tasks/route.ts` (GET, POST) forwarding the browser
       `cookie` and relaying status + JSON verbatim; `lib/tasks.ts`
       `fetchListTasks(listId)`; `app/lists/[id]/page.tsx` rendering **SCR-WEB-008**
