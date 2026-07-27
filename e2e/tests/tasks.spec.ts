@@ -33,7 +33,7 @@ const taskTitles = (page: Page) =>
     .getByTestId("task-row")
     .evaluateAll((els) => els.map((e) => e.getAttribute("data-task-title")));
 
-test("UC-009: a signed-in user lands on their Inbox and adds their first tasks", async ({
+test("AC-11/AC-1: a signed-in user lands on their Inbox and adds their first tasks", async ({
   page,
   request,
 }) => {
@@ -59,7 +59,11 @@ test("UC-009: a signed-in user lands on their Inbox and adds their first tasks",
   await expect(page.getByTestId("first-run-empty")).toBeVisible();
   await expect(page.getByTestId("task-row")).toHaveCount(0);
 
-  // UC-009 main 1/3/4 — one field, one action, no navigation (NFR-USE-001)
+  // UC-009 main 1/3/4 — AC-11 is "one field and one action with no navigation",
+  // and the field being **already focused** is what makes that true: without it
+  // the user owes a click first. Asserted here rather than assumed.
+  await expect(page.getByTestId("quick-add-input")).toBeFocused();
+
   await page.getByTestId("quick-add-input").fill("Buy milk");
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("task-row")).toHaveCount(1);
@@ -83,7 +87,7 @@ test("UC-009: a signed-in user lands on their Inbox and adds their first tasks",
   await expect(page.getByTestId("quick-add-input")).toHaveValue("   ");
 });
 
-test("UC-009: each list has its own tasks, reached from the sidebar", async ({
+test("AC-7/AC-12: each list has its own tasks, reached from the sidebar", async ({
   page,
   request,
 }) => {
@@ -135,7 +139,7 @@ test("UC-009: each list has its own tasks, reached from the sidebar", async ({
   expect(await taskTitles(page)).toEqual(["Inbox task"]);
 });
 
-test("an unknown or unowned list renders one uniform not-found", async ({
+test("AC-5/AC-10: an unknown or unowned list renders one uniform not-found", async ({
   page,
   request,
 }) => {
