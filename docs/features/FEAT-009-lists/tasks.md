@@ -118,7 +118,7 @@
       Done when: the comment matches the implemented mechanism and the api suite
       is green.
 
-- [ ] T8 — E2E: replace the deleted skeleton spec with `e2e/tests/lists.spec.ts`
+- [x] T8 — E2E: replace the deleted skeleton spec with `e2e/tests/lists.spec.ts`
       covering UC-008 against the local stack — sign in, see Inbox with its
       count in the sidebar, create a list, rename it, delete it through the
       confirmation, and see the sidebar reflect each change.
