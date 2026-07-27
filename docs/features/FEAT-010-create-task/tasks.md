@@ -17,7 +17,7 @@
 > clear `auth_rate_buckets` for `::1` — do not "fix" it by weakening a test.
 > `apps/web/AGENTS.md`: read `node_modules/next/dist/docs/` before writing web code.
 
-- [ ] T1 — Shared contracts (`@todo/shared`, design §5): `listTasksPath(listId)`,
+- [x] T1 — Shared contracts (`@todo/shared`, design §5): `listTasksPath(listId)`,
       `TASK_TITLE_MAX_LENGTH = 500`, `TaskSummary`, `ListTasksResponse`,
       `CreateTaskRequest`, `CreateTaskResponse`. **No new error code** (D7) —
       failures reuse `LIST_ERROR_CODES.listNotFound` and `validation_failed`.

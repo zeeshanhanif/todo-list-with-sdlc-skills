@@ -295,3 +295,65 @@ export const LIST_ERROR_CODES = {
   listNotFound: "list_not_found",
   listNotDeletable: "list_not_deletable",
 } as const;
+
+// --- Tasks: create + list view (FEAT-010) ---
+
+/** Path of a list's task collection: GET (the list view) and POST (create).
+ * The list is always in the path — a task belongs to exactly one list, assigned
+ * at creation (FR-LIST-009), and the owner comes from the session, never the
+ * body (FR-AUTHZ-004). */
+export const listTasksPath = (listId: string): string =>
+  `${LISTS_PATH}/${listId}/tasks`;
+
+/** Maximum task-title length (FR-TASK-002). Shared so the client bound can never
+ * drift from the server rule — the convention PASSWORD_MIN_LENGTH and
+ * LIST_NAME_MAX_LENGTH set. Titles are trimmed before validation; duplicates are
+ * legal. */
+export const TASK_TITLE_MAX_LENGTH = 500;
+
+/**
+ * A task as the task endpoints return it (FEAT-010 technical-design §3).
+ *
+ * **Deliberately minimal, and it grows** (technical-design D5): these are exactly
+ * the columns that exist today. FEAT-011 adds `dueAt` and `priority`, FEAT-014
+ * adds `position`. Consumers should read the fields they need rather than assume
+ * this shape is exhaustive — shipping `dueAt: null` placeholders for columns the
+ * system does not store would be a contract that lies.
+ */
+export interface TaskSummary {
+  id: string;
+  /** The one list it belongs to (FR-LIST-009). */
+  listId: string;
+  title: string;
+  /** ISO-8601 UTC, or null when the task is active (NFR-LOC-001). */
+  completedAt: string | null;
+  /** ISO-8601 UTC. Also the active section's sort key (technical-design D4). */
+  createdAt: string;
+}
+
+/**
+ * Success response (200) of GET /lists/{listId}/tasks — the list view.
+ * The split between active and completed is the **server's** answer, not a
+ * client-side filter (FR-TASK-003); soft-deleted tasks appear in neither
+ * (FR-TASK-013). `list` rides along so the screen renders its header without a
+ * second round trip (technical-design D3).
+ */
+export interface ListTasksResponse {
+  list: ListSummary;
+  /** completed_at IS NULL, oldest first — append order (technical-design D4). */
+  active: TaskSummary[];
+  /** completed_at IS NOT NULL, most recently completed first. */
+  completed: TaskSummary[];
+}
+
+/** Request body of POST /lists/{listId}/tasks. */
+export interface CreateTaskRequest {
+  title: string;
+}
+
+/** Success response (201) of POST /lists/{listId}/tasks — created active
+ * (`completedAt: null`) in the path's list, appended to the active order
+ * (FR-TASK-001). */
+export interface CreateTaskResponse {
+  task: TaskSummary;
+}
