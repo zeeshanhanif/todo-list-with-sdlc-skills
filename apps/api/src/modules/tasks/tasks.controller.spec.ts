@@ -27,6 +27,11 @@ describe('task endpoints (contract)', () => {
   let db: DbService;
   const emails: string[] = [];
   let ipCounter = 0;
+  // Jest reuses a worker process across suites, so an unrestored env var
+  // leaks into whatever runs next — which is how FEAT-005's rate-limit test
+  // started flaking. Saved here, restored in afterAll (the convention every
+  // auth spec already follows).
+  const prevRl = process.env.AUTH_RATELIMIT_MAX;
 
   const server = () => app.getHttpServer() as Parameters<typeof request>[0];
   const nextIp = (): string => `203.0.113.${(ipCounter++ % 250) + 1}`;
@@ -114,6 +119,8 @@ describe('task endpoints (contract)', () => {
   });
 
   afterAll(async () => {
+    if (prevRl === undefined) delete process.env.AUTH_RATELIMIT_MAX;
+    else process.env.AUTH_RATELIMIT_MAX = prevRl;
     await app.close();
   });
 

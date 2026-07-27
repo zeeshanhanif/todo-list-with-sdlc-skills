@@ -84,7 +84,7 @@
       renders the not-found state without disclosing existence (AC-5); an
       unauthenticated visit redirects to `/signin` (AC-6).
 
-- [ ] T6 — Cross-feature check: FEAT-009's list-deletion cascade still holds now
+- [x] T6 — Cross-feature check: FEAT-009's list-deletion cascade still holds now
       that tasks arrive through a real contract, and the sidebar's
       `activeTaskCount` reflects tasks created here (design §6 AC-7, AC-12;
       FEAT-009 AC-5/AC-13 re-exercised, not rewritten).
