@@ -7,7 +7,7 @@ recycled.
 | DEF | Reported | FR / Feature | Symptom (one line) | Fixed by | Re-verified |
 | :-- | :------- | :----------- | :----------------- | :------- | :---------- |
 | DEF-001 | 2026-07-27 | *(no FR — test infrastructure)* / FEAT-003, FEAT-005, FEAT-006 suites | Specs sharing an IP range delete each other's `auth_rate_buckets` rows mid-test, breaking `429` assertions | `24ae0d3` (disjoint ranges + `rate-limit-isolation.spec.ts` guard) | 2026-07-27 — guard red before / green after; flake rate ~25% → ~8% |
-| DEF-002 | 2026-07-27 | *(no FR — test infrastructure)* / api suite | **Open.** Residual ~8% parallel-run flakiness remains after DEF-001: a *different* test fails each run, always "a row that should exist doesn't" | _open_ | _open_ |
+| DEF-002 | 2026-07-27 | *(no FR — test infrastructure)* / api suite | **Open.** Residual ~7% parallel-run flakiness after DEF-001: a *different* test fails each run, always "a row that should exist doesn't". Cross-worker DB interference **ruled out** — per-worker databases were tried and reverted | _open_ | _open_ |
 
 ## DEF-001 — parallel specs wipe each other's rate-limit buckets
 
@@ -95,14 +95,44 @@ that cannot authenticate, a list that reports `list_not_found`.
   0/12 looked promising but is statistically unremarkable at an 8% rate, and a
   25-run measurement with the cap in place still produced 2 failures. It was not
   demonstrated to help, so it was not kept.
+- *Per-worker databases* — **tried and reverted (2026-07-27).** `globalSetup`
+  created one migrated database per jest worker (via a TEMPLATE copy) and a
+  `setupFiles` hook pointed each worker's `DATABASE_URL` at its own, with **no**
+  production change. The reasoning was sound — workers share no memory and no
+  environment, so Postgres was the last shared mutable resource, which is why
+  `--runInBand` is green. It did not work: a **clean 30-run measurement produced
+  2 failures (6.7%)**, statistically indistinguishable from the ~8% baseline.
+  Reverted under the same standard applied to the worker cap. This is the most
+  valuable entry in this list: it rules out *cross-worker database interference*
+  as the cause, which was the leading hypothesis, and points the next
+  investigation at something **within** a worker.
 
-**Best remaining hypothesis (untested).** Suites share one database, so an
-interleaving between a spec's `afterEach` cleanup and another spec's in-flight
-requests can remove rows the second spec still needs. The principled fix is
-**one database per jest worker** (`globalSetup` creates and migrates
-`todo_test_<worker>`; `DbService` selects by `JEST_WORKER_ID`), which removes the
-entire class rather than the instance. That is a test-infrastructure change of
-real size — deliberately not started inside a feature loop.
+  *Measurement hygiene note, learned the hard way:* two earlier measurements of
+  this change were run concurrently (~26 jest workers against one Postgres) and
+  produced misleading numbers — including an apparent regression that was pure
+  contention. Measure one thing at a time on a quiet machine.
+
+**Best remaining hypotheses (after per-worker databases were ruled out).** Since
+database isolation did not help, the cause is very likely **inside** a worker
+rather than between workers:
+
+1. *Fixture preconditions that are never asserted.* The one failure whose
+   mechanism was fully traced was a helper reading `res.headers['set-cookie'][0]`
+   after a login that had failed — surfacing as a `TypeError` rather than naming
+   the real problem. FEAT-010's specs now assert `201`/`200` on their fixtures;
+   **the auth specs' own helpers still do not**, and several observed failures
+   (`sign-in` AC-3, `change-password` AC-1/AC-3/AC-4) sit exactly there. Adding
+   those assertions would not fix the flake but would make the next failure say
+   what actually went wrong, which is the current blocker.
+2. *Wall-clock coupling.* The rate-limit window is a 15-minute fixed window
+   (`floor(now / 900000)`); several specs assume the whole test runs inside one
+   window, and `auth_rate_buckets` rows persist across runs within it.
+3. *Session-rotation ordering* in change-password specs, where a successful
+   change revokes prior sessions and a later assertion reuses a stale cookie.
+
+Recommended next step: land (1) across the auth specs first — cheap, no
+behavior change, and it converts the remaining flakes from mysteries into
+readable failures.
 
 **Impact and workaround.** The gate is trustworthy when run serially
 (`npm test -w @todo/api -- --runInBand`, ~9 s vs ~4 s). Feature verification

@@ -48,10 +48,14 @@ describe('task endpoints (contract)', () => {
     inbox: string;
   }> => {
     const email = freshEmail();
-    await request(server())
+    const registered = await request(server())
       .post('/auth/register')
       .set('X-Forwarded-For', nextIp())
       .send({ email, password: VALID_PW });
+    // Assert the fixture's preconditions: without this a failed registration
+    // surfaces as a TypeError on an undefined Set-Cookie further down, which
+    // hides what actually went wrong (DEF-002 diagnosis).
+    expect(registered.status).toBe(201);
     await db.query('UPDATE users SET verified_at = now() WHERE email = $1', [
       email,
     ]);
@@ -59,6 +63,7 @@ describe('task endpoints (contract)', () => {
       .post('/auth/login')
       .set('X-Forwarded-For', nextIp())
       .send({ email, password: VALID_PW });
+    expect(res.status).toBe(200);
     const setCookie = res.headers['set-cookie'] as unknown as string[];
     const cookie = setCookie[0].split(';')[0];
     const row = await db.query<{ id: string; list_id: string }>(
