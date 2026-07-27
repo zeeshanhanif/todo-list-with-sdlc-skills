@@ -64,6 +64,13 @@ should name the unit runner and E2E framework.*
   `@todo/shared` (`HealthResponse` vs `SkeletonPingResponse`). `SkeletonService` +
   `skeleton_ping` table + the `/healthz/ping` route are removed when the first
   real slice lands. Plan §2 updated to match.
+  **Done (2026-07-27, FEAT-009 T6):** `SkeletonService` + its spec, the
+  `/healthz/ping` route, `SKELETON_PING_PATH`/`SkeletonPingResponse`,
+  `fetchSkeletonPing`, and `e2e/tests/skeleton.spec.ts` are gone; migration 008
+  drops `skeleton_ping` (reversibly). FEAT-009 was the slice that needed `/` for
+  the authenticated app home, so the two could not coexist (FEAT-009
+  technical-design D7). `GET /healthz` liveness is unchanged, and the lists E2E
+  spec replaces the skeleton one as the end-to-end proof.
 - **Secrets via Cloud Run env vars, not Secret Manager (user decision,
   2026-07-21).** The `deploy/` configs set `DATABASE_URL` / `EMAIL_API_KEY` /
   `SUPABASE_JWT_SECRET` as Cloud Run environment variables at deploy time

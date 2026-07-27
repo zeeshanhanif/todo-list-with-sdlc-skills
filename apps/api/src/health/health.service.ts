@@ -4,8 +4,8 @@ import type { HealthResponse } from '@todo/shared';
 /**
  * Liveness (NFR-OBS-002): answers "is the process up and serving?" with no
  * external dependencies — intentionally does NOT touch Postgres, so uptime
- * monitoring neither depends on nor loads the database. The skeleton's DB
- * round-trip proof lives separately in SkeletonService (GET /skeleton/ping).
+ * monitoring neither depends on nor loads the database. (The skeleton's separate
+ * DB round-trip proof was retired by FEAT-009 — technical-design D7.)
  */
 @Injectable()
 export class HealthService {

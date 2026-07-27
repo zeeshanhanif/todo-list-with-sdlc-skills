@@ -18,28 +18,10 @@ export interface HealthResponse {
   time: string;
 }
 
-/** Path of the skeleton DB round-trip proof. Temporary — removed once real slices exist. */
-export const SKELETON_PING_PATH = "/healthz/ping";
-
-/**
- * Response of GET /healthz/ping — the walking skeleton's proof that the API can
- * round-trip Postgres (write + read). A sub-route of /healthz that liveness
- * monitors do not hit. Scaffolding, NOT a product feature: it exists only to
- * demonstrate the end-to-end path and exercise migration 001, and is deleted
- * when the first real domain slice lands.
- */
-export interface SkeletonPingResponse {
-  status: "ok" | "degraded";
-  /** Whether the Postgres write+read succeeded. */
-  db: "up" | "down";
-  /** Id of the ping row written this request (null when db is down). */
-  pingId: number | null;
-  /** Total ping rows read back after the write (null when db is down). */
-  pingCount: number | null;
-  /** Server timestamp (ISO-8601, UTC). */
-  time: string;
-  service: string;
-}
+// The walking skeleton's DB round-trip proof (SKELETON_PING_PATH /
+// SkeletonPingResponse, GET /healthz/ping) lived here until FEAT-009 retired it
+// with the rest of the scaffolding — the removal docs/scaffold-notes.md planned
+// for "when the first real slice lands" (FEAT-009 technical-design D7).
 
 // --- Auth: registration (FEAT-001) ---
 

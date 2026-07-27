@@ -99,7 +99,7 @@
       offers no delete affordance; move-up/move-down persists across a reload
       (AC-7); an unauthenticated visit to `/` redirects to `/signin`.
 
-- [ ] T6 — Retire the walking-skeleton scaffolding (design §5, D7): delete
+- [x] T6 — Retire the walking-skeleton scaffolding (design §5, D7): delete
       `apps/api/src/health/skeleton.service.ts` + its spec and the
       `GET /healthz/ping` route, `SKELETON_PING_PATH` / `SkeletonPingResponse`
       from `@todo/shared`, `fetchSkeletonPing` from `apps/web/src/lib/api.ts`,
