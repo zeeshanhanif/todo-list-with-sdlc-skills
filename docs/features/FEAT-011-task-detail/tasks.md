@@ -97,7 +97,7 @@
       `DbService` queries per route, both inside the 300 ms bound), each
       rendering the `ApiError` envelope.
 
-- [ ] T6 — Contract: due date + priority at creation on the **existing**
+- [x] T6 — Contract: due date + priority at creation on the **existing**
       `POST /lists/{listId}/tasks` (design §3.3; UC-009 step 2 — FEAT-010 D6's
       deferral, closed here).
       Done when: AC-10 passes — `{ title, dueAt, priority }` creates with both
