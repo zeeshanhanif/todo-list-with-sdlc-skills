@@ -8,6 +8,47 @@ recycled.
 | :-- | :------- | :----------- | :----------------- | :------- | :---------- |
 | DEF-001 | 2026-07-27 | *(no FR — test infrastructure)* / FEAT-003, FEAT-005, FEAT-006 suites | Specs sharing an IP range delete each other's `auth_rate_buckets` rows mid-test, breaking `429` assertions | `24ae0d3` (disjoint ranges + `rate-limit-isolation.spec.ts` guard) | 2026-07-27 — guard red before / green after; flake rate ~25% → ~8% |
 | DEF-002 | 2026-07-27 | *(no FR — test infrastructure)* / api suite | **Open.** Residual ~7% parallel-run flakiness after DEF-001: a *different* test fails each run, always "a row that should exist doesn't". Cross-worker DB interference **ruled out** — per-worker databases were tried and reverted | _open_ | _open_ |
+| DEF-003 | 2026-07-28 | NFR-USE-004 (design.md §5 contrast) / FEAT-010, SCR-WEB-008 | **Open.** `list-view-failure.tsx`'s error alert puts `--color-danger` text on `--color-danger-subtle` — **3.95:1**, below the 4.5:1 design.md §5 requires. The `--color-danger-text` partner now exists | _open_ | _open_ |
+
+## DEF-003 — the list-view error alert fails AA contrast
+
+**Reported:** 2026-07-28, by FEAT-011's acceptance re-verification (recorded there
+as the new minor finding). Found while FEAT-011's own overdue chip was being
+audited, not by looking for it.
+
+**Symptom.** `apps/web/src/components/list-view-failure.tsx` renders SCR-WEB-008's
+`error` state as `color: var(--color-danger)` on
+`background: var(--color-danger-subtle)` — measured **3.95:1**, against the
+**4.5:1** design.md §5 states for body text. The same pairing appears on the
+`not-found` branch of that component.
+
+**Why it is a defect and not a design gap.** When FEAT-010 was verified this was
+the *only* pairing the token set could produce — danger was the one semantic
+colour with no `*Text` partner, which is exactly the gap FEAT-011's ui-design
+escalated and the 2026-07-28 design-system amendment closed. The system now has
+`--color-danger-text` (#991B1B, 6.8:1 on the same tint), so the shipped code is
+now measurably behind its own design system. Nothing about FEAT-010's behaviour
+is wrong; its presentation violates a standard that has since been made
+satisfiable.
+
+**Scope.** Two token references in one component. FEAT-011's own
+`task-detail-failure.tsx` already uses the correct partner, so the two failure
+components currently disagree — which is the clearest sign this should be closed
+rather than left.
+
+**Fix protocol when it is picked up** (maintenance route): the owning feature is
+FEAT-010 (RTM → FR-TASK-001/002/003 → Plan ref FEAT-010). A demonstrating test
+is awkward — `apps/web` has no unit-test runner, which is its own recorded gap —
+so the honest options are to stand that runner up first (making this the
+motivating case for a contrast assertion), or to fix and re-verify FEAT-010 by
+inspection with the measurement recorded. **That choice belongs to whoever picks
+this up**; the pipeline's "failing test first" rule assumes a harness that does
+not exist here yet, and pretending otherwise would be the wrong kind of tidy.
+
+**Not urgent, not invisible.** It affects an error state most users never see,
+which is why it is a ledger row rather than an interrupt — but it is a real AA
+failure on verified behaviour and it will keep drifting further from
+`task-detail-failure.tsx` until closed.
 
 ## DEF-001 — parallel specs wipe each other's rate-limit buckets
 
