@@ -8,7 +8,7 @@ recycled.
 | :-- | :------- | :----------- | :----------------- | :------- | :---------- |
 | DEF-001 | 2026-07-27 | *(no FR — test infrastructure)* / FEAT-003, FEAT-005, FEAT-006 suites | Specs sharing an IP range delete each other's `auth_rate_buckets` rows mid-test, breaking `429` assertions | `24ae0d3` (disjoint ranges + `rate-limit-isolation.spec.ts` guard) | 2026-07-27 — guard red before / green after; flake rate ~25% → ~8% |
 | DEF-002 | 2026-07-27 | *(no FR — test infrastructure)* / api suite | **Open.** Residual ~7% parallel-run flakiness after DEF-001: a *different* test fails each run, always "a row that should exist doesn't". Cross-worker DB interference **ruled out** — per-worker databases were tried and reverted | _open_ | _open_ |
-| DEF-003 | 2026-07-28 | NFR-USE-004 (design.md §5 contrast) / FEAT-010, SCR-WEB-008 | **Open.** `list-view-failure.tsx`'s error alert puts `--color-danger` text on `--color-danger-subtle` — **3.95:1**, below the 4.5:1 design.md §5 requires. The `--color-danger-text` partner now exists | _open_ | _open_ |
+| DEF-003 | 2026-07-28 | NFR-USE-004 (design.md §5 contrast) / FEAT-010, SCR-WEB-008 | `list-view-failure.tsx`'s alert put `--color-danger` text on `--color-danger-subtle` — **3.95:1**, below the 4.5:1 design.md §5 requires. Fixing it surfaced a **second** failure the report had missed: the action inside the tint at **4.48:1** | `33f556b` (partner tokens; 3.95→6.80 and 4.48→6.21) | 2026-07-28 — measured, rendered output checked, e2e 15 green |
 
 ## DEF-003 — the list-view error alert fails AA contrast
 
@@ -49,6 +49,48 @@ not exist here yet, and pretending otherwise would be the wrong kind of tidy.
 which is why it is a ledger row rather than an interrupt — but it is a real AA
 failure on verified behaviour and it will keep drifting further from
 `task-detail-failure.tsx` until closed.
+
+### Resolution — 2026-07-28
+
+**Measuring first turned a one-line fix into a two-line one.** The reported
+symptom was the container text at 3.95:1. Computing every pairing in both failure
+components before touching anything found a **second** failure the acceptance
+report had not caught: the action *inside* the tinted alert —
+`--color-primary` #0F766E on `--color-danger-subtle` #FEE2E2 — is **4.48:1**,
+below 4.5:1 by a hair and therefore still a fail. It was present in
+`list-view-failure.tsx` **and** in the `task-detail-failure.tsx` Retry button
+that FEAT-011's own rework had just added by copying the older component's
+pattern. Had the fix stopped at the reported symptom, the newer component would
+have kept the newly-introduced half of the defect.
+
+| Pairing | Before | After | |
+| :-- | --: | --: | :-- |
+| alert body text on `--color-danger-subtle` | 3.95:1 ❌ | **6.80:1** ✅ | `--color-danger` → `--color-danger-text` |
+| alert action on `--color-danger-subtle` | 4.48:1 ❌ | **6.21:1** ✅ | `--color-primary` → `--color-primary-hover` |
+| not-found link on `--color-surface-sunken` | 5.00:1 ✅ | 5.00:1 ✅ | unchanged — it already passed |
+
+**Why `--color-primary-hover` and not a new token.** design.md §2 already
+documents that token as the text colour for a tinted background —
+`--color-primary-subtle` is annotated *"use with #115E59 text"* (6.73:1). Using
+it on the danger tint applies an existing in-system pairing rather than inventing
+one, so this needed no design-system amendment; the alternative candidates were
+measured and recorded above rather than chosen by eye.
+
+**Verification.** Contrast ratios computed from `tokens.json`'s actual values
+(WCAG 2.1 relative-luminance formula), the **rendered** markup confirmed to carry
+`var(--color-danger-text)` and `var(--color-primary-hover)` rather than raw hex,
+and the full gate re-run: api 176, worker 20, **e2e 15** (the list-not-found path
+in `tasks.spec.ts` exercises the changed component directly), boundaries, lint
+and build clean.
+
+**No regression test, and the reason is the same one the row opened with.**
+`apps/web` still has no unit-test runner, and both failure states are rendered by
+server components whose fetch Playwright cannot intercept, so neither a contrast
+assertion nor a state-render test has a home yet. The e2e covers the *presence*
+of the not-found alert but asserts nothing about its colour. **The durable fix is
+a web test runner**, which would make a computed-style assertion trivial — it is
+recorded as an open engineering-foundations gap in FEAT-011's acceptance report
+(minor #1), and this defect is the second concrete case for it.
 
 ## DEF-001 — parallel specs wipe each other's rate-limit buckets
 

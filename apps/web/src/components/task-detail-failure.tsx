@@ -61,7 +61,7 @@ export function TaskDetailFailure({ kind }: { kind: "not-found" | "error" }) {
             borderRadius: "var(--radius-md)",
             border: "none",
             background: "transparent",
-            color: "var(--color-primary)",
+            color: "var(--color-primary-hover)",
             fontSize: "var(--font-size-body)",
             cursor: "pointer",
           }}
