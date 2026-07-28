@@ -19,7 +19,7 @@ describe('POST /auth/logout (contract)', () => {
   const emails: string[] = [];
   const prevRl = process.env.AUTH_RATELIMIT_MAX;
   let ipCounter = 0;
-  const nextIp = (): string => `192.0.2.${(ipCounter++ % 250) + 1}`;
+  const nextIp = (): string => `198.18.10.${(ipCounter++ % 250) + 1}`;
   const server = () => app.getHttpServer() as Parameters<typeof request>[0];
 
   const freshEmail = (): string => {

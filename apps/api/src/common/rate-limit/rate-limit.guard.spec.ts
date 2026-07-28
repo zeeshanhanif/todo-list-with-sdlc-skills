@@ -28,7 +28,7 @@ describe('RateLimitGuard (integration)', () => {
   const prevMax = process.env.AUTH_RATELIMIT_MAX;
 
   const freshIp = (): string => {
-    const ip = `198.51.100.${Math.floor(Math.random() * 250) + 1}-${randomUUID()}`;
+    const ip = `198.18.12.${Math.floor(Math.random() * 250) + 1}-${randomUUID()}`;
     ips.push(ip);
     return ip;
   };

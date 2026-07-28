@@ -18,28 +18,10 @@ export interface HealthResponse {
   time: string;
 }
 
-/** Path of the skeleton DB round-trip proof. Temporary — removed once real slices exist. */
-export const SKELETON_PING_PATH = "/healthz/ping";
-
-/**
- * Response of GET /healthz/ping — the walking skeleton's proof that the API can
- * round-trip Postgres (write + read). A sub-route of /healthz that liveness
- * monitors do not hit. Scaffolding, NOT a product feature: it exists only to
- * demonstrate the end-to-end path and exercise migration 001, and is deleted
- * when the first real domain slice lands.
- */
-export interface SkeletonPingResponse {
-  status: "ok" | "degraded";
-  /** Whether the Postgres write+read succeeded. */
-  db: "up" | "down";
-  /** Id of the ping row written this request (null when db is down). */
-  pingId: number | null;
-  /** Total ping rows read back after the write (null when db is down). */
-  pingCount: number | null;
-  /** Server timestamp (ISO-8601, UTC). */
-  time: string;
-  service: string;
-}
+// The walking skeleton's DB round-trip proof (SKELETON_PING_PATH /
+// SkeletonPingResponse, GET /healthz/ping) lived here until FEAT-009 retired it
+// with the rest of the scaffolding — the removal docs/scaffold-notes.md planned
+// for "when the first real slice lands" (FEAT-009 technical-design D7).
 
 // --- Auth: registration (FEAT-001) ---
 
@@ -225,4 +207,153 @@ export interface ChangePasswordRequest {
  * (NFR-SEC-007 — rotation on privilege change). */
 export interface ChangePasswordResponse {
   status: "password_changed";
+}
+
+// --- Lists: list management (FEAT-009) ---
+
+/** Path of the list collection: GET (all with counts) and POST (create). */
+export const LISTS_PATH = "/lists";
+
+/** Path of the reorder endpoint. Declared before `/lists/:id` on the server so
+ * the static segment isn't captured as an id (FEAT-009 technical-design §3). */
+export const LIST_REORDER_PATH = "/lists/reorder";
+
+/** Maximum list-name length (FR-LIST-002). Shared so the client bound can never
+ * drift from the server rule — the constant-sharing convention FEAT-001 set with
+ * PASSWORD_MIN_LENGTH. Names are trimmed before validation; duplicates are legal. */
+export const LIST_NAME_MAX_LENGTH = 100;
+
+/** A list as every list endpoint returns it. `activeTaskCount` counts incomplete,
+ * not-soft-deleted tasks (FR-LIST-005); `taskCount` counts every task in the list
+ * and exists so the delete confirmation can quantify what will be permanently
+ * lost (FR-LIST-007, NFR-USE-002 — FEAT-009 technical-design D8). */
+export interface ListSummary {
+  id: string;
+  name: string;
+  /** The Inbox (FR-LIST-003): renameable, never deletable (FR-LIST-004). */
+  isDefault: boolean;
+  /** 0-based rank within the owner's lists (FR-LIST-008). */
+  position: number;
+  activeTaskCount: number;
+  taskCount: number;
+}
+
+/** Success response (200) of GET /lists — ordered by position (FR-LIST-005/008). */
+export interface ListsResponse {
+  lists: ListSummary[];
+}
+
+/** Request body of POST /lists. Ownership comes from the session, never the
+ * body (FR-AUTHZ-004). */
+export interface CreateListRequest {
+  name: string;
+}
+
+/** Success response (201) of POST /lists — the new list, appended last. */
+export interface CreateListResponse {
+  list: ListSummary;
+}
+
+/** Request body of PATCH /lists/{id} — rename only (FR-LIST-006). */
+export interface RenameListRequest {
+  name: string;
+}
+
+/** Success response (200) of PATCH /lists/{id}. */
+export interface RenameListResponse {
+  list: ListSummary;
+}
+
+/** Success response (200) of DELETE /lists/{id}. The contained tasks are
+ * permanently deleted with the list (FR-LIST-007); `deletedTaskCount` is how
+ * many rows went. Irreversible — there is no restore (technical-design D4). */
+export interface DeleteListResponse {
+  status: "list_deleted";
+  deletedTaskCount: number;
+}
+
+/** Request body of POST /lists/reorder — the caller's **complete** set of list
+ * ids in the desired order. The server rewrites positions to 0..n-1 in one
+ * transaction, which makes the operation idempotent (technical-design D2). */
+export interface ReorderListsRequest {
+  listIds: string[];
+}
+
+/** Success response (200) of POST /lists/reorder — the full collection in its
+ * new order, so the client renders from the server's truth. */
+export interface ReorderListsResponse {
+  lists: ListSummary[];
+}
+
+/** Error `code` values the list endpoints add to the ApiError envelope
+ * (FEAT-009 technical-design §3). Shared so the web branches on codes without
+ * string-drift: 404 list_not_found (unknown **or** not owned — uniform, so the
+ * response never discloses another user's ids, FR-AUTHZ-003), 409
+ * list_not_deletable (the default Inbox list, FR-LIST-004). Field-level name
+ * failures reuse the existing `validation_failed` + `fields[]` convention. */
+export const LIST_ERROR_CODES = {
+  listNotFound: "list_not_found",
+  listNotDeletable: "list_not_deletable",
+} as const;
+
+// --- Tasks: create + list view (FEAT-010) ---
+
+/** Path of a list's task collection: GET (the list view) and POST (create).
+ * The list is always in the path — a task belongs to exactly one list, assigned
+ * at creation (FR-LIST-009), and the owner comes from the session, never the
+ * body (FR-AUTHZ-004). */
+export const listTasksPath = (listId: string): string =>
+  `${LISTS_PATH}/${listId}/tasks`;
+
+/** Maximum task-title length (FR-TASK-002). Shared so the client bound can never
+ * drift from the server rule — the convention PASSWORD_MIN_LENGTH and
+ * LIST_NAME_MAX_LENGTH set. Titles are trimmed before validation; duplicates are
+ * legal. */
+export const TASK_TITLE_MAX_LENGTH = 500;
+
+/**
+ * A task as the task endpoints return it (FEAT-010 technical-design §3).
+ *
+ * **Deliberately minimal, and it grows** (technical-design D5): these are exactly
+ * the columns that exist today. FEAT-011 adds `dueAt` and `priority`, FEAT-014
+ * adds `position`. Consumers should read the fields they need rather than assume
+ * this shape is exhaustive — shipping `dueAt: null` placeholders for columns the
+ * system does not store would be a contract that lies.
+ */
+export interface TaskSummary {
+  id: string;
+  /** The one list it belongs to (FR-LIST-009). */
+  listId: string;
+  title: string;
+  /** ISO-8601 UTC, or null when the task is active (NFR-LOC-001). */
+  completedAt: string | null;
+  /** ISO-8601 UTC. Also the active section's sort key (technical-design D4). */
+  createdAt: string;
+}
+
+/**
+ * Success response (200) of GET /lists/{listId}/tasks — the list view.
+ * The split between active and completed is the **server's** answer, not a
+ * client-side filter (FR-TASK-003); soft-deleted tasks appear in neither
+ * (FR-TASK-013). `list` rides along so the screen renders its header without a
+ * second round trip (technical-design D3).
+ */
+export interface ListTasksResponse {
+  list: ListSummary;
+  /** completed_at IS NULL, oldest first — append order (technical-design D4). */
+  active: TaskSummary[];
+  /** completed_at IS NOT NULL, most recently completed first. */
+  completed: TaskSummary[];
+}
+
+/** Request body of POST /lists/{listId}/tasks. */
+export interface CreateTaskRequest {
+  title: string;
+}
+
+/** Success response (201) of POST /lists/{listId}/tasks — created active
+ * (`completedAt: null`) in the path's list, appended to the active order
+ * (FR-TASK-001). */
+export interface CreateTaskResponse {
+  task: TaskSummary;
 }

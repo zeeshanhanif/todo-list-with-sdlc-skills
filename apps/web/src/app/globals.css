@@ -17,6 +17,81 @@
   }
 }
 
+/* App shell responsive frame (design.md §3; FEAT-009 ui-design D3). ≥ md the
+   sidebar is persistent and the drawer chrome is hidden; < md the sidebar becomes
+   a full drawer over the content and the main column is full-width. Media queries
+   can't be expressed in the inline token styles the components otherwise use. */
+.shell {
+  display: flex;
+  min-height: 100vh;
+}
+.shell-sidebar {
+  width: var(--size-sidebar-width);
+  flex-shrink: 0;
+  background: var(--color-surface);
+  border-right: var(--border-width-hairline) solid var(--color-border);
+  padding: var(--space-6);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+.shell-main {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-8);
+}
+.shell-topbar {
+  display: none;
+}
+.shell-scrim {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .shell {
+    flex-direction: column;
+  }
+  .shell-topbar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-surface);
+    border-bottom: var(--border-width-hairline) solid var(--color-border);
+  }
+  .shell-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 20;
+    width: min(var(--size-sidebar-width), 85vw);
+    transform: translateX(-100%);
+    transition: transform var(--motion-duration-base) var(--motion-easing-standard);
+    overflow-y: auto;
+  }
+  .shell[data-drawer="open"] .shell-sidebar {
+    transform: translateX(0);
+  }
+  .shell[data-drawer="closed"] .shell-sidebar {
+    visibility: hidden;
+  }
+  .shell[data-drawer="open"] .shell-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    background: var(--color-overlay);
+  }
+  .shell-main {
+    padding: var(--space-5) var(--space-4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell-sidebar {
+    transition: none;
+  }
+}
+
 body {
   background: var(--color-background);
   color: var(--color-text);

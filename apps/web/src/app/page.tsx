@@ -1,78 +1,50 @@
-import { fetchSkeletonPing } from "@/lib/api";
+import { requireSession } from "@/lib/session";
+import { fetchLists } from "@/lib/lists";
+import { fetchListTasks } from "@/lib/tasks";
 import { AppShell } from "@/components/app-shell";
+import { ListView } from "@/components/list-view";
+import { ListViewFailure } from "@/components/list-view-failure";
 
-// The skeleton content column inside the app-shell frame (SCR-WEB-007 — the frame
-// itself now lives in components/app-shell.tsx, shared with the settings screens
-// FEAT-006 added): a card proving the end-to-end path (web -> API /skeleton/ping
-// -> Postgres write+read -> back). Feature screens replace this column per slice.
-// All colors/spacing come from token CSS variables, so this visibly breaks if
-// docs/tokens.json is removed.
+// The authenticated app home (where sign-in lands): the caller's **default
+// list**, rendered by the same component as /lists/{id} rather than redirecting
+// to it (FEAT-010 technical-design D2). For a brand-new account this is
+// SCR-WEB-018's first-run state (ui-design D1).
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const health = await fetchSkeletonPing();
-  const healthy = health?.status === "ok" && health?.db === "up";
+  await requireSession();
+  const lists = await fetchLists();
+  const defaultList = lists?.find((l) => l.isDefault) ?? lists?.[0];
+
+  if (!defaultList) {
+    // The lists fetch failed — every account has an Inbox (FR-LIST-003), so an
+    // empty result here is an outage, not a state. The sidebar renders its own
+    // error; the column says so too.
+    return (
+      <AppShell>
+        <ListViewFailure kind="error" />
+      </AppShell>
+    );
+  }
+
+  const result = await fetchListTasks(defaultList.id);
 
   return (
-    <AppShell>
-      <h1
-        style={{
-          fontSize: "var(--font-size-h1)",
-          lineHeight: "var(--font-line-height-h1)",
-          color: "var(--color-text)",
-          marginBottom: "var(--space-4)",
-        }}
-      >
-        Walking skeleton
-      </h1>
-
-      <section
-        data-testid="health-card"
-        style={{
-          background: "var(--color-surface)",
-          border: "var(--border-width-hairline) solid var(--color-border)",
-          borderRadius: "var(--radius-lg)",
-          boxShadow: "var(--shadow-md)",
-          padding: "var(--space-6)",
-        }}
-      >
-        <span
-          data-testid="overall-status"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "var(--space-2)",
-            padding: "var(--space-1) var(--space-3)",
-            borderRadius: "var(--radius-full)",
-            background: healthy
-              ? "var(--color-success-subtle)"
-              : "var(--color-danger-subtle)",
-            color: healthy
-              ? "var(--color-success-text)"
-              : "var(--color-danger)",
-            fontSize: "var(--font-size-small)",
-          }}
-        >
-          {healthy ? "healthy" : "degraded"}
-        </span>
-
-        <dl
-          style={{
-            marginTop: "var(--space-4)",
-            display: "grid",
-            gridTemplateColumns: "auto 1fr",
-            gap: "var(--space-2) var(--space-4)",
-            color: "var(--color-text)",
-          }}
-        >
-          <dt style={{ color: "var(--color-text-muted)" }}>API</dt>
-          <dd data-testid="api-status">{health?.status ?? "unreachable"}</dd>
-          <dt style={{ color: "var(--color-text-muted)" }}>Database</dt>
-          <dd data-testid="db-status">{health?.db ?? "unknown"}</dd>
-          <dt style={{ color: "var(--color-text-muted)" }}>Pings recorded</dt>
-          <dd>{health?.pingCount ?? "—"}</dd>
-        </dl>
-      </section>
+    <AppShell activeListId={defaultList.id}>
+      {result.kind === "ok" ? (
+        <ListView
+          data={result.data}
+          firstRun={
+            lists?.length === 1 &&
+            result.data.active.length === 0 &&
+            result.data.completed.length === 0
+          }
+        />
+      ) : (
+        <ListViewFailure
+          kind={result.kind === "not-found" ? "not-found" : "error"}
+        />
+      )}
     </AppShell>
   );
 }

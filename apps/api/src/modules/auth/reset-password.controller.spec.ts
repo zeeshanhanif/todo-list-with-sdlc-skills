@@ -17,7 +17,11 @@ import { DbService } from '../../infra/db.service';
 // validation_failed password), AC-7 (429 on both), AC-8 (400 validation).
 const OLD_PW = '9x!vQ2mLp0zR';
 const NEW_PW = 'N3w!pw-Str0ngZ';
-const IP_PREFIX = '192.0.2.';
+// DEF-001: this spec owns this synthetic-IP range exclusively — specs run in
+// parallel workers against one database and clean their own auth_rate_buckets
+// rows by prefix, so a shared range lets one suite reset another's counter
+// mid-test. Enforced by common/rate-limit/rate-limit-isolation.spec.ts.
+const IP_PREFIX = '198.18.11.';
 
 describe('POST /auth/forgot + /auth/reset (contract)', () => {
   let app: INestApplication;
