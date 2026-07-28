@@ -205,6 +205,47 @@ test("UC-009 step 2: quick-add can set a due date and priority at creation", asy
   await expect(page.getByTestId("due-chip")).toHaveCount(1); // only the first
 });
 
+test("AC-13: a rejected edit shows the field error and KEEPS what the user typed", async ({
+  page,
+  request,
+}) => {
+  const email = uniqueEmail();
+  await request.post(`${API}/auth/register`, {
+    data: { email, password: PW },
+  });
+  await markVerified(email);
+  await page.goto("/signin");
+  await page.getByTestId("email-input").fill(email);
+  await page.getByTestId("password-input").fill(PW);
+  await page.getByTestId("submit").click();
+  await page.waitForURL("/");
+
+  await page.getByTestId("quick-add-input").fill("Keeps its name");
+  await page.keyboard.press("Enter");
+  await page.getByTestId("task-row-link").click();
+  await expect(page.getByTestId("detail-panel")).toBeVisible();
+
+  // A whitespace-only title fails FR-TASK-002. design.md §6's voice is "we kept
+  // your changes — try again", so the field must NOT silently revert: losing a
+  // user's typing to a validation error is the failure NFR-REL-004 names.
+  await page.getByTestId("detail-title").fill("   ");
+  await page.getByTestId("detail-title").blur();
+
+  await expect(page.getByTestId("detail-title-error")).toBeVisible();
+  await expect(page.getByTestId("detail-title")).toHaveValue("   ");
+
+  // The rest of the panel stays operable — a failure on one field does not
+  // freeze the others, which is the point of saving per field.
+  await page.getByTestId("detail-priority").getByRole("radio", { name: /Low/ }).click();
+  await expect(
+    page.getByTestId("detail-priority").getByRole("radio", { name: /Low/ }),
+  ).toHaveAttribute("aria-checked", "true");
+
+  // ...and nothing was stored for the bad title.
+  await page.reload();
+  await expect(page.getByTestId("detail-title")).toHaveValue("Keeps its name");
+});
+
 test("FR-AUTHZ-003: an unknown task id renders one uniform not-found, in the shell", async ({
   page,
   request,

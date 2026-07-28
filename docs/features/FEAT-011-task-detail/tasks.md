@@ -1,7 +1,7 @@
 # Tasks: FEAT-011 — Task detail (title, due date, priority, overdue)
 
 > Executes: docs/features/FEAT-011-task-detail/technical-design.md
-> Status: pending · Last updated: 2026-07-28
+> Status: all tasks done · Last updated: 2026-07-28
 > Notes: **migration 009** (design §4) — the first schema change since FEAT-009,
 > two columns on `tasks` inside the entity the architecture already owns. This
 > feature **extends** the `tasks` module FEAT-010 built (repository, service,
@@ -136,7 +136,7 @@
       Done when: `npm run test:e2e` passes against the local stack (Docker + DB
       up), with the FEAT-009 and FEAT-010 specs still green.
 
-- [ ] T9 — Verify: acceptance criteria AC-1..AC-14 (design §6) demonstrably pass;
+- [x] T9 — Verify: acceptance criteria AC-1..AC-14 (design §6) demonstrably pass;
       `npm run db:migrate` up **and** down clean (T1); `npm run boundaries`,
       `npm run lint`, `npm run build`, and the api + shared + web + e2e suites
       green — the api suite **serially** while DEF-002 is open, with any parallel
