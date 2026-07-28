@@ -69,8 +69,8 @@ export class TasksService {
     // 'none' (FR-TASK-008), and an absent/null dueAt is simply no due date.
     return toSummary(
       await this.tasks.create(ownerId, listId, title, {
-        dueAt: 'dueAt' in extras ? parseDueAt(extras.dueAt) : null,
-        ...('priority' in extras && extras.priority !== undefined
+        dueAt: parseDueAt(extras.dueAt), // undefined and null alike = no due date
+        ...(extras.priority !== undefined
           ? { priority: normalizePriority(extras.priority) }
           : {}),
       }),
@@ -98,11 +98,22 @@ export class TasksService {
   /**
    * FR-TASK-005/006/008 — apply a partial edit (FEAT-011 §3.2).
    *
-   * **Branches on key presence, never on value.** `'dueAt' in patch` is the
-   * whole of D4: it distinguishes "clear the due date" (`dueAt: null` present)
-   * from "leave it alone" (absent). Reading `patch.dueAt === undefined` instead
-   * would collapse the two and quietly re-introduce the bug the contract was
-   * designed to avoid.
+   * **"Sent" is `!== undefined`, not `in`** — and the distinction is load-bearing
+   * enough that it cost a debugging round to establish, so it is written down.
+   *
+   * D4 requires separating "clear the due date" (`dueAt: null`) from "leave it
+   * alone" (absent). The obvious encoding of that is `'dueAt' in patch`, and it
+   * is **wrong here**: this method's argument is an `UpdateTaskDto` produced by
+   * class-transformer, which materializes *every declared property* on the
+   * instance. `Object.keys(dto)` is always `['title','dueAt','priority']`, so
+   * `in` is always true — which sent `normalizeTitle(undefined)` down the
+   * title path on a priority-only PATCH.
+   *
+   * `!== undefined` is exactly right at this boundary instead, because **JSON
+   * cannot carry `undefined`**: a key the client sent always arrives with a
+   * real value (`null` included, and `null !== undefined`), and a key it did
+   * not send is `undefined` whether or not the instance has the property. The
+   * clear operation is preserved; the absent-field case is preserved.
    */
   async update(
     ownerId: string,
@@ -112,13 +123,13 @@ export class TasksService {
     assertTaskLookupId(id);
 
     const toApply: TaskPatch = {};
-    if ('title' in patch) {
-      toApply.title = normalizeTitle(patch.title as string);
+    if (patch.title !== undefined) {
+      toApply.title = normalizeTitle(patch.title);
     }
-    if ('dueAt' in patch) {
+    if (patch.dueAt !== undefined) {
       toApply.dueAt = parseDueAt(patch.dueAt);
     }
-    if ('priority' in patch) {
+    if (patch.priority !== undefined) {
       toApply.priority = normalizePriority(patch.priority);
     }
 

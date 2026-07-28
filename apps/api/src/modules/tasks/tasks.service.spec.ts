@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { Test } from '@nestjs/testing';
-import { TASK_TITLE_MAX_LENGTH } from '@todo/shared';
+import { TASK_TITLE_MAX_LENGTH, type UpdateTaskRequest } from '@todo/shared';
 import { DbService } from '../../infra/db.service';
 import { TasksRepository } from './tasks.repository';
 import { TasksService } from './tasks.service';
@@ -281,8 +281,9 @@ describe('TasksService — task detail (FEAT-011)', () => {
     const { id: owner, inbox } = await freshUser();
     const task = await tasks.create(owner, inbox, 'Original');
 
-    expect((await tasks.update(owner, task.id, { title: '  Trimmed  ' })).title)
-      .toBe('Trimmed');
+    expect(
+      (await tasks.update(owner, task.id, { title: '  Trimmed  ' })).title,
+    ).toBe('Trimmed');
 
     for (const bad of ['', '   ', 'x'.repeat(TASK_TITLE_MAX_LENGTH + 1)]) {
       await expect(
@@ -293,7 +294,9 @@ describe('TasksService — task detail (FEAT-011)', () => {
 
     // The boundary itself is accepted.
     const max = 'y'.repeat(TASK_TITLE_MAX_LENGTH);
-    expect((await tasks.update(owner, task.id, { title: max })).title).toBe(max);
+    expect((await tasks.update(owner, task.id, { title: max })).title).toBe(
+      max,
+    );
   });
 
   it('AC-5: overdue is true only for an ACTIVE task whose due instant has passed', async () => {
@@ -357,14 +360,58 @@ describe('TasksService — task detail (FEAT-011)', () => {
     });
   });
 
+  it('AC-7 regression: a DTO with every property MATERIALIZED as undefined is still a partial patch', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const task = await tasks.create(owner, inbox, 'Original', {
+      dueAt: FUTURE,
+      priority: 'medium',
+    });
+
+    // This is precisely what class-transformer hands the controller: the
+    // instance always carries all three declared keys, so `'dueAt' in patch` is
+    // always true. Branching on key presence sent normalizeTitle(undefined)
+    // down the title path and 400'd every single-field PATCH. Branch on
+    // `!== undefined` instead — JSON cannot transmit undefined, so a key the
+    // client actually sent always holds a real value.
+    const materialized: UpdateTaskRequest = {
+      title: undefined,
+      dueAt: undefined,
+      priority: 'high',
+    };
+    expect(Object.keys(materialized).sort()).toEqual([
+      'dueAt',
+      'priority',
+      'title',
+    ]);
+    expect('dueAt' in materialized).toBe(true); // the trap, made explicit
+
+    const updated = await tasks.update(owner, task.id, materialized);
+
+    expect(updated).toMatchObject({
+      title: 'Original', // untouched, not blanked
+      dueAt: FUTURE, //     untouched, not cleared
+      priority: 'high', //  the one field actually sent
+    });
+
+    // And the all-undefined case is still the empty patch, not three writes.
+    await expect(
+      tasks.update(owner, task.id, {
+        title: undefined,
+        dueAt: undefined,
+        priority: undefined,
+      }),
+    ).rejects.toMatchObject({ name: 'TaskFieldInvalidError' });
+  });
+
   it('AC-6: priority accepts the four values and rejects anything else', async () => {
     const { id: owner, inbox } = await freshUser();
     const task = await tasks.create(owner, inbox, 'Prioritized');
     expect(task.priority).toBe('none');
 
     for (const p of ['low', 'medium', 'high', 'none'] as const) {
-      expect((await tasks.update(owner, task.id, { priority: p })).priority)
-        .toBe(p);
+      expect(
+        (await tasks.update(owner, task.id, { priority: p })).priority,
+      ).toBe(p);
     }
 
     for (const bad of ['urgent', 'HIGH', '', 1, null]) {
@@ -372,7 +419,10 @@ describe('TasksService — task detail (FEAT-011)', () => {
         tasks.update(owner, task.id, {
           priority: bad as never,
         }),
-      ).rejects.toMatchObject({ name: 'TaskFieldInvalidError', field: 'priority' });
+      ).rejects.toMatchObject({
+        name: 'TaskFieldInvalidError',
+        field: 'priority',
+      });
     }
     expect((await tasks.detail(owner, task.id)).task.priority).toBe('none');
   });
@@ -384,7 +434,10 @@ describe('TasksService — task detail (FEAT-011)', () => {
     for (const bad of ['not-a-date', '2026-13-45', 42]) {
       await expect(
         tasks.update(owner, task.id, { dueAt: bad as never }),
-      ).rejects.toMatchObject({ name: 'TaskFieldInvalidError', field: 'dueAt' });
+      ).rejects.toMatchObject({
+        name: 'TaskFieldInvalidError',
+        field: 'dueAt',
+      });
     }
     expect((await tasks.detail(owner, task.id)).task.dueAt).toBe(FUTURE);
   });
@@ -397,9 +450,13 @@ describe('TasksService — task detail (FEAT-011)', () => {
     const notFound = { name: 'TaskNotFoundError' };
     // Unknown id, another owner's id, and a non-uuid all raise the same error —
     // and the messages match, which is what makes the HTTP responses identical.
-    await expect(tasks.detail(ownerA, randomUUID())).rejects.toMatchObject(notFound);
+    await expect(tasks.detail(ownerA, randomUUID())).rejects.toMatchObject(
+      notFound,
+    );
     await expect(tasks.detail(ownerB, task.id)).rejects.toMatchObject(notFound);
-    await expect(tasks.detail(ownerA, 'not-a-uuid')).rejects.toMatchObject(notFound);
+    await expect(tasks.detail(ownerA, 'not-a-uuid')).rejects.toMatchObject(
+      notFound,
+    );
     await expect(
       tasks.update(ownerB, task.id, { title: 'hijacked' }),
     ).rejects.toMatchObject(notFound);
@@ -408,7 +465,9 @@ describe('TasksService — task detail (FEAT-011)', () => {
     ).rejects.toMatchObject(notFound);
     expect(await storedTitle(task.id)).toBe("A's task");
 
-    await db.query('UPDATE tasks SET deleted_at = now() WHERE id = $1', [task.id]);
+    await db.query('UPDATE tasks SET deleted_at = now() WHERE id = $1', [
+      task.id,
+    ]);
     await expect(tasks.detail(ownerA, task.id)).rejects.toMatchObject(notFound);
     await expect(
       tasks.update(ownerA, task.id, { title: 'x' }),

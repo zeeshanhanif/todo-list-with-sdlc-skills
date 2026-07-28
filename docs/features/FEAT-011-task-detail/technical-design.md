@@ -331,9 +331,16 @@ sequenceDiagram
   no offset-less string is ever accepted or emitted. A `dueAt` sent with a
   non-UTC offset is stored as the **same instant** and read back in UTC.
 - **AC-12 (NFR-PERF-001).** `GET /tasks/{id}` resolves in **two** SQL statements
-  and `PATCH /tasks/{id}` in **two** (the ownership-bearing update, then the
-  list for the response) — no N+1, no read-modify-write round trip per field.
-  Both complete server-side well inside the 300 ms bound for "edit a task".
+  (the task, then its list — D5) and `PATCH /tasks/{id}` in **one** (a single
+  ownership-bearing `UPDATE … RETURNING`) — no N+1, and no read-modify-write
+  round trip per field. Both complete server-side well inside the 300 ms bound
+  for "edit a task". The session guard's own two statements are cross-cutting
+  and counted separately, per FEAT-010 AC-8's accounting.
+  *(Corrected during implementation, 2026-07-28: this criterion originally said
+  PATCH takes two statements "then the list for the response" — which
+  contradicted §3.2's own `UpdateTaskResponse: { task }`, a body with no list in
+  it. One statement was always what the contract implied; the criterion was
+  wrong, not the code. §8.)*
 - **AC-13 (NFR-USE-003; UC-010 main 1).** The detail surface renders its states:
   **viewing**, **editing**, **error** (a failed save shows a retry affordance and
   **keeps the user's typed value**, as `quick-add` does), and **not-found** (an
@@ -448,6 +455,23 @@ sequenceDiagram
 
 ## 8. Escalations & open items
 
+- **Two corrections made during implementation** (both small and
+  design-consistent — neither changes a contract, the schema, or a criterion's
+  substance, so neither took the amendment path):
+  1. **AC-12's PATCH statement count: two → one.** The criterion justified the
+     second statement as "the list for the response", but §3.2's
+     `UpdateTaskResponse` is `{ task }` and carries no list. One
+     `UPDATE … RETURNING` was always what the contract implied. The code was
+     right and measured at one; the criterion was wrong and now says so.
+  2. **`'field' in patch` → `patch.field !== undefined` in the service.** D4's
+     absent-vs-null rule is unchanged and still binding — only its *encoding*
+     moved, because `in` is unusable at this boundary: class-transformer
+     materializes every declared DTO property, so `Object.keys(dto)` is always
+     all three and `in` is always true (it made every single-field PATCH 400 on
+     a phantom title). `!== undefined` is exact here because JSON cannot carry
+     `undefined`, so a key the client sent always holds a real value — `null`
+     included, which is what preserves the clear operation. A service test now
+     passes a fully-materialized instance to keep this from regressing.
 - **No architecture amendment.** `due_at` and `priority` are physical columns on
   **Task**, an entity the conceptual model already owns (arch §8). No new noun,
   no boundary crossed, no ownership change.

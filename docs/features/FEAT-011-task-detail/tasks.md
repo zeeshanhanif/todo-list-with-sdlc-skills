@@ -79,7 +79,7 @@
       active task with a past `dueAt`; **false** for future, for no due date, and
       for a **completed** task with a past due date.
 
-- [ ] T5 — Contract: `TaskItemController` (`task-item.controller.ts`,
+- [x] T5 — Contract: `TaskItemController` (`task-item.controller.ts`,
       `@Controller('tasks')`) + `dto/update-task.dto.ts` + the two new optional
       fields on `dto/create-task.dto.ts`, registered in `TasksModule` (design §3).
       Class-level `@UseGuards(SessionGuard)`, `@CurrentUser()` for the owner id;
