@@ -129,7 +129,7 @@
       (AC-10). **No list picker** — the contract rejects `listId` and moving a
       task between lists is not in this feature (design §8).
 
-- [ ] T8 — E2E: extend `e2e/tests/` with the path this feature completes —
+- [x] T8 — E2E: extend `e2e/tests/` with the path this feature completes —
       sign in → add a task → open its detail → set a due date in the past and a
       priority → the list row shows the overdue chip and the priority dot →
       clear the due date → the overdue treatment goes. [UC-010]
