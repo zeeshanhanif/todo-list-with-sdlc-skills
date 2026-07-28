@@ -48,7 +48,7 @@
       Done when: `npm run build:shared` succeeds and api + web typecheck against
       the new symbols with no change to any existing exported shape.
 
-- [ ] T3 — Domain: repository (design §5; FR-TASK-004/005/006/008,
+- [x] T3 — Domain: repository (design §5; FR-TASK-004/005/006/008,
       FR-AUTHZ-002/003/005). `TaskRow` + `toTaskRow` + the existing
       `findByList`/`create` selects carry `due_at`/`priority`; new owner-scoped
       `findById(ownerId, id)` and `update(ownerId, id, patch)` — one `UPDATE …
