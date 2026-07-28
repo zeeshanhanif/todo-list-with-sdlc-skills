@@ -474,6 +474,29 @@ describe('TasksService — task detail (FEAT-011)', () => {
     ).rejects.toMatchObject(notFound);
   });
 
+  it('AC-14: the LIST VIEW carries dueAt, priority and isOverdue on every task', async () => {
+    const { id: owner, inbox } = await freshUser();
+    await tasks.create(owner, inbox, 'Late', { dueAt: PAST, priority: 'high' });
+    await tasks.create(owner, inbox, 'Later', { dueAt: FUTURE });
+    await tasks.create(owner, inbox, 'Undated');
+
+    // Regression guard: toSummary is used as `.map(toSummary)`, so a second
+    // parameter on it silently receives the array INDEX. A `now: Date = new
+    // Date()` default did exactly that and made this call throw
+    // "(0).getTime is not a function" — but ONLY for a list containing a
+    // due-dated task, which no earlier fixture had. Hence this test.
+    const view = await tasks.listView(owner, inbox);
+
+    expect(view.active.map((t) => [t.title, t.isOverdue])).toEqual([
+      ['Late', true],
+      ['Later', false],
+      ['Undated', false],
+    ]);
+    expect(view.active[0]).toMatchObject({ dueAt: PAST, priority: 'high' });
+    expect(view.active[1]).toMatchObject({ dueAt: FUTURE, priority: 'none' });
+    expect(view.active[2]).toMatchObject({ dueAt: null, priority: 'none' });
+  });
+
   it('AC-11: dueAt crosses the contract as an ISO-8601 UTC string, whatever offset arrived', async () => {
     const { id: owner, inbox } = await freshUser();
 

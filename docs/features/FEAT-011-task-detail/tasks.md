@@ -106,7 +106,7 @@
       editing to stay green means the change was not additive (D8) — fix the
       change, not the test.
 
-- [ ] T7 — UI integration point (design §5): BFF route
+- [x] T7 — UI integration point (design §5): BFF route
       `app/api/tasks/[id]/route.ts` (GET, PATCH) forwarding the browser `cookie`
       and relaying status + JSON verbatim; `lib/tasks.ts` `fetchTask(id)` in the
       same discriminated shape as `fetchListTasks`; `app/tasks/[id]/page.tsx` as

@@ -154,7 +154,11 @@ export class TasksService {
 
 /** Row → wire shape. Timestamps become ISO-8601 UTC strings; an active task
  * carries `completedAt: null` (NFR-LOC-001, technical-design §3). */
-function toSummary(row: TaskRow, now: Date = new Date()): TaskSummary {
+// NB: takes exactly one argument on purpose. It is used as `.map(toSummary)`,
+// and any second parameter would silently receive the array INDEX — which is
+// how an earlier `now: Date = new Date()` default turned into a latent
+// `(0).getTime is not a function` on any list view containing a due-dated task.
+function toSummary(row: TaskRow): TaskSummary {
   return {
     id: row.id,
     listId: row.listId,
@@ -163,7 +167,7 @@ function toSummary(row: TaskRow, now: Date = new Date()): TaskSummary {
     createdAt: row.createdAt.toISOString(),
     dueAt: row.dueAt ? row.dueAt.toISOString() : null,
     priority: row.priority,
-    isOverdue: isOverdue(row, now),
+    isOverdue: isOverdue(row),
   };
 }
 
@@ -181,11 +185,11 @@ function toSummary(row: TaskRow, now: Date = new Date()): TaskSummary {
  * answer in every zone (D1). Timezone governs how the due date is typed and
  * displayed, which is the client's business.
  */
-function isOverdue(row: TaskRow, now: Date): boolean {
+function isOverdue(row: TaskRow): boolean {
   return (
     row.completedAt === null &&
     row.dueAt !== null &&
-    row.dueAt.getTime() < now.getTime()
+    row.dueAt.getTime() < Date.now()
   );
 }
 
