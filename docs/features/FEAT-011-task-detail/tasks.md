@@ -66,7 +66,7 @@
       (`timestamptz` UTC round-trip, including a non-UTC offset stored as the
       same instant).
 
-- [ ] T4 — Domain: `TasksService` (design §5) — `detail(ownerId, id)` and
+- [x] T4 — Domain: `TasksService` (design §5) — `detail(ownerId, id)` and
       `update(ownerId, id, patch)`; `normalizeTitle` **reused verbatim** for
       update (FR-TASK-005 → FR-TASK-002), `assertLookupId` on the new id,
       `dueAt`/`priority` validation raising `TaskFieldInvalidError`, the empty

@@ -1,11 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import {
+  TASK_PRIORITIES,
   TASK_TITLE_MAX_LENGTH,
   type ListTasksResponse,
+  type TaskDetailResponse,
+  type TaskPriority,
   type TaskSummary,
+  type UpdateTaskRequest,
 } from '@todo/shared';
-import { TasksRepository, type TaskRow } from './tasks.repository';
-import { ListNotFoundError, TaskTitleInvalidError } from './tasks.errors';
+import {
+  TasksRepository,
+  type TaskPatch,
+  type TaskRow,
+} from './tasks.repository';
+import {
+  ListNotFoundError,
+  TaskFieldInvalidError,
+  TaskNotFoundError,
+  TaskTitleInvalidError,
+} from './tasks.errors';
 
 /**
  * Task creation and the list view (FEAT-010 technical-design §5) — FR-TASK-001,
@@ -43,6 +56,7 @@ export class TasksService {
     ownerId: string,
     listId: string,
     rawTitle: string,
+    extras: { dueAt?: string | null; priority?: TaskPriority } = {},
   ): Promise<TaskSummary> {
     assertLookupId(listId);
     const list = await this.tasks.findOwnedList(ownerId, listId);
@@ -50,20 +64,148 @@ export class TasksService {
       throw new ListNotFoundError();
     }
     const title = normalizeTitle(rawTitle);
-    return toSummary(await this.tasks.create(ownerId, listId, title));
+    // UC-009 step 2, which FEAT-010 D6 deferred to this feature. Both optional:
+    // an absent priority is left out entirely so the column default supplies
+    // 'none' (FR-TASK-008), and an absent/null dueAt is simply no due date.
+    return toSummary(
+      await this.tasks.create(ownerId, listId, title, {
+        dueAt: 'dueAt' in extras ? parseDueAt(extras.dueAt) : null,
+        ...('priority' in extras && extras.priority !== undefined
+          ? { priority: normalizePriority(extras.priority) }
+          : {}),
+      }),
+    );
+  }
+
+  /** FR-TASK-004 — the task with its owning list, the five details the FR names
+   * (FEAT-011 §3.1). Two statements (D5). */
+  async detail(ownerId: string, id: string): Promise<TaskDetailResponse> {
+    assertTaskLookupId(id);
+    const task = await this.tasks.findById(ownerId, id);
+    if (!task) {
+      throw new TaskNotFoundError();
+    }
+    const list = await this.tasks.findOwnedList(ownerId, task.listId);
+    if (!list) {
+      // Unreachable in practice — tasks.list_id is NOT NULL with an FK and the
+      // list is the same owner's. Treated as not-found rather than crashing,
+      // because a task whose list cannot be resolved is not a task we can show.
+      throw new TaskNotFoundError();
+    }
+    return { task: toSummary(task), list };
+  }
+
+  /**
+   * FR-TASK-005/006/008 — apply a partial edit (FEAT-011 §3.2).
+   *
+   * **Branches on key presence, never on value.** `'dueAt' in patch` is the
+   * whole of D4: it distinguishes "clear the due date" (`dueAt: null` present)
+   * from "leave it alone" (absent). Reading `patch.dueAt === undefined` instead
+   * would collapse the two and quietly re-introduce the bug the contract was
+   * designed to avoid.
+   */
+  async update(
+    ownerId: string,
+    id: string,
+    patch: UpdateTaskRequest,
+  ): Promise<TaskSummary> {
+    assertTaskLookupId(id);
+
+    const toApply: TaskPatch = {};
+    if ('title' in patch) {
+      toApply.title = normalizeTitle(patch.title as string);
+    }
+    if ('dueAt' in patch) {
+      toApply.dueAt = parseDueAt(patch.dueAt);
+    }
+    if ('priority' in patch) {
+      toApply.priority = normalizePriority(patch.priority);
+    }
+
+    // A body whose recognized fields are all absent. Rejected rather than
+    // treated as a no-op: the global ValidationPipe runs `whitelist: true`, so a
+    // misspelled field is STRIPPED, and a silent 200 would tell the client the
+    // edit landed when nothing was written (D4).
+    if (Object.keys(toApply).length === 0) {
+      throw new TaskFieldInvalidError(
+        '_',
+        'Nothing to update — send a title, dueAt, or priority.',
+      );
+    }
+
+    const updated = await this.tasks.update(ownerId, id, toApply);
+    if (!updated) {
+      throw new TaskNotFoundError();
+    }
+    return toSummary(updated);
   }
 }
 
 /** Row → wire shape. Timestamps become ISO-8601 UTC strings; an active task
  * carries `completedAt: null` (NFR-LOC-001, technical-design §3). */
-function toSummary(row: TaskRow): TaskSummary {
+function toSummary(row: TaskRow, now: Date = new Date()): TaskSummary {
   return {
     id: row.id,
     listId: row.listId,
     title: row.title,
     completedAt: row.completedAt ? row.completedAt.toISOString() : null,
     createdAt: row.createdAt.toISOString(),
+    dueAt: row.dueAt ? row.dueAt.toISOString() : null,
+    priority: row.priority,
+    isOverdue: isOverdue(row, now),
   };
+}
+
+/**
+ * FR-TASK-007, derived in **exactly one place** (FEAT-011 D3) so the list view,
+ * the detail surface and FEAT-016's Overdue view cannot drift into three
+ * definitions.
+ *
+ * Overdue = **active** AND has a due date AND that instant has passed. The
+ * `completedAt === null` clause is the FR's own note — "only active (incomplete)
+ * tasks can be overdue" — not an optimization.
+ *
+ * No timezone enters this comparison, and that is correct rather than an
+ * oversight: `due_at` is an absolute instant, so "has it passed?" has the same
+ * answer in every zone (D1). Timezone governs how the due date is typed and
+ * displayed, which is the client's business.
+ */
+function isOverdue(row: TaskRow, now: Date): boolean {
+  return (
+    row.completedAt === null &&
+    row.dueAt !== null &&
+    row.dueAt.getTime() < now.getTime()
+  );
+}
+
+/** FR-TASK-006: a due date is an ISO-8601 instant, or null for "no due date".
+ * Format is the only rule — **past instants are deliberately legal** (D2),
+ * because FR-TASK-007's overdue state is otherwise unreachable. */
+function parseDueAt(raw: string | null | undefined): Date | null {
+  if (raw === null || raw === undefined) {
+    return null;
+  }
+  if (typeof raw !== 'string') {
+    throw new TaskFieldInvalidError('dueAt', 'Enter a valid date and time.');
+  }
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new TaskFieldInvalidError('dueAt', 'Enter a valid date and time.');
+  }
+  return parsed;
+}
+
+/** FR-TASK-008: one of the four values. Validated against the shared
+ * TASK_PRIORITIES tuple — the same constant the CHECK constraint mirrors — so
+ * the API and the column can never disagree about what is legal. */
+function normalizePriority(raw: unknown): TaskPriority {
+  if (!TASK_PRIORITIES.includes(raw as TaskPriority)) {
+    throw new TaskFieldInvalidError(
+      'priority',
+      `Choose one of: ${TASK_PRIORITIES.join(', ')}.`,
+    );
+  }
+  return raw as TaskPriority;
 }
 
 /** FR-TASK-002: trim, then require non-empty and at most TASK_TITLE_MAX_LENGTH.
@@ -89,6 +231,16 @@ function normalizeTitle(raw: string): string {
 function assertLookupId(id: string): void {
   if (!UUID_RE.test(id)) {
     throw new ListNotFoundError();
+  }
+}
+
+/** The same rule for a task id — a malformed path parameter takes the uniform
+ * not-found path before it can reach Postgres as a cast error (which would
+ * surface as a 500 instead of the designed 404). AC-8 asserts the response is
+ * byte-identical to the unknown-uuid one. */
+function assertTaskLookupId(id: string): void {
+  if (!UUID_RE.test(id)) {
+    throw new TaskNotFoundError();
   }
 }
 
