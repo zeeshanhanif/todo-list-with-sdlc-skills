@@ -1,13 +1,22 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 // SCR-WEB-010's `not-found` and `error` states (FEAT-011 ui-design), as
 // design.md's `inline-alert` — subtle tinted bg + matching text token.
 //
 // `not-found` is the UNIFORM answer for an id that is unknown, owned by someone
 // else, or soft-deleted: the API returns one 404 for all three and the screen
-// must not reveal which (FR-AUTHZ-003, technical-design §3.1). Same treatment
-// and same reasoning as SCR-WEB-008's not-found state (FEAT-010).
+// must not reveal which (FR-AUTHZ-003, technical-design §3.1).
+//
+// The two states get DIFFERENT affordances, because they are different problems
+// — the split SCR-WEB-008's ListViewFailure established and this mirrors
+// (acceptance finding R1): a task that doesn't exist is not going to appear on a
+// retry, so that state offers a way out; a task that failed to LOAD probably
+// will, so that state offers **Retry**.
 export function TaskDetailFailure({ kind }: { kind: "not-found" | "error" }) {
+  const router = useRouter();
   const notFound = kind === "not-found";
   return (
     <div
@@ -23,20 +32,43 @@ export function TaskDetailFailure({ kind }: { kind: "not-found" | "error" }) {
         fontSize: "var(--font-size-body)",
       }}
     >
-      <p style={{ margin: 0 }}>
+      <p style={{ margin: `0 0 var(--space-3)` }}>
         {notFound ? "That task doesn't exist." : "Couldn't load this task."}
       </p>
-      <Link
-        href="/"
-        style={{
-          display: "inline-block",
-          marginTop: "var(--space-2)",
-          color: "var(--color-primary)",
-          fontSize: "var(--font-size-small)",
-        }}
-      >
-        Back to your tasks
-      </Link>
+      {notFound ? (
+        <Link
+          href="/"
+          data-testid="task-back-home"
+          style={{
+            color: "var(--color-primary)",
+            fontSize: "var(--font-size-small)",
+          }}
+        >
+          Back to your tasks
+        </Link>
+      ) : (
+        // design.md `button-tertiary`: transparent, --color-primary text, no
+        // border. router.refresh() re-runs the server component that fetched the
+        // task, so a transient failure is recoverable in place rather than by
+        // navigating away and back.
+        <button
+          type="button"
+          data-testid="task-retry"
+          onClick={() => router.refresh()}
+          style={{
+            minHeight: "var(--size-touch-target)",
+            padding: "0 var(--space-4)",
+            borderRadius: "var(--radius-md)",
+            border: "none",
+            background: "transparent",
+            color: "var(--color-primary)",
+            fontSize: "var(--font-size-body)",
+            cursor: "pointer",
+          }}
+        >
+          Retry
+        </button>
+      )}
     </div>
   );
 }

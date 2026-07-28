@@ -246,6 +246,55 @@ test("AC-13: a rejected edit shows the field error and KEEPS what the user typed
   await expect(page.getByTestId("detail-title")).toHaveValue("Keeps its name");
 });
 
+test("R2/design.md §5: the panel traps focus while open and restores it on close", async ({
+  page,
+  request,
+}) => {
+  const email = uniqueEmail();
+  await request.post(`${API}/auth/register`, {
+    data: { email, password: PW },
+  });
+  await markVerified(email);
+  await page.goto("/signin");
+  await page.getByTestId("email-input").fill(email);
+  await page.getByTestId("password-input").fill(PW);
+  await page.getByTestId("submit").click();
+  await page.waitForURL("/");
+
+  await page.getByTestId("quick-add-input").fill("Focus me");
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("task-row")).toHaveCount(1);
+
+  // Open from the row, by keyboard, so there is a real opener to restore to.
+  await page.getByTestId("task-row-link").focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("detail-panel")).toBeVisible();
+
+  // The panel declares aria-modal="true"; that claim must be true. Tab all the
+  // way round and confirm focus never leaves the panel — before this fix it
+  // walked straight out into the list behind the scrim.
+  const insidePanel = async () =>
+    page.evaluate(() => {
+      const panel = document.querySelector('[data-testid="detail-panel"]');
+      return !!panel && panel.contains(document.activeElement);
+    });
+
+  for (let i = 0; i < 14; i++) {
+    await page.keyboard.press("Tab");
+    expect(await insidePanel()).toBe(true);
+  }
+  // ...and backwards too.
+  for (let i = 0; i < 6; i++) {
+    await page.keyboard.press("Shift+Tab");
+    expect(await insidePanel()).toBe(true);
+  }
+
+  // On close, focus returns to the row that opened it (design.md §5).
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("detail-panel")).toHaveCount(0);
+  await expect(page.getByTestId("task-row-link")).toBeFocused();
+});
+
 test("FR-AUTHZ-003: an unknown task id renders one uniform not-found, in the shell", async ({
   page,
   request,

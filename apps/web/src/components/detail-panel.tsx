@@ -8,23 +8,75 @@ import { useRouter } from "next/navigation";
 // at md, full-screen below md. Rendered only when a task is open — when the slot
 // is empty nothing is mounted, so there is no empty gutter.
 //
-// Keyboard, per design.md §5: **Esc closes** and focus is restored to the
-// task-row that opened it (the browser does the restoring, because closing is a
-// router.back() to the page that owns that row).
+// Keyboard, per design.md §5: **Esc closes, focus is trapped while open, and
+// restored on close.** All three are implemented below rather than assumed —
+// the element declares `aria-modal="true"`, which tells assistive technology the
+// rest of the page is inert, and that claim has to be true (acceptance finding
+// R2; an earlier version trapped nothing and left restoration to router.back(),
+// which browsers do not guarantee).
 // All values are design tokens.
 export function DetailPanel({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const panel = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const node = panel.current;
+    // Whatever had focus when the panel opened — the task-row link, in the
+    // normal path. Captured now so it can be restored on unmount.
+    const opener = document.activeElement as HTMLElement | null;
+
+    /** Tabbable descendants, in DOM order. Recomputed per keypress because the
+     * panel's contents change as fields save and errors appear. */
+    const tabbables = (): HTMLElement[] =>
+      Array.from(
+        node?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      ).filter((el) => el.offsetParent !== null || el === document.activeElement);
+
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") router.back();
+      if (e.key === "Escape") {
+        router.back();
+        return;
+      }
+      if (e.key !== "Tab") return;
+
+      // The trap: Tab past the last control wraps to the first, Shift+Tab
+      // before the first wraps to the last, so focus cannot walk out into the
+      // list behind the scrim while the panel claims to be modal.
+      const items = tabbables();
+      if (items.length === 0) {
+        e.preventDefault();
+        node?.focus();
+        return;
+      }
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+
+      if (!e.shiftKey && (active === last || !node?.contains(active))) {
+        e.preventDefault();
+        first.focus();
+      } else if (e.shiftKey && (active === first || !node?.contains(active))) {
+        e.preventDefault();
+        last.focus();
+      }
     };
+
     document.addEventListener("keydown", onKey);
     // Move focus into the panel so a keyboard user lands where the content is,
     // and so Esc reaches the handler without a stray click first.
-    panel.current?.focus();
-    return () => document.removeEventListener("keydown", onKey);
+    node?.focus();
+
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      // Restore focus to the element that opened the panel (design.md §5). Only
+      // if it is still in the document — the row can be gone if the underlying
+      // list re-rendered while the panel was open.
+      if (opener && document.contains(opener)) {
+        opener.focus();
+      }
+    };
   }, [router]);
 
   return (
