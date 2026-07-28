@@ -39,7 +39,7 @@
       `npm run db:migrate down` reverses it clean, with existing task rows
       backfilled to `priority = 'none'` and `due_at IS NULL`.
 
-- [ ] T2 — Shared contracts (`@todo/shared`, design §5): `taskPath(id)`,
+- [x] T2 — Shared contracts (`@todo/shared`, design §5): `taskPath(id)`,
       `TaskPriority` + `TASK_PRIORITIES`, the three new `TaskSummary` fields
       (`dueAt`, `priority`, `isOverdue`), `TaskDetailResponse`,
       `UpdateTaskRequest`, `UpdateTaskResponse`, the two new optional

@@ -311,6 +311,80 @@ export const listTasksPath = (listId: string): string =>
  * legal. */
 export const TASK_TITLE_MAX_LENGTH = 500;
 
+// --- Tasks: task detail — title, due date, priority, overdue (FEAT-011) ---
+
+/**
+ * The four priority values (FR-TASK-008). **The single source** the DTO
+ * validator, the `tasks_priority_check` CHECK constraint (migration 009) and
+ * the `priority-selector` all read, so they cannot drift apart
+ * (FEAT-011 technical-design D6).
+ *
+ * Deliberately unordered: nothing sorts by priority today, and no FR asks it
+ * to. If one ever does, that is an ordinal decision made there, with a
+ * requirement behind it.
+ */
+export const TASK_PRIORITIES = ["none", "low", "medium", "high"] as const;
+
+/** FR-TASK-008 — None / Low / Medium / High, lowercase on the wire. */
+export type TaskPriority = (typeof TASK_PRIORITIES)[number];
+
+/** Path of a single task: GET (details) and PATCH (edit). Task ids are globally
+ * unique and ownership is checked on `tasks.owner_id` directly, so the list is
+ * not in the path — unlike the collection above. FEAT-012's complete/reopen and
+ * FEAT-013's delete/restore extend this same resource. */
+export const taskPath = (id: string): string => `/tasks/${id}`;
+
+/** Success response (200) of GET /tasks/{id} — FR-TASK-004 names five details:
+ * title, list, due date/time, priority and status. `task` carries four; `list`
+ * carries the fifth as the same `ListSummary` every list endpoint returns, so
+ * the detail surface renders "in Inbox" without a second round trip
+ * (FEAT-011 technical-design D5). */
+export interface TaskDetailResponse {
+  task: TaskSummary;
+  list: ListSummary;
+}
+
+/**
+ * Request body of PATCH /tasks/{id} — **partial, and absent is not null**
+ * (FEAT-011 technical-design D4).
+ *
+ * - field **absent** → leave it unchanged. A detail panel saving one field must
+ *   not blank the other two.
+ * - `dueAt: null` → **clear** the due date. FR-TASK-006 requires "set, change,
+ *   **or clear**", so null must be a transmittable value, not a sentinel.
+ *
+ * A body with no recognized field is a `400 validation_failed`, not a silent
+ * `200`: the API's global ValidationPipe runs `whitelist: true`, which *strips*
+ * unknown properties, so a misspelled `dueDate` would otherwise look like a
+ * successful no-op — the worst available outcome.
+ */
+export interface UpdateTaskRequest {
+  /** Trimmed, then non-empty and ≤ TASK_TITLE_MAX_LENGTH — the same rule
+   * creation applies (FR-TASK-005 is "subject to FR-TASK-002 validation"). */
+  title?: string;
+  /** ISO-8601 instant to set, or null to clear. Past instants are legal — and
+   * necessary: FR-TASK-007's overdue state would be unreachable otherwise
+   * (technical-design D2). */
+  dueAt?: string | null;
+  priority?: TaskPriority;
+}
+
+/** Success response (200) of PATCH /tasks/{id} — the task as stored, with
+ * `isOverdue` recomputed (UC-010 main 3: "persists the changes and updates
+ * overdue indication as needed"). */
+export interface UpdateTaskResponse {
+  task: TaskSummary;
+}
+
+/** Error `code` values the single-task endpoints add to the ApiError envelope.
+ * `task_not_found` is the uniform answer for unknown, not-owned, non-uuid and
+ * soft-deleted ids alike — the response never discloses which (FR-AUTHZ-002/003,
+ * the convention FEAT-009 D3 set). Minted here rather than in FEAT-010, which
+ * had no by-id lookup and said so (FEAT-010 technical-design D7). */
+export const TASK_ERROR_CODES = {
+  taskNotFound: "task_not_found",
+} as const;
+
 /**
  * A task as the task endpoints return it (FEAT-010 technical-design §3).
  *
@@ -329,6 +403,31 @@ export interface TaskSummary {
   completedAt: string | null;
   /** ISO-8601 UTC. Also the active section's sort key (technical-design D4). */
   createdAt: string;
+  /**
+   * Due date/time as an ISO-8601 UTC **instant**, or null for no due date
+   * (FR-TASK-006 — "the due date/time is optional" is exactly null). Added by
+   * FEAT-011.
+   *
+   * The user's timezone interprets what they typed and formats what they see;
+   * it does not change the instant, which is why overdue below is
+   * timezone-invariant (FEAT-011 technical-design D1).
+   */
+  dueAt: string | null;
+  /** FR-TASK-008. Defaults to 'none' at creation — the column default is the
+   * source of that default, not the application. Added by FEAT-011. */
+  priority: TaskPriority;
+  /**
+   * FR-TASK-007 — derived by the **server**, in one place, so the list view,
+   * the detail surface and FEAT-016's Overdue view cannot drift into three
+   * definitions (FEAT-011 technical-design D3). True exactly when the task is
+   * **active** and `dueAt` is strictly in the past; a completed task is never
+   * overdue, per the FR's own note.
+   *
+   * A snapshot at response time: a page held open past the due instant keeps a
+   * stale `false`. Clients may re-derive from `dueAt` against a fresher clock —
+   * that is the same rule, not a second one.
+   */
+  isOverdue: boolean;
 }
 
 /**
@@ -346,9 +445,22 @@ export interface ListTasksResponse {
   completed: TaskSummary[];
 }
 
-/** Request body of POST /lists/{listId}/tasks. */
+/**
+ * Request body of POST /lists/{listId}/tasks.
+ *
+ * `dueAt` and `priority` were added by FEAT-011, closing UC-009 step 2 which
+ * FEAT-010 D6 deferred. Both are **optional with behaviour-preserving
+ * defaults**, so a `{ title }` body behaves exactly as it did before
+ * (FEAT-011 technical-design D8) — that additivity is asserted by AC-10, and a
+ * FEAT-010 test needing an edit to stay green would mean the change was not
+ * additive.
+ */
 export interface CreateTaskRequest {
   title: string;
+  /** ISO-8601 instant, or null/omitted for no due date (FR-TASK-006). */
+  dueAt?: string | null;
+  /** Omitted = 'none', the FR-TASK-008 default. */
+  priority?: TaskPriority;
 }
 
 /** Success response (201) of POST /lists/{listId}/tasks — created active
