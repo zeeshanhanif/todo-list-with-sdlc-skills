@@ -47,20 +47,30 @@ token exists for.
 | Success text | `--color-success-text` | #047857 | Success messages |
 | Warning | `--color-warning` | #D97706 | Warning icon/fill |
 | Warning text | `--color-warning-text` | #B45309 | Warning text |
-| Danger | `--color-danger` | #DC2626 | Destructive actions/text |
+| Danger | `--color-danger` | #DC2626 | Destructive actions/text on a plain surface |
+| Danger text | `--color-danger-text` | #991B1B | Danger as text **on a danger tint** (chips, alerts) |
 | Danger hover | `--color-danger-hover` | #B91C1C | Hover on danger |
 | Info | `--color-info` | #2563EB | Informational |
-| Priority high/med/low/none | `--color-priority-*` | #DC2626 / #D97706 / #2563EB / #94A3B8 | Priority indicators |
+| Priority high/med/low/none | `--priority-*` | #DC2626 / #D97706 / #2563EB / #94A3B8 | Priority indicators (note: **no** `color-` prefix — these come from tokens.json's own `priority` group) |
 | Subtle bg tints | `--color-*-subtle` | see CSS | Badge/alert backgrounds |
 
 **Contrast notes (WCAG 2.2 AA — see §5):** text #0F172A on surface = 17:1 ✓;
 text-muted #64748B on background = 4.6:1 ✓ (AA normal); primary #0F766E + white =
 4.5:1 ✓; accent-text #B45309 on surface = 4.8:1 ✓; danger #DC2626 + white =
-4.5:1 ✓; success check #059669 on surface = 3.4:1 ✓ (graphical). **text-subtle
+4.5:1 ✓; danger-text #991B1B on danger-subtle #FEE2E2 = 6.8:1 ✓; success check
+#059669 on surface = 3.4:1 ✓ (graphical). **text-subtle
 #94A3B8 is below AA for body text — use only for large or decorative text.** Raw
 brand teal #14B8A6 and raw amber #F59E0B fail AA as text/small-button fills — that
 is why `--color-primary` and `--color-accent-text` exist; use them for anything
 that must be legible.
+
+**A tint is a background, not a text colour.** Each `--color-*-subtle` has a
+matching `*-text` partner, and text on a tint must use the partner: danger text
+on `--color-danger-subtle` is `--color-danger-text` (6.8:1), **not**
+`--color-danger` (3.95:1 — below AA at any body or caption size). The same
+pairing rule holds for accent, success and warning. *(The danger partner was
+added by the FEAT-011 amendment, 2026-07-28 — it was the one missing member of
+the family, found by the overdue chip.)*
 
 ```css
 :root {
@@ -91,14 +101,15 @@ that must be legible.
   --color-warning-text: #B45309;
   --color-warning-subtle: #FEF3C7;
   --color-danger: #DC2626;
+  --color-danger-text: #991B1B;
   --color-danger-hover: #B91C1C;
   --color-danger-subtle: #FEE2E2;
   --color-info: #2563EB;
   --color-info-subtle: #DBEAFE;
-  --color-priority-high: #DC2626;
-  --color-priority-medium: #D97706;
-  --color-priority-low: #2563EB;
-  --color-priority-none: #94A3B8;
+  --priority-high: #DC2626;
+  --priority-medium: #D97706;
+  --priority-low: #2563EB;
+  --priority-none: #94A3B8;
 
   /* typography */
   --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -168,14 +179,15 @@ that must be legible.
   --color-warning-text: #FCD34D;
   --color-warning-subtle: rgba(251,191,36,0.15);
   --color-danger: #F87171;
+  --color-danger-text: #FCA5A5;
   --color-danger-hover: #FCA5A5;
   --color-danger-subtle: rgba(239,68,68,0.15);
   --color-info: #60A5FA;
   --color-info-subtle: rgba(37,99,235,0.18);
-  --color-priority-high: #F87171;
-  --color-priority-medium: #FBBF24;
-  --color-priority-low: #60A5FA;
-  --color-priority-none: #64748B;
+  --priority-high: #F87171;
+  --priority-medium: #FBBF24;
+  --priority-low: #60A5FA;
+  --priority-none: #64748B;
   /* shadows on dark: rely more on borders; deepen shadow */
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
   --shadow-md: 0 2px 8px rgba(0,0,0,0.45);
@@ -316,8 +328,9 @@ active / disabled** (plus **loading / error** where noted).
   `--color-primary-subtle` bg + `--color-primary` text + left accent bar. Used for
   smart views and lists.
 - **`task-row`** — complete-`checkbox` + title (`body`, strikethrough + muted when
-  completed) + right cluster: due-date `chip` (turns `--color-danger` when
-  overdue), priority dot (`--color-priority-*`), and a drag handle (`≥lg`, for
+  completed) + right cluster: due-date `chip` (when overdue, `--color-danger-subtle`
+  bg + `--color-danger-text`, carrying the word "Overdue" — never colour alone),
+  priority dot (`--priority-*`), and a drag handle (`≥lg`, for
   reorder). Full row is the click target for detail; 44px min height on touch.
 - **`quick-add`** — persistent single-line composer ("Add a task…") with inline
   affordances to set due date and priority; Enter creates. Bottom-anchored on
@@ -327,7 +340,8 @@ active / disabled** (plus **loading / error** where noted).
 - **`due-date-picker`** — popover calendar + time; clearable; interprets the user's
   timezone (FR-PROF-003).
 - **`priority-selector`** — segmented/dropdown of None/Low/Medium/High with the
-  priority colors.
+  priority colors (`--priority-*`). In the detail view each option shows its dot
+  **and** its text label (§5 — never colour alone).
 - **`list-picker`** — dropdown of the user's lists (for task's list at create).
 - **`command-search`** — search field opening an overlay of results grouped by list.
 
@@ -342,7 +356,8 @@ destructive actions) and **NFR-USE-003** (loading/empty/error states).
 - **Contrast:** body text ≥ 4.5:1, large text (≥ 24px or 18.66px bold) and UI
   graphics ≥ 3:1. All token pairings above are chosen to meet this; never place
   body text in `--color-text-subtle`, raw `--color-primary-bright`, raw
-  `--color-accent`, or `--color-success` fill.
+  `--color-accent`, or `--color-success` fill — and never `--color-danger` on
+  `--color-danger-subtle` (3.95:1); a tint takes its `*-text` partner (§2).
 - **Focus:** every interactive element shows a visible 2px `--color-focus-ring`
   ring with 2px offset on `:focus-visible`. Never remove outlines without a
   replacement.
@@ -399,13 +414,27 @@ actions (never joke in a delete confirmation or an error).
   space unit `4px` (common 8/12/16/24); focus ring `#14B8A6` 2px.
 - **Task complete** → circular `--color-success` checkbox with white check;
   completed title = strikethrough + `--color-text-muted`.
-- **Overdue** → due chip in `--color-danger` + the word "Overdue" (not color alone).
-- **Priority dot** → `--color-priority-{high|medium|low|none}`.
+- **Overdue** → due chip on `--color-danger-subtle` with `--color-danger-text`
+  + the word "Overdue" (not color alone).
+- **Priority dot** → `--priority-{high|medium|low|none}` (no `color-` prefix).
 - **Layout recipe (app):** sidebar 280px (drawer < md) + centered content column
   (max 760px) + slide-in detail panel 420px (full-screen < md); quick-add pinned.
 - **Theme:** toggle `data-theme="dark"` on `:root`; all tokens re-value.
 
 ## 9. Provenance & Known Gaps
+
+**Amendments.**
+- **2026-07-28 — FEAT-011 (overdue chip).** Added `--color-danger-text` (#991B1B
+  light / #FCA5A5 dark), the one missing member of the `*-text` family, after the
+  overdue chip showed that the only pairing the set could produce —
+  `--color-danger` on `--color-danger-subtle` — measures **3.95:1**, below §5's
+  4.5:1 for `caption` text. Added the tint-pairing rule to §2 and §5; the chip and
+  `task-row` specs now name the partner explicitly. Same amendment corrected the
+  **priority token names** throughout (§2 table, both CSS blocks, §4 `task-row` and
+  `priority-selector`, §8): they are `--priority-*`, not `--color-priority-*` —
+  `tokens.json` defines them in a top-level `priority` group, so the `color-`
+  prefix resolved to nothing. Filed by `docs/features/FEAT-011-task-detail/ui-design.md`
+  §Escalations; no component was forked and no value other than the new token changed.
 
 **Provenance.** Source mode: **research** — designed from the SRS audience (§2.3:
 individual private users; broad technical range) and product tone (§1.2: fast,

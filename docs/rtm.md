@@ -56,11 +56,11 @@
 | FR-TASK-001 | Create task with title in a list | Must | Active | SI | UC-009 | ADR-003; features/FEAT-010-create-task/technical-design.md; features/FEAT-010-create-task/ui-design.md | FEAT-010 | features/FEAT-010-create-task/acceptance-report.md |
 | FR-TASK-002 | Validate task title | Must | Active | SI | UC-009 | features/FEAT-010-create-task/technical-design.md; features/FEAT-010-create-task/ui-design.md | FEAT-010 | features/FEAT-010-create-task/acceptance-report.md |
 | FR-TASK-003 | View tasks (active vs completed) | Must | Active | SI | UC-011, UC-013 | ADR-003; features/FEAT-010-create-task/technical-design.md; features/FEAT-010-create-task/ui-design.md | FEAT-010, FEAT-012 | features/FEAT-010-create-task/acceptance-report.md (partial) |
-| FR-TASK-004 | View task details | Must | Active | SI | UC-010 | ADR-003 | FEAT-011 | _TBD_ |
-| FR-TASK-005 | Edit task title | Must | Active | SI | UC-010 | ADR-003 | FEAT-011 | _TBD_ |
-| FR-TASK-006 | Set/change/clear due date+time | Must | Active | SI | UC-009, UC-010 | ADR-003 | FEAT-011 | _TBD_ |
-| FR-TASK-007 | Indicate overdue (user timezone) | Must | Active | SI | UC-010 | arch §8 | FEAT-011 | _TBD_ |
-| FR-TASK-008 | Set priority (None/Low/Med/High) | Must | Active | SI | UC-009, UC-010 | ADR-003 | FEAT-011 | _TBD_ |
+| FR-TASK-004 | View task details | Must | Active | SI | UC-010 | ADR-003; features/FEAT-011-task-detail/technical-design.md; features/FEAT-011-task-detail/ui-design.md | FEAT-011 | _TBD_ |
+| FR-TASK-005 | Edit task title | Must | Active | SI | UC-010 | ADR-003; features/FEAT-011-task-detail/technical-design.md; features/FEAT-011-task-detail/ui-design.md | FEAT-011 | _TBD_ |
+| FR-TASK-006 | Set/change/clear due date+time | Must | Active | SI | UC-009, UC-010 | ADR-003; features/FEAT-011-task-detail/technical-design.md; features/FEAT-011-task-detail/ui-design.md | FEAT-011 | _TBD_ |
+| FR-TASK-007 | Indicate overdue (user timezone) | Must | Active | SI | UC-010 | arch §8; features/FEAT-011-task-detail/technical-design.md; features/FEAT-011-task-detail/ui-design.md | FEAT-011 | _TBD_ |
+| FR-TASK-008 | Set priority (None/Low/Med/High) | Must | Active | SI | UC-009, UC-010 | ADR-003; features/FEAT-011-task-detail/technical-design.md; features/FEAT-011-task-detail/ui-design.md | FEAT-011 | _TBD_ |
 | FR-TASK-009 | Mark task complete (timestamp) | Must | Active | SI | UC-011 | ADR-003 | FEAT-012 | _TBD_ |
 | FR-TASK-010 | Reopen completed task | Must | Active | SI | UC-011 | ADR-003 | FEAT-012 | _TBD_ |
 | FR-TASK-011 | Completed tasks in collapsed section | Should | Active | SI | UC-011 | _TBD_ | FEAT-012 | _TBD_ |
