@@ -1,10 +1,86 @@
 # Acceptance Report: FEAT-011 — Task detail (title, due date, priority, overdue)
 
-> Verdict: **Rework** · Date: 2026-07-28
+> Verdict: **Accepted** · Date: 2026-07-28 (re-verification after rework)
+> Prior verdict: **Rework** · 2026-07-28 · preserved in full below
 > Standard: technical-design.md §6 (AC-1..AC-14) · Sources: docs/srs.md,
 > docs/use-cases.md, docs/design.md, docs/features/FEAT-011-task-detail/ui-design.md,
 > docs/design-manifest.json
-> Repo state audited: `db94955`
+> Repo state audited: `d19d45a` (first pass: `db94955`)
+
+---
+
+# Re-verification — 2026-07-28 · Verdict: Accepted
+
+Both rework findings are resolved, verified against the specs that raised them
+rather than against the rework's own description, and the full standard was
+re-executed from the repo at `d19d45a`.
+
+**R1 — resolved.** `task-detail-failure.tsx` now splits its states the way
+ui-design.md §SCR-WEB-010 specifies and FEAT-010's accepted `list-view-failure`
+demonstrates: `not-found` keeps a way-out link, `error` renders a **"Retry"
+`button-tertiary`** (`data-testid="task-retry"`, transparent, `--color-primary`
+text, no border) wired to `router.refresh()`. The manifest's entry for that
+state — covered, 0 gaps, conformance `pass` — is now **true**, which was the
+compounding half of the finding.
+
+**R2 — resolved.** `detail-panel.tsx` now implements the modality it declares.
+Tab and Shift+Tab wrap within the panel, with the tabbable set recomputed per
+keypress (fields disable while saving and errors appear, so a cached list would
+go stale), and focus is restored on unmount to the element that opened it,
+guarded by `document.contains` for the case where the underlying row
+re-rendered away.
+
+**Re-audit of the new tests.** The focus-trap e2e is faithful and was
+**mutation-checked independently**: neutering the trap while leaving Esc intact
+fails exactly that test and nothing else (14 passed, 1 failed). R1's load-error
+state remains without an automated test, and the rework says so plainly rather
+than claiming coverage — it needs session-up-plus-task-fetch-failing, which
+Playwright cannot reach because `fetchTask` runs server-side, and `apps/web`
+has no unit-test runner. It was demonstrated through a throwaway fault-injecting
+proxy (500 on `GET /tasks/:id`, session passed through): `task-error`,
+`task-retry`, the copy, and a still-operable sidebar all render. That is an
+honest demonstration of a state no current harness can automate, and the gap is
+now carried as minor #1 below rather than silently closed.
+
+**Anti-fake-green on the rework diff:** **0** deleted test lines, 0 skips, 0
+`.only`s. Nothing was loosened to make this pass.
+
+**Independent execution at `d19d45a`** — every result observed in this run:
+`npm run db:migrate` at head · api **176 passed / 31 suites** (serial) · worker
+**20 passed** · e2e **15 passed** · boundaries clean (122 modules) · lint clean ·
+build clean.
+
+Everything in the first pass's audit table, mutation matrix, and direct
+verification still holds — the rework touched only two web components and one
+spec file, and no API, schema, contract or criterion changed.
+
+## Findings (re-verification)
+
+**Rework: none. Design defect: none.**
+
+**Minor (3), unchanged and non-blocking** — carried forward from the first pass:
+`apps/web` has no test runner (which is what leaves R1's state demonstrated
+rather than tested); the local-midnight due date that reads as a whole day but
+behaves as an instant; and the carried repo-level debt (spec typing, Lucide,
+`44` literals, FEAT-010's mobile composer gap).
+
+**One new minor, recorded not acted on.** The rework noted that FEAT-010's
+`list-view-failure.tsx` pairs `--color-danger` text on `--color-danger-subtle` —
+the **3.95:1** combination this feature's design-system amendment was filed to
+fix, now sitting in *accepted* code. Correctly left untouched under scope
+discipline. It is a live AA contrast failure against design.md §5 on verified
+behaviour, so it belongs on the **maintenance route as a defect row**, not in
+this feature.
+
+## RTM (re-verification)
+
+**Written.** `features/FEAT-011-task-detail/acceptance-report.md` appended to the
+**Test ref** of FR-TASK-004, FR-TASK-005, FR-TASK-006, FR-TASK-007 and
+FR-TASK-008 — each fully implemented by this feature, so no `(partial)` marker.
+
+---
+
+# First pass — 2026-07-28 · Verdict: Rework *(superseded, preserved)*
 
 ## Verdict summary
 
