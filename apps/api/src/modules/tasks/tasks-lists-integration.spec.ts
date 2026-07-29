@@ -3,9 +3,13 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import {
+  completeTaskPath,
   listTasksPath,
+  reopenTaskPath,
   type CreateListResponse,
+  type CreateTaskResponse,
   type DeleteListResponse,
+  type ListTasksResponse,
   type ListsResponse,
 } from '@todo/shared';
 import { AppModule } from '../../app.module';
@@ -69,6 +73,39 @@ describe('tasks × lists (cross-feature)', () => {
   const getLists = async (cookie: string): Promise<ListsResponse> => {
     const res = await request(server()).get('/lists').set('Cookie', cookie);
     return res.body as ListsResponse;
+  };
+
+  // --- FEAT-012 helpers ---
+
+  const addTask = async (
+    cookie: string,
+    listId: string,
+    title: string,
+  ): Promise<CreateTaskResponse['task']> => {
+    const res = await request(server())
+      .post(listTasksPath(listId))
+      .set('Cookie', cookie)
+      .send({ title });
+    expect(res.status).toBe(201); // fixture precondition, asserted
+    return (res.body as CreateTaskResponse).task;
+  };
+
+  const getView = async (
+    cookie: string,
+    listId: string,
+  ): Promise<ListTasksResponse> => {
+    const res = await request(server())
+      .get(listTasksPath(listId))
+      .set('Cookie', cookie);
+    expect(res.status).toBe(200);
+    return res.body as ListTasksResponse;
+  };
+
+  const complete = async (cookie: string, id: string): Promise<void> => {
+    const res = await request(server())
+      .post(completeTaskPath(id))
+      .set('Cookie', cookie);
+    expect(res.status).toBe(200);
   };
 
   beforeAll(async () => {
@@ -159,5 +196,85 @@ describe('tasks × lists (cross-feature)', () => {
 
     const lists = (await getLists(cookie)).lists;
     expect(lists[0]).toMatchObject({ activeTaskCount: 2, taskCount: 2 });
+  });
+
+  // --- FEAT-012 T5 — what a completion transition does to everything else ---
+
+  it('FEAT-012 AC-3: completing moves a task between the server-split sections, and reopening reverses it', async () => {
+    const { cookie, inbox } = await signedInUser();
+    const first = await addTask(cookie, inbox, 'First');
+    const second = await addTask(cookie, inbox, 'Second');
+    const third = await addTask(cookie, inbox, 'Third');
+
+    const view0 = await getView(cookie, inbox);
+    expect(view0.active.map((t) => t.title)).toEqual([
+      'First',
+      'Second',
+      'Third',
+    ]);
+    expect(view0.completed).toEqual([]);
+
+    // Complete two, in a known order, with a gap so `completed_at DESC` has
+    // something real to sort by.
+    await complete(cookie, first.id);
+    await new Promise((r) => setTimeout(r, 25));
+    await complete(cookie, third.id);
+
+    const view1 = await getView(cookie, inbox);
+    expect(view1.active.map((t) => t.title)).toEqual(['Second']);
+    // Most recently completed first — the order findByList has always
+    // specified and nothing could previously exercise.
+    expect(view1.completed.map((t) => t.title)).toEqual(['Third', 'First']);
+    expect(view1.completed.every((t) => t.completedAt !== null)).toBe(true);
+
+    await request(server())
+      .post(reopenTaskPath(first.id))
+      .set('Cookie', cookie)
+      .expect(200);
+
+    const view2 = await getView(cookie, inbox);
+    // Back among the active, in the oldest-first append order it never left.
+    expect(view2.active.map((t) => t.title)).toEqual(['First', 'Second']);
+    expect(view2.completed.map((t) => t.title)).toEqual(['Third']);
+    expect(second.id).toBeDefined(); // 'Second' was never touched by any of it
+  });
+
+  it("FEAT-012 AC-6: a transition moves the list's activeTaskCount and leaves taskCount alone", async () => {
+    const { cookie, inbox } = await signedInUser();
+    const a = await addTask(cookie, inbox, 'a');
+    await addTask(cookie, inbox, 'b');
+
+    expect((await getLists(cookie)).lists[0]).toMatchObject({
+      activeTaskCount: 2,
+      taskCount: 2,
+    });
+
+    await complete(cookie, a.id);
+
+    // Both surfaces that report counts must agree — the sidebar's GET /lists
+    // and the list view's own `list` payload. This is the first feature that
+    // can move a row across the aggregate's predicate, so it is asserted.
+    expect((await getLists(cookie)).lists[0]).toMatchObject({
+      activeTaskCount: 1,
+      taskCount: 2, // completed is not deleted
+    });
+    expect((await getView(cookie, inbox)).list).toMatchObject({
+      activeTaskCount: 1,
+      taskCount: 2,
+    });
+
+    await request(server())
+      .post(reopenTaskPath(a.id))
+      .set('Cookie', cookie)
+      .expect(200);
+
+    expect((await getLists(cookie)).lists[0]).toMatchObject({
+      activeTaskCount: 2,
+      taskCount: 2,
+    });
+    expect((await getView(cookie, inbox)).list).toMatchObject({
+      activeTaskCount: 2,
+      taskCount: 2,
+    });
   });
 });

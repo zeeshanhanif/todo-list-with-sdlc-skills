@@ -76,7 +76,7 @@
       cookie, nothing written), and AC-9 (**exactly one** `DbService` query per
       route, inside the 300 ms bound), each rendering the `ApiError` envelope.
 
-- [ ] T5 — Contract: the cross-feature consequences of a transition
+- [x] T5 — Contract: the cross-feature consequences of a transition
       (`tasks-lists-integration.spec.ts`; design §3 side-effects; FR-TASK-003,
       FR-TASK-011, FR-LIST-005).
       Done when: AC-3 passes (completing moves the task into `completed` and out
