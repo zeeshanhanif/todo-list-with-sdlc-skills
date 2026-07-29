@@ -169,10 +169,14 @@ Published by the API to Supabase Realtime after a successful write:
 | topic | `user:{ownerId}` |
 | event | `changed` |
 | payload | `{ "cursor": "<ISO-8601 UTC instant>" }` |
-| private | `true` |
+| private | marked by `?private=true` on the URL — **not** a message field |
 
-Transport: `POST {SUPABASE_URL}/realtime/v1/api/broadcast` with the service-role
-key in the `apikey` header and a single-element `messages` array. **The payload
+Transport: `POST {SUPABASE_URL}/realtime/v1/api/broadcast?private=true` with the
+service-role key in the `apikey` (and `Authorization: Bearer`) header and a
+single-element `messages` array. *(Corrected at implementation time, 2026-07-29,
+per §8's standing instruction to re-check this contract: the draft carried
+`private: true` as a body field; Supabase's batch endpoint takes it as a query
+parameter. The signal's content is unchanged — the body is one field smaller.)* **The payload
 is the whole contract** — a cursor and nothing else (AC-7). Nothing that could
 identify a task, a list, an email, or even *which kind* of change happened
 crosses this boundary. `cursor` exists for ADR-006 fidelity, log correlation and
@@ -361,9 +365,10 @@ sequenceDiagram
   `sid` cookie yields `401`), so a leaked Realtime token grants a socket and
   nothing else.
 - **AC-7 (ADR-006 — content-free signal).** The exact serialized broadcast body
-  contains only the topic, the event name `changed`, `private: true` and
-  `{ cursor }`. It contains no task id, list id, title, email, or change type —
-  asserted on the captured request body, not on the call arguments.
+  contains only the topic, the event name `changed` and `{ cursor }` (privacy of
+  the channel is marked on the URL, §3.2). It contains no task id, list id,
+  title, email, or change type — asserted on the captured request body, not on
+  the call arguments.
 - **AC-8 (NFR-MAINT-003 / secret hygiene).** `SUPABASE_SERVICE_ROLE_KEY` and
   `SUPABASE_JWT_SECRET` are read only inside `infra/config.ts` and
   `common/realtime/*`, appear in no response body and no log line (including the
@@ -549,13 +554,16 @@ sequenceDiagram
   explicitly open — a documented, honest partial. Recommended: (b) now, (a) before
   first deploy, since ADR-006 is a first-deploy dependency anyway. Acceptance
   verification must not treat AC-1b as passed on the strength of AC-1.
-- **External contract to confirm at implementation time.** The broadcast endpoint
-  shape (`POST /realtime/v1/api/broadcast`, `messages[]` with
-  `topic`/`event`/`payload`, `private` flag and `apikey` header) and the private-
-  channel client calls (`realtime.setAuth`, `config.private`) were taken from
-  Supabase's current published documentation, not from a live call. The
-  implementer must re-check them against the docs before writing the adapter —
-  this is the one place in the design where an external party owns the contract.
+- **External contract — server half re-checked and corrected (2026-07-29, T3).**
+  The broadcast endpoint was re-read against Supabase's live documentation before
+  the adapter was written, and one detail changed: the private-channel flag is a
+  **query parameter** (`?private=true`), not a field inside each message. §3.2 and
+  AC-7 were corrected accordingly; the signal's content did not change. Confirmed
+  as drafted: `POST /realtime/v1/api/broadcast`, the `apikey` header, and the
+  `messages[]` body with `topic`/`event`/`payload`. **The client half is still
+  unconfirmed against a live socket** (`realtime.setAuth`, `config.private`) —
+  T6 must re-check it the same way, and AC-1b remains the only thing that can
+  prove the transport end to end.
 - **Plan touchpoint tightened — screens.** The plan lists SCR-WEB-008 **and
   SCR-WEB-009** for FEAT-019. SCR-WEB-009 (Smart Views) **does not exist yet** —
   it is FEAT-016's, unbuilt — so it cannot be touched here; it inherits sync

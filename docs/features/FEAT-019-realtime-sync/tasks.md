@@ -68,7 +68,7 @@
       `REALTIME_PROVIDER=none` the signing secret is **never read** (assert on a
       config object whose secret getter throws if touched, or equivalent).
 
-- [ ] T3 — The publisher: port + both adapters + breaker (design §5; AC-4, AC-7,
+- [x] T3 — The publisher: port + both adapters + breaker (design §5; AC-4, AC-7,
       AC-11). `realtime.publisher.ts` (interface + `ChangeSignal`),
       `noop-realtime.publisher.ts` (the default — returns immediately),
       `supabase-realtime.publisher.ts` (one `fetch` to
