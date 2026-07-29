@@ -100,3 +100,23 @@ body {
   line-height: var(--font-line-height-body);
   -webkit-font-smoothing: antialiased;
 }
+
+/* SCR-WEB-008's undo snackbar (FEAT-013 ui-design) — design.md §4 places the
+   toast bottom-center on mobile and bottom-right on desktop, which is a media
+   query and therefore cannot live in the component's inline token styles. The
+   md breakpoint matches the shell's own (767/768px). Below md it also sits
+   ABOVE the region design.md §3 reserves for the bottom-anchored composer, so
+   the two stack rather than collide when that composer lands. */
+.undo-snackbar {
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+}
+
+@media (min-width: 768px) {
+  .undo-snackbar {
+    left: auto;
+    right: var(--space-6);
+    transform: none;
+  }
+}

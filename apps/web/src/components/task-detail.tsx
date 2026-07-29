@@ -18,6 +18,7 @@ import {
 } from "@/lib/due-date";
 import { DueChip, PRIORITY_LABELS } from "@/components/task-meta";
 import { TaskCheckbox } from "@/components/task-checkbox";
+import { TaskDelete } from "@/components/task-delete";
 
 // SCR-WEB-010 — Task Detail (FEAT-011 ui-design). design.md §4
 // `task-detail-panel`: editable title, due-date picker, priority selector.
@@ -29,10 +30,13 @@ import { TaskCheckbox } from "@/components/task-checkbox";
 //
 // FEAT-012 turns the read-only status line into the status CONTROL — the same
 // `checkbox` the list rows use (ui-design D2), so completing works identically
-// on both screens. Still deliberately absent: delete (FEAT-013), and the
-// `list-picker` — no FR authorizes moving a task between lists and the PATCH
-// contract rejects `listId` (ui-design D3); a control the API will not honour is
-// worse than none.
+// on both screens. FEAT-013 adds the delete control design.md's
+// `task-detail-panel` names alongside it — last in DOM order, behind a confirm
+// dialog, with the undo snackbar catching what the dialog does not.
+//
+// Still deliberately absent: the `list-picker` — no FR authorizes moving a task
+// between lists and the PATCH contract rejects `listId` (ui-design D3); a
+// control the API will not honour is worse than none.
 // All values are design tokens.
 
 type Field = "title" | "dueAt" | "priority";
@@ -40,9 +44,14 @@ type Field = "title" | "dueAt" | "priority";
 export function TaskDetail({
   task: initial,
   list,
+  presentation,
 }: {
   task: TaskSummary;
   list: ListSummary;
+  /** Which presentation of SCR-WEB-010 this is (FEAT-011 D1: one component,
+   * two routes). Only the delete control cares — closing an intercepted panel
+   * means popping history, while the full page navigates to the list. */
+  presentation: "panel" | "page";
 }) {
   const router = useRouter();
   const [task, setTask] = useState(initial);
@@ -285,6 +294,16 @@ export function TaskDetail({
           }
         />
       </div>
+
+      {/* Delete — LAST in DOM order, so tabbing forward through the panel
+          reaches the destructive control last, and separated from the editing
+          fields by its own rule (ui-design SCR-WEB-010 Delta 1). */}
+      <TaskDelete
+        taskId={task.id}
+        title={task.title}
+        listId={list.id}
+        presentation={presentation}
+      />
     </div>
   );
 }

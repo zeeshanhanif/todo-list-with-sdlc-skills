@@ -34,7 +34,11 @@ export default async function InterceptedTaskPage({
   return (
     <DetailPanel>
       {result.kind === "ok" ? (
-        <TaskDetail task={result.data.task} list={result.data.list} />
+        <TaskDetail
+          task={result.data.task}
+          list={result.data.list}
+          presentation="panel"
+        />
       ) : (
         <TaskDetailFailure kind={result.kind} />
       )}

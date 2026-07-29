@@ -103,7 +103,7 @@
       unchanged on **both** `GET /lists` and the list inside the list view;
       restoring restores it; deleting a completed task moves neither count).
 
-- [ ] T6 — UI integration point (design §5): `DELETE` added to the existing
+- [x] T6 — UI integration point (design §5): `DELETE` added to the existing
       `app/api/tasks/[id]/route.ts` proxy and a new
       `app/api/tasks/[id]/restore/route.ts` (POST, cookie forwarded, status + JSON
       relayed verbatim, no body); `components/undo-snackbar.tsx` as a **new client

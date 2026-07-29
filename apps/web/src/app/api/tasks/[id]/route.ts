@@ -29,6 +29,17 @@ export async function PATCH(
   return proxy(req, "PATCH", id, await req.text());
 }
 
+// DELETE is the soft delete (FR-TASK-013, FEAT-013 technical-design §3.1) —
+// no body to forward, and the 200 it relays carries `deletedAt`. The undo
+// lives one segment down at ./restore.
+export async function DELETE(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> },
+): Promise<NextResponse> {
+  const { id } = await ctx.params;
+  return proxy(req, "DELETE", id);
+}
+
 async function proxy(
   req: NextRequest,
   method: string,

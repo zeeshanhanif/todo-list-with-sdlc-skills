@@ -49,7 +49,11 @@ export default async function TaskPage({
       </div>
 
       {result.kind === "ok" ? (
-        <TaskDetail task={result.data.task} list={result.data.list} />
+        <TaskDetail
+          task={result.data.task}
+          list={result.data.list}
+          presentation="page"
+        />
       ) : (
         <TaskDetailFailure kind={result.kind} />
       )}
