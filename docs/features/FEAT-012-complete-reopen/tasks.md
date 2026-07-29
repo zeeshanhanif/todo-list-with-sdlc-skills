@@ -63,7 +63,7 @@
       it returns `true` again, `dueAt` unchanged throughout, and a completed task
       with a **future** due date is likewise not overdue.
 
-- [ ] T4 — Contract: `POST /tasks/:id/complete` and `POST /tasks/:id/reopen` on the
+- [x] T4 — Contract: `POST /tasks/:id/complete` and `POST /tasks/:id/reopen` on the
       existing `TaskItemController` (design §3), `@HttpCode(200)`, **no `@Body()`
       and no DTO** (D8), reusing the file's existing `toHttp`.
       Done when: supertest contract tests pass for AC-1 (`200 { task }`,

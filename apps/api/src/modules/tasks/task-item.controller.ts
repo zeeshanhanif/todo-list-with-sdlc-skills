@@ -3,15 +3,18 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   NotFoundException,
   Param,
   Patch,
+  Post,
   UseGuards,
 } from '@nestjs/common';
 import {
   TASK_ERROR_CODES,
   type SessionUser,
   type TaskDetailResponse,
+  type TaskStatusResponse,
   type UpdateTaskResponse,
 } from '@todo/shared';
 import { SessionGuard } from '../../common/authz/session.guard';
@@ -65,6 +68,44 @@ export class TaskItemController {
   ): Promise<UpdateTaskResponse> {
     try {
       return { task: await this.tasks.update(user.id, id, dto) };
+    } catch (err) {
+      throw toHttp(err);
+    }
+  }
+
+  // POST /tasks/{id}/complete (FR-TASK-009; UC-011 main 1/2) and
+  // POST /tasks/{id}/reopen (FR-TASK-010; UC-011 main 3/4) — FEAT-012.
+  //
+  // Verb routes rather than a field on PATCH above: the completion instant is
+  // the server's fact, and that PATCH's contract refuses `completedAt` outright
+  // (FEAT-012 D1). **No `@Body()` and no DTO** — method, path and session fully
+  // specify both operations, so there is nowhere for a client to send something
+  // the server would have to decide to ignore (D8). @HttpCode(200) because
+  // neither creates anything; Nest's POST default of 201 would be a lie.
+  //
+  // Both are **idempotent** (D2): a repeat returns 200 with the state already
+  // stored, never a 409. The only failures are the two below.
+  @Post(':id/complete')
+  @HttpCode(200)
+  async complete(
+    @Param('id') id: string,
+    @CurrentUser() user: SessionUser,
+  ): Promise<TaskStatusResponse> {
+    try {
+      return { task: await this.tasks.complete(user.id, id) };
+    } catch (err) {
+      throw toHttp(err);
+    }
+  }
+
+  @Post(':id/reopen')
+  @HttpCode(200)
+  async reopen(
+    @Param('id') id: string,
+    @CurrentUser() user: SessionUser,
+  ): Promise<TaskStatusResponse> {
+    try {
+      return { task: await this.tasks.reopen(user.id, id) };
     } catch (err) {
       throw toHttp(err);
     }

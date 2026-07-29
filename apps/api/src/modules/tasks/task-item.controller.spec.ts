@@ -5,11 +5,14 @@ import request from 'supertest';
 import {
   TASK_ERROR_CODES,
   TASK_TITLE_MAX_LENGTH,
+  completeTaskPath,
   listTasksPath,
+  reopenTaskPath,
   taskPath,
   type ApiError,
   type CreateTaskResponse,
   type TaskDetailResponse,
+  type TaskStatusResponse,
   type UpdateTaskResponse,
 } from '@todo/shared';
 import { AppModule } from '../../app.module';
@@ -378,6 +381,162 @@ describe('task item endpoints (contract)', () => {
     }
 
     expect((await storedRow(task.id)).title).toBe('Protected');
+  });
+
+  // --- FEAT-012 T4 — POST /tasks/{id}/complete and /reopen ---
+
+  it('FEAT-012 AC-1/AC-2: complete then reopen, each 200 with the stored task', async () => {
+    const { cookie, inbox } = await signedInUser();
+    const task = await addTask(cookie, inbox, { title: 'Finish the slice' });
+
+    const done = await request(server())
+      .post(completeTaskPath(task.id))
+      .set('Cookie', cookie);
+
+    expect(done.status).toBe(200);
+    const completedAt = (done.body as TaskStatusResponse).task.completedAt;
+    expect(completedAt).toMatch(/Z$/);
+    // GET agrees — the write is what was stored, not just what was echoed.
+    const afterComplete = await request(server())
+      .get(taskPath(task.id))
+      .set('Cookie', cookie);
+    expect((afterComplete.body as TaskDetailResponse).task.completedAt).toBe(
+      completedAt,
+    );
+
+    const reopened = await request(server())
+      .post(reopenTaskPath(task.id))
+      .set('Cookie', cookie);
+
+    expect(reopened.status).toBe(200);
+    expect((reopened.body as TaskStatusResponse).task.completedAt).toBeNull();
+    const afterReopen = await request(server())
+      .get(taskPath(task.id))
+      .set('Cookie', cookie);
+    expect((afterReopen.body as TaskDetailResponse).task.completedAt).toBeNull();
+  });
+
+  it('FEAT-012 AC-5: repeating either transition is 200 with the same state, never 409', async () => {
+    const { cookie, inbox } = await signedInUser();
+    const task = await addTask(cookie, inbox, { title: 'Double tap' });
+
+    const first = await request(server())
+      .post(completeTaskPath(task.id))
+      .set('Cookie', cookie);
+    expect(first.status).toBe(200);
+    await new Promise((r) => setTimeout(r, 25));
+    const second = await request(server())
+      .post(completeTaskPath(task.id))
+      .set('Cookie', cookie);
+
+    expect(second.status).toBe(200); // not 409 — D2
+    expect((second.body as TaskStatusResponse).task.completedAt).toBe(
+      (first.body as TaskStatusResponse).task.completedAt,
+    );
+
+    await request(server()).post(reopenTaskPath(task.id)).set('Cookie', cookie);
+    const reopenAgain = await request(server())
+      .post(reopenTaskPath(task.id))
+      .set('Cookie', cookie);
+    expect(reopenAgain.status).toBe(200);
+    expect((reopenAgain.body as TaskStatusResponse).task.completedAt).toBeNull();
+  });
+
+  it('FEAT-012 AC-7: 404 task_not_found is byte-identical across all four cases, on both routes', async () => {
+    const { cookie, inbox } = await signedInUser();
+    const other = await signedInUser();
+    const mine = await addTask(cookie, inbox, { title: 'Mine' });
+    const theirs = await addTask(other.cookie, other.inbox, {
+      title: 'Theirs',
+    });
+    const deleted = await addTask(cookie, inbox, { title: 'Deleted' });
+    await db.query('UPDATE tasks SET deleted_at = now() WHERE id = $1', [
+      deleted.id,
+    ]);
+
+    for (const path of [completeTaskPath, reopenTaskPath]) {
+      const bodies: ApiError[] = [];
+      for (const id of [randomUUID(), theirs.id, 'not-a-uuid', deleted.id]) {
+        const res = await request(server())
+          .post(path(id))
+          .set('Cookie', cookie);
+        expect(res.status).toBe(404);
+        expect((res.body as ApiError).code).toBe(TASK_ERROR_CODES.taskNotFound);
+        bodies.push(res.body as ApiError);
+      }
+      // Byte-identical: an attacker learns nothing about which case they hit.
+      for (const b of bodies) {
+        expect(JSON.stringify(b)).toBe(JSON.stringify(bodies[0]));
+      }
+    }
+
+    // The other user's task is unmodified by any of it.
+    const theirRow = await db.query<{ completed_at: Date | null }>(
+      'SELECT completed_at FROM tasks WHERE id = $1',
+      [theirs.id],
+    );
+    expect(theirRow.rows[0].completed_at).toBeNull();
+    // ...and mine, which was never targeted, is still active.
+    expect((await storedRow(mine.id)).title).toBe('Mine');
+  });
+
+  it('FEAT-012 AC-8: no/invalid session is 401 on both routes and writes nothing', async () => {
+    const { cookie, inbox } = await signedInUser();
+    const task = await addTask(cookie, inbox, { title: 'Guarded' });
+
+    for (const path of [completeTaskPath, reopenTaskPath]) {
+      const none = await request(server()).post(path(task.id));
+      expect(none.status).toBe(401);
+
+      const revoked = await request(server())
+        .post(path(task.id))
+        .set('Cookie', 'sid=00000000-0000-4000-8000-000000000000');
+      expect(revoked.status).toBe(401);
+    }
+
+    const row = await db.query<{ completed_at: Date | null }>(
+      'SELECT completed_at FROM tasks WHERE id = $1',
+      [task.id],
+    );
+    expect(row.rows[0].completed_at).toBeNull();
+  });
+
+  it('FEAT-012 AC-9: each transition is exactly one query, well inside 300 ms', async () => {
+    const { cookie, inbox } = await signedInUser();
+    const task = await addTask(cookie, inbox, { title: 'Measured too' });
+
+    const spy = jest.spyOn(db, 'query');
+    const ownQueries = () =>
+      spy.mock.calls.filter(([sql]) =>
+        /FROM tasks|UPDATE tasks|FROM lists l/.test(sql),
+      );
+
+    spy.mockClear();
+    const t0 = Date.now();
+    const done = await request(server())
+      .post(completeTaskPath(task.id))
+      .set('Cookie', cookie);
+    const completeMs = Date.now() - t0;
+    const completeQueries = ownQueries().length;
+
+    spy.mockClear();
+    const t1 = Date.now();
+    const reopened = await request(server())
+      .post(reopenTaskPath(task.id))
+      .set('Cookie', cookie);
+    const reopenMs = Date.now() - t1;
+    const reopenQueries = ownQueries().length;
+
+    spy.mockRestore();
+
+    expect(done.status).toBe(200);
+    expect(reopened.status).toBe(200);
+    // A single ownership-bearing UPDATE ... RETURNING each — no read-then-write,
+    // which is exactly what COALESCE(completed_at, now()) buys (design D2).
+    expect(completeQueries).toBe(1);
+    expect(reopenQueries).toBe(1);
+    expect(completeMs).toBeLessThan(300);
+    expect(reopenMs).toBeLessThan(300);
   });
 
   it('AC-12: GET and PATCH each resolve in two queries, well inside 300 ms', async () => {
