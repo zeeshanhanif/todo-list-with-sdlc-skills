@@ -114,7 +114,7 @@
       rejected `401` by a data endpoint), and AC-8 (neither secret appears in any
       response body or log line).
 
-- [ ] T6 — Web: the sync island (design §5; AC-1, AC-2, AC-9, AC-10).
+- [x] T6 — Web: the sync island (design §5; AC-1, AC-2, AC-9, AC-10).
       `app/api/realtime/token/route.ts` (BFF proxy — cookie forwarded, status +
       JSON relayed verbatim); `lib/sync-schedule.ts` **pure** (`{ connected,
       visible, msSinceActivity }` → `null` when connected or hidden, 4 s while
@@ -137,15 +137,16 @@
       mints or polls on `/signin`, `/signup`, `/verify` or `/reset-password`
       (AC-10). Screens are ui-design's manifest; this feature adds no visual
       surface (D7) — if you find yourself adding an indicator, stop and re-read D7.
-      **Position note (2026-07-29):** the code landed and its unit-level
-      done-when is green (23 web tests: the four schedule cases, coalescing, no
-      socket when disabled, resume-on-drop, close-on-unmount, silent fallback on
-      a failed token fetch). The box stays **unchecked** until T7 runs, because
-      AC-9's preservation items (typing, open dialog) and AC-10's route scope are
-      only observable in the real app — jsdom's `router.refresh()` is a mock and
-      cannot prove what a real refresh preserves.
+      **Completed in two steps (2026-07-29), recorded because the box did not
+      flip with its commit:** the code and its unit-level done-when landed first
+      (23 web tests: the four schedule cases, coalescing, no socket when
+      disabled, resume-on-drop, close-on-unmount, silent fallback on a failed
+      token fetch), and the box stayed unchecked until **T7** demonstrated the
+      rest — AC-9's preservation items (typing, open dialog) and AC-10's route
+      scope are only observable in the real app, since jsdom's `router.refresh()`
+      is a mock and cannot prove what a real refresh preserves.
 
-- [ ] T7 — E2E: two signed-in browser contexts as two devices
+- [x] T7 — E2E: two signed-in browser contexts as two devices
       (`e2e/tests/realtime-sync.spec.ts`; AC-1, AC-2). Separate storage state per
       context, same account. Pass 1 (signal path, via the T6 test seam): a task
       created / completed / deleted and a list renamed in context A appear in
