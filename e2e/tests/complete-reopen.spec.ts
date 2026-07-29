@@ -129,6 +129,52 @@ test("UC-011: a task is completed from its row, collapses into Completed, and is
   await expect(page.getByTestId("list-count").first()).toHaveText("3");
 });
 
+test("AC-12: a failed transition rolls the checkbox back and says so", async ({
+  page,
+  request,
+}) => {
+  const email = uniqueEmail();
+  expect(
+    (
+      await request.post(`${API}/auth/register`, {
+        data: { email, password: PW },
+      })
+    ).status(),
+  ).toBe(201);
+  await markVerified(email);
+  await signIn(page, email);
+  await addTasks(page, ["Will not save"]);
+
+  // Break the write, and only the write.
+  await page.route("**/api/tasks/*/complete", (route) =>
+    route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({ statusCode: 500, code: "internal_error" }),
+    }),
+  );
+
+  const box = page.getByTestId("active-tasks").getByTestId("task-checkbox");
+  await box.click();
+
+  // The box must NOT be left reading completed — a control that lies about
+  // what is stored is the failure this criterion exists to forbid.
+  await expect(box).toHaveAttribute("data-completed", "false");
+  await expect(page.getByTestId("task-checkbox-error")).toBeVisible();
+  // The row never moved, and no Completed section was invented.
+  expect(await activeTitles(page)).toEqual(["Will not save"]);
+  await expect(page.getByTestId("completed-section")).toHaveCount(0);
+  await expect(page.getByTestId("list-count").first()).toHaveText("1");
+
+  // ...and the same action succeeds once the server is reachable again.
+  await page.unroute("**/api/tasks/*/complete");
+  await box.click();
+  await expect(page.getByTestId("completed-section")).toBeVisible();
+  // The badge is HIDDEN at zero — its presence is what carries meaning
+  // (FEAT-009 ui-design D2), so the count reaching zero means no badge.
+  await expect(page.getByTestId("list-count")).toHaveCount(0);
+});
+
 test("UC-011: completing clears the overdue treatment, and reopening brings it back", async ({
   page,
   request,

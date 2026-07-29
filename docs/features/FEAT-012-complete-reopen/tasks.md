@@ -1,7 +1,7 @@
 # Tasks: FEAT-012 — Complete / reopen task
 
 > Executes: docs/features/FEAT-012-complete-reopen/technical-design.md
-> Status: pending | in-progress | done per task · Last updated: 2026-07-29
+> Status: all tasks done · Last updated: 2026-07-29
 > Notes: **No migration** (design §4/D3) — `tasks.completed_at` and the partial
 > `tasks_active_by_list_idx` have existed since migration 007, which named this
 > feature as the column's writer. If you find yourself writing a migration, stop
@@ -120,7 +120,7 @@
       Done when: `npm run test:e2e` passes against the local stack (Docker + DB
       up), with the FEAT-009, FEAT-010 and FEAT-011 specs still green.
 
-- [ ] T8 — Verify: acceptance criteria AC-1..AC-12 (design §6) demonstrably pass;
+- [x] T8 — Verify: acceptance criteria AC-1..AC-12 (design §6) demonstrably pass;
       **no migration was added** (D3 — the check is that `migrations/` is
       unchanged and `npm run db:migrate` is a no-op at head); `npm run boundaries`,
       `npm run lint`, `npm run build`, and the api + shared + web + e2e suites
