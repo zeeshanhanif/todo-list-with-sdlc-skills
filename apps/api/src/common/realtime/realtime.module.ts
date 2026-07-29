@@ -4,6 +4,7 @@ import { RealtimePublisher } from './realtime.publisher';
 import { NoopRealtimePublisher } from './noop-realtime.publisher';
 import { SupabaseRealtimePublisher } from './supabase-realtime.publisher';
 import { RealtimeTokenService } from './realtime-token.service';
+import { ChangeSignalInterceptor } from './change-signal.interceptor';
 
 /**
  * The `realtime` cross-cutting block (architecture §5; FEAT-019 D2).
@@ -21,6 +22,7 @@ import { RealtimeTokenService } from './realtime-token.service';
 @Module({
   providers: [
     RealtimeTokenService,
+    ChangeSignalInterceptor,
     NoopRealtimePublisher,
     SupabaseRealtimePublisher,
     {
@@ -33,6 +35,6 @@ import { RealtimeTokenService } from './realtime-token.service';
         loadConfig().realtimeProvider === 'supabase' ? supabase : noop,
     },
   ],
-  exports: [RealtimePublisher, RealtimeTokenService],
+  exports: [RealtimePublisher, RealtimeTokenService, ChangeSignalInterceptor],
 })
 export class RealtimeModule {}

@@ -10,6 +10,7 @@ import {
   Patch,
   Post,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   TASK_ERROR_CODES,
@@ -21,6 +22,7 @@ import {
   type UpdateTaskResponse,
 } from '@todo/shared';
 import { SessionGuard } from '../../common/authz/session.guard';
+import { ChangeSignalInterceptor } from '../../common/realtime/change-signal.interceptor';
 import { CurrentUser } from '../../common/authz/current-user.decorator';
 import { TasksService } from './tasks.service';
 import { UpdateTaskDto } from './dto/update-task.dto';
@@ -44,6 +46,7 @@ import {
 // Not rate-limited: FR-AUTH-018 / NFR-SEC-006 scope throttling to auth endpoints.
 @Controller('tasks')
 @UseGuards(SessionGuard)
+@UseInterceptors(ChangeSignalInterceptor)
 export class TaskItemController {
   constructor(private readonly tasks: TasksService) {}
 

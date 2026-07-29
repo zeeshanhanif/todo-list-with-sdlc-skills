@@ -8,6 +8,7 @@ import {
   Param,
   Post,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   LIST_ERROR_CODES,
@@ -16,6 +17,7 @@ import {
   type SessionUser,
 } from '@todo/shared';
 import { SessionGuard } from '../../common/authz/session.guard';
+import { ChangeSignalInterceptor } from '../../common/realtime/change-signal.interceptor';
 import { CurrentUser } from '../../common/authz/current-user.decorator';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
@@ -35,6 +37,7 @@ import {
 // Not rate-limited: FR-AUTH-018 / NFR-SEC-006 scope throttling to auth endpoints.
 @Controller('lists/:listId/tasks')
 @UseGuards(SessionGuard)
+@UseInterceptors(ChangeSignalInterceptor)
 export class TasksController {
   constructor(private readonly tasks: TasksService) {}
 

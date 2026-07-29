@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { RealtimeModule } from '../../common/realtime/realtime.module';
 import { TasksController } from './tasks.controller';
 import { TaskItemController } from './task-item.controller';
 import { TasksService } from './tasks.service';
@@ -16,6 +17,7 @@ import { SessionsRepository } from '../../common/authz/sessions.repository';
 // (`/lists/{listId}/tasks`, FEAT-010) and the single-task item
 // (`/tasks/{id}`, FEAT-011 — extended by FEAT-012/013).
 @Module({
+  imports: [RealtimeModule],
   controllers: [TasksController, TaskItemController],
   providers: [
     TasksService,

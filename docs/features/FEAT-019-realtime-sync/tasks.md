@@ -88,7 +88,7 @@
       structured JSON line each, carrying no secret and no payload, while a healthy
       publish logs nothing (AC-11); and the noop adapter performs no I/O at all.
 
-- [ ] T4 — `ChangeSignalInterceptor` + wiring (design §5/D8; AC-3, AC-12):
+- [x] T4 — `ChangeSignalInterceptor` + wiring (design §5/D8; AC-3, AC-12):
       publish `req.user.id` on a non-`GET` request that completes without
       throwing, awaited before the response is released; class-level
       `@UseInterceptors` on `ListsController`, `TasksController` and
