@@ -299,7 +299,7 @@ describe('tasks × lists (cross-feature)', () => {
 
   it('FEAT-013 AC-2/AC-3: a deleted task leaves BOTH sections and comes back to the one it left', async () => {
     const { cookie, inbox } = await signedInUser();
-    const first = await addTask(cookie, inbox, 'first');
+    await addTask(cookie, inbox, 'first'); // stays put — the control row
     const second = await addTask(cookie, inbox, 'second');
     const third = await addTask(cookie, inbox, 'third');
     await complete(cookie, third.id);
@@ -332,7 +332,7 @@ describe('tasks × lists (cross-feature)', () => {
     expect(after.completed.map((t) => t.title)).toEqual(['third']);
   });
 
-  it("FEAT-013 AC-5: deleting an active task moves activeTaskCount and leaves taskCount alone", async () => {
+  it('FEAT-013 AC-5: deleting an active task moves activeTaskCount and leaves taskCount alone', async () => {
     const { cookie, inbox } = await signedInUser();
     const a = await addTask(cookie, inbox, 'a');
     const b = await addTask(cookie, inbox, 'b');

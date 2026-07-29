@@ -595,10 +595,7 @@ describe('TasksService — task detail (FEAT-011)', () => {
       priority: 'medium',
     });
 
-    const { task: deleted, deletedAt } = await tasks.softDelete(
-      owner,
-      task.id,
-    );
+    const { task: deleted, deletedAt } = await tasks.softDelete(owner, task.id);
     expect(deletedAt).toMatch(/Z$/);
     expect(new Date(deletedAt).toISOString()).toBe(deletedAt); // ISO-8601 UTC
     // The task comes back as it stood — a delete moves no other field.

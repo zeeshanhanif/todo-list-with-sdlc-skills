@@ -503,7 +503,9 @@ describe('TasksRepository (integration)', () => {
     expect(at).toBeLessThanOrEqual(at1 + 1000);
 
     const after = await storedRow(task.id);
-    expect(after.deleted_at?.toISOString()).toBe(gone!.deletedAt!.toISOString());
+    expect(after.deleted_at?.toISOString()).toBe(
+      gone!.deletedAt!.toISOString(),
+    );
     // A delete moves deleted_at and updated_at, and NOTHING else — which is
     // what makes FR-TASK-014's "original list and status" free (§3.1).
     expect(after.title).toBe(before.title);
@@ -511,7 +513,9 @@ describe('TasksRepository (integration)', () => {
     expect(after.priority).toBe(before.priority);
     expect(after.completed_at).toBeNull();
     expect(after.due_at?.toISOString()).toBe(before.due_at?.toISOString());
-    expect(after.created_at.toISOString()).toBe(before.created_at.toISOString());
+    expect(after.created_at.toISOString()).toBe(
+      before.created_at.toISOString(),
+    );
   });
 
   it('FEAT-013 AC-2/AC-3: a soft-deleted row is invisible to every other statement, and restore reaches it anyway', async () => {

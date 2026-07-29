@@ -134,7 +134,7 @@
       in the list with an inline recoverable message, and a failed Undo keeps the
       snackbar and its action rather than dismissing on a lie (AC-11).
 
-- [ ] T7 — E2E: extend `e2e/tests/` with the path this feature completes — sign in
+- [x] T7 — E2E: extend `e2e/tests/` with the path this feature completes — sign in
       → add a task → open it → hit delete → **cancel the confirm and see the task
       still there** → delete and confirm → the row is gone
       from the list and the count has dropped, with an undo snackbar present →

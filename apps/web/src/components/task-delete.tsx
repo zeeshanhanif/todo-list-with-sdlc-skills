@@ -56,33 +56,50 @@ export function TaskDelete({
     confirmRef.current?.focus();
   }, [confirming]);
 
-  useEffect(() => {
-    if (!confirming) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        close();
-        return;
-      }
-      if (e.key !== "Tab" || !cardRef.current) return;
-      // Focus trap (design.md §5) — while a modal claims the rest of the page
-      // is inert, that claim has to be true.
-      const focusable = cardRef.current.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), input, [href], [tabindex]:not([tabindex="-1"])',
-      );
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  });
+  /**
+   * Esc and Tab, handled **on the card** rather than on `document` — and
+   * `stopPropagation` is the whole point.
+   *
+   * `DetailPanel` keeps its own document-level Esc listener (it is a modal
+   * too), so a dialog that listened on `document` closed BOTH: the confirm
+   * dismissed and the panel behind it navigated away with it. Caught by the
+   * E2E. Handling the key where it happens — focus is trapped inside this card
+   * — lets the topmost layer consume it, which is what a stack of modals is
+   * supposed to do.
+   *
+   * **`nativeEvent.stopImmediatePropagation()`, not just the synthetic one.**
+   * React attaches its listeners at the app ROOT CONTAINER, not at `document`,
+   * so stopping a synthetic event stops React's own propagation while the
+   * native event keeps bubbling up to `document` — where the panel is
+   * listening. Also caught by the E2E, on the second attempt, and worth the
+   * comment: the first fix looked right and changed nothing.
+   */
+  function onCardKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key === "Escape") {
+      e.stopPropagation();
+      e.nativeEvent.stopImmediatePropagation();
+      close();
+      return;
+    }
+    if (e.key !== "Tab" || !cardRef.current) return;
+    e.stopPropagation();
+    e.nativeEvent.stopImmediatePropagation();
+    // Focus trap (design.md §5) — while a modal claims the rest of the page
+    // is inert, that claim has to be true.
+    const focusable = cardRef.current.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input, [href], [tabindex]:not([tabindex="-1"])',
+    );
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
 
   /** Close WITHOUT deleting — and hand focus back to the control that opened
    * the dialog (design.md §5). */
@@ -185,6 +202,7 @@ export function TaskDelete({
           />
           <div
             ref={cardRef}
+            onKeyDown={onCardKeyDown}
             role="dialog"
             aria-modal="true"
             aria-labelledby="delete-task-title"
