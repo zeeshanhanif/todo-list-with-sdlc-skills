@@ -74,7 +74,7 @@
       passed while it was deleted comes back with `isOverdue: true` — inherited,
       not re-implemented.
 
-- [ ] T4 — Contract: `DELETE /tasks/:id` (Nest's default `200`) and
+- [x] T4 — Contract: `DELETE /tasks/:id` (Nest's default `200`) and
       `POST /tasks/:id/restore` (`@HttpCode(200)`) on the existing
       `TaskItemController` (design §3), **no `@Body()` and no DTO**, reusing the
       file's existing `toHttp`.

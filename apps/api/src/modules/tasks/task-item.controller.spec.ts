@@ -8,9 +8,12 @@ import {
   completeTaskPath,
   listTasksPath,
   reopenTaskPath,
+  restoreTaskPath,
   taskPath,
   type ApiError,
   type CreateTaskResponse,
+  type DeleteTaskResponse,
+  type RestoreTaskResponse,
   type TaskDetailResponse,
   type TaskStatusResponse,
   type UpdateTaskResponse,
@@ -587,5 +590,265 @@ describe('task item endpoints (contract)', () => {
     expect(patchQueries).toBe(1);
     expect(getMs).toBeLessThan(300);
     expect(patchMs).toBeLessThan(300);
+  });
+  // --- FEAT-013 T4 — DELETE /tasks/{id} and POST /tasks/{id}/restore ---
+
+  it('FEAT-013 AC-1/AC-2: DELETE returns the task plus its deletion instant, and the task leaves every read', async () => {
+    const { cookie, inbox } = await signedInUser();
+    const task = await addTask(cookie, inbox, {
+      title: 'Buy milk',
+      dueAt: FUTURE,
+      priority: 'high',
+    });
+
+    const t0 = Date.now();
+    const res = await request(server())
+      .delete(taskPath(task.id))
+      .set('Cookie', cookie);
+    const t1 = Date.now();
+
+    expect(res.status).toBe(200);
+    const body = res.body as DeleteTaskResponse;
+    expect(body.deletedAt).toMatch(/Z$/);
+    const at = new Date(body.deletedAt).getTime();
+    expect(at).toBeGreaterThanOrEqual(t0 - 1000);
+    expect(at).toBeLessThanOrEqual(t1 + 1000);
+    // The task rides along unchanged — nothing but deleted_at moved.
+    expect(body.task).toMatchObject({
+      id: task.id,
+      listId: inbox,
+      title: 'Buy milk',
+      dueAt: FUTURE,
+      priority: 'high',
+      completedAt: null,
+    });
+
+    // Stored column agrees, and the ROW IS STILL THERE — soft, not destroyed.
+    const row = await db.query<{ deleted_at: Date | null }>(
+      'SELECT deleted_at FROM tasks WHERE id = $1',
+      [task.id],
+    );
+    expect(row.rows).toHaveLength(1);
+    expect(row.rows[0].deleted_at?.toISOString()).toBe(body.deletedAt);
+
+    // Removed from normal views (FR-TASK-013): all four sibling routes agree.
+    const unknown = await request(server())
+      .get(taskPath(randomUUID()))
+      .set('Cookie', cookie);
+    for (const res404 of [
+      await request(server()).get(taskPath(task.id)).set('Cookie', cookie),
+      await request(server())
+        .patch(taskPath(task.id))
+        .set('Cookie', cookie)
+        .send({ title: 'nope' }),
+      await request(server())
+        .post(completeTaskPath(task.id))
+        .set('Cookie', cookie),
+      await request(server())
+        .post(reopenTaskPath(task.id))
+        .set('Cookie', cookie),
+    ]) {
+      expect(res404.status).toBe(404);
+      expect(res404.body).toEqual(unknown.body);
+    }
+  });
+
+  it('FEAT-013 AC-3: restore brings the task back to its original list and status', async () => {
+    const { cookie, inbox } = await signedInUser();
+    const active = await addTask(cookie, inbox, { title: 'Still to do' });
+    const finished = await addTask(cookie, inbox, { title: 'Already done' });
+    const done = await request(server())
+      .post(completeTaskPath(finished.id))
+      .set('Cookie', cookie);
+    expect(done.status).toBe(200);
+    const completedAt = (done.body as TaskStatusResponse).task.completedAt;
+
+    for (const id of [active.id, finished.id]) {
+      const gone = await request(server())
+        .delete(taskPath(id))
+        .set('Cookie', cookie);
+      expect(gone.status).toBe(200);
+    }
+
+    const backActive = await request(server())
+      .post(restoreTaskPath(active.id))
+      .set('Cookie', cookie);
+    const backDone = await request(server())
+      .post(restoreTaskPath(finished.id))
+      .set('Cookie', cookie);
+
+    expect(backActive.status).toBe(200);
+    expect(backDone.status).toBe(200);
+    expect((backActive.body as RestoreTaskResponse).task).toMatchObject({
+      id: active.id,
+      listId: inbox,
+      completedAt: null,
+    });
+    // Original STATUS too: the completed one comes back completed, with the
+    // same instant it had (FR-TASK-014).
+    expect((backDone.body as RestoreTaskResponse).task.completedAt).toBe(
+      completedAt,
+    );
+
+    // And both are readable again.
+    const reread = await request(server())
+      .get(taskPath(finished.id))
+      .set('Cookie', cookie);
+    expect(reread.status).toBe(200);
+    expect((reread.body as TaskDetailResponse).task.completedAt).toBe(
+      completedAt,
+    );
+  });
+
+  it('FEAT-013 AC-4: a repeat DELETE is 200 with a byte-identical deletedAt, and restore is idempotent', async () => {
+    const { cookie, inbox } = await signedInUser();
+    const task = await addTask(cookie, inbox, { title: 'Double tapped' });
+
+    const first = await request(server())
+      .delete(taskPath(task.id))
+      .set('Cookie', cookie);
+    expect(first.status).toBe(200);
+    await new Promise((r) => setTimeout(r, 15));
+    const second = await request(server())
+      .delete(taskPath(task.id))
+      .set('Cookie', cookie);
+
+    // Never 404 on the repeat, and never a fresh stamp: the retention clock
+    // FR-TASK-015 runs off must not move because a user clicked twice (D3).
+    expect(second.status).toBe(200);
+    expect((second.body as DeleteTaskResponse).deletedAt).toBe(
+      (first.body as DeleteTaskResponse).deletedAt,
+    );
+
+    // Restore twice: the second is a no-op, not an error.
+    const back = await request(server())
+      .post(restoreTaskPath(task.id))
+      .set('Cookie', cookie);
+    const again = await request(server())
+      .post(restoreTaskPath(task.id))
+      .set('Cookie', cookie);
+    expect(back.status).toBe(200);
+    expect(again.status).toBe(200);
+    expect((again.body as RestoreTaskResponse).task.id).toBe(task.id);
+  });
+
+  it('FEAT-013 AC-6: 404 is byte-identical across unknown, non-uuid and foreign ids — deleted ones included', async () => {
+    const { cookie: cookieA, inbox: inboxA } = await signedInUser();
+    const { cookie: cookieB } = await signedInUser();
+    const live = await addTask(cookieA, inboxA, { title: "A's live task" });
+    const deleted = await addTask(cookieA, inboxA, { title: "A's deleted" });
+    const removed = await request(server())
+      .delete(taskPath(deleted.id))
+      .set('Cookie', cookieA);
+    expect(removed.status).toBe(200);
+    const deletedAt = (removed.body as DeleteTaskResponse).deletedAt;
+
+    const before = await db.query<{ updated_at: Date }>(
+      'SELECT updated_at FROM tasks WHERE id = $1',
+      [live.id],
+    );
+
+    const canonical = await request(server())
+      .delete(taskPath(randomUUID()))
+      .set('Cookie', cookieA);
+    expect(canonical.status).toBe(404);
+    expect((canonical.body as ApiError).code).toBe(
+      TASK_ERROR_CODES.taskNotFound,
+    );
+
+    for (const [cookie, id] of [
+      [cookieA, randomUUID()],
+      [cookieA, 'not-a-uuid'],
+      [cookieB, live.id],
+      [cookieB, deleted.id], // B cannot restore A's deleted task either
+    ] as const) {
+      const del = await request(server())
+        .delete(taskPath(id))
+        .set('Cookie', cookie);
+      const res = await request(server())
+        .post(restoreTaskPath(id))
+        .set('Cookie', cookie);
+      expect(del.status).toBe(404);
+      expect(res.status).toBe(404);
+      expect(del.body).toEqual(canonical.body);
+      expect(res.body).toEqual(canonical.body);
+    }
+
+    // Neither of A's rows moved.
+    const after = await db.query<{ updated_at: Date; deleted_at: Date | null }>(
+      'SELECT updated_at, deleted_at FROM tasks WHERE id = $1',
+      [live.id],
+    );
+    expect(after.rows[0].deleted_at).toBeNull();
+    expect(after.rows[0].updated_at.toISOString()).toBe(
+      before.rows[0].updated_at.toISOString(),
+    );
+    const stillDeleted = await db.query<{ deleted_at: Date | null }>(
+      'SELECT deleted_at FROM tasks WHERE id = $1',
+      [deleted.id],
+    );
+    expect(stillDeleted.rows[0].deleted_at?.toISOString()).toBe(deletedAt);
+  });
+
+  it('FEAT-013 AC-7: no/invalid session is 401 on both routes and writes nothing', async () => {
+    const { cookie, inbox } = await signedInUser();
+    const task = await addTask(cookie, inbox, { title: 'Guarded' });
+
+    const none = await request(server()).delete(taskPath(task.id));
+    expect(none.status).toBe(401);
+    const revoked = await request(server())
+      .delete(taskPath(task.id))
+      .set('Cookie', 'sid=00000000-0000-4000-8000-000000000000');
+    expect(revoked.status).toBe(401);
+
+    const noneRestore = await request(server()).post(restoreTaskPath(task.id));
+    expect(noneRestore.status).toBe(401);
+    const revokedRestore = await request(server())
+      .post(restoreTaskPath(task.id))
+      .set('Cookie', 'sid=00000000-0000-4000-8000-000000000000');
+    expect(revokedRestore.status).toBe(401);
+
+    const row = await db.query<{ deleted_at: Date | null }>(
+      'SELECT deleted_at FROM tasks WHERE id = $1',
+      [task.id],
+    );
+    expect(row.rows[0].deleted_at).toBeNull();
+  });
+
+  it('FEAT-013 AC-8: each route is exactly one query, well inside 300 ms', async () => {
+    const { cookie, inbox } = await signedInUser();
+    const task = await addTask(cookie, inbox, { title: 'Measured' });
+
+    const spy = jest.spyOn(db, 'query');
+    const ownQueries = () =>
+      spy.mock.calls.filter(([sql]) =>
+        /FROM tasks|UPDATE tasks|FROM lists l/.test(sql),
+      );
+
+    spy.mockClear();
+    const t0 = Date.now();
+    const gone = await request(server())
+      .delete(taskPath(task.id))
+      .set('Cookie', cookie);
+    const deleteMs = Date.now() - t0;
+    const deleteQueries = ownQueries().length;
+
+    spy.mockClear();
+    const t1 = Date.now();
+    const back = await request(server())
+      .post(restoreTaskPath(task.id))
+      .set('Cookie', cookie);
+    const restoreMs = Date.now() - t1;
+    const restoreQueries = ownQueries().length;
+
+    spy.mockRestore();
+
+    expect(gone.status).toBe(200);
+    expect(back.status).toBe(200);
+    // One ownership-bearing UPDATE ... RETURNING each — no read-then-write.
+    expect(deleteQueries).toBe(1);
+    expect(restoreQueries).toBe(1);
+    expect(deleteMs).toBeLessThan(300);
+    expect(restoreMs).toBeLessThan(300);
   });
 });

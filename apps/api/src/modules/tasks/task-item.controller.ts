@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   NotFoundException,
@@ -12,6 +13,8 @@ import {
 } from '@nestjs/common';
 import {
   TASK_ERROR_CODES,
+  type DeleteTaskResponse,
+  type RestoreTaskResponse,
   type SessionUser,
   type TaskDetailResponse,
   type TaskStatusResponse,
@@ -106,6 +109,44 @@ export class TaskItemController {
   ): Promise<TaskStatusResponse> {
     try {
       return { task: await this.tasks.reopen(user.id, id) };
+    } catch (err) {
+      throw toHttp(err);
+    }
+  }
+
+  // DELETE /tasks/{id} (FR-TASK-013; UC-012 main 1/2) — SOFT: the row stays,
+  // `deleted_at` is set, and every other statement in the module stops seeing
+  // it. Nest's default status for DELETE is 200, and the body is deliberate
+  // (FEAT-009's DELETE /lists/{id} set the precedent): `deletedAt` is the
+  // instant the retention clock started, which is also what makes a repeat's
+  // idempotency observable without reading the database (FEAT-013 D4).
+  //
+  // 200 on a repeat, never 404 (D3): the UI must not report "that task no
+  // longer exists" for an operation that in fact succeeded.
+  @Delete(':id')
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser() user: SessionUser,
+  ): Promise<DeleteTaskResponse> {
+    try {
+      return await this.tasks.softDelete(user.id, id);
+    } catch (err) {
+      throw toHttp(err);
+    }
+  }
+
+  // POST /tasks/{id}/restore (FR-TASK-014; UC-012 main 3/4) — the undo. No
+  // server-side time limit: FR-TASK-014's window is "until purge", so the ~7s
+  // snackbar is a UI affordance, not the contract. Once FEAT-020 purges the
+  // row, the uniform 404 is the honest answer.
+  @Post(':id/restore')
+  @HttpCode(200)
+  async restore(
+    @Param('id') id: string,
+    @CurrentUser() user: SessionUser,
+  ): Promise<RestoreTaskResponse> {
+    try {
+      return { task: await this.tasks.restore(user.id, id) };
     } catch (err) {
       throw toHttp(err);
     }
