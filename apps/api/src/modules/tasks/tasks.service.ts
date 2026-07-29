@@ -178,6 +178,53 @@ export class TasksService {
     return this.setCompletion(ownerId, id, false);
   }
 
+  /**
+   * FR-TASK-013 — soft-delete a task (FEAT-013 §3.1).
+   *
+   * Returns the task **and** the instant its retention clock started. The row
+   * is not destroyed: it stays, invisible to every other statement in the
+   * module, until `restore` brings it back or FEAT-020's purge removes it 30
+   * days on. Idempotent — a repeat returns the ORIGINAL instant, because
+   * re-stamping would extend that window on a double-tapped click (D3).
+   */
+  async softDelete(
+    ownerId: string,
+    id: string,
+  ): Promise<{ task: TaskSummary; deletedAt: string }> {
+    const row = await this.setDeletion(ownerId, id, true);
+    // Non-null by construction: the delete side COALESCEs, so a returned row
+    // always carries an instant. Checked rather than asserted — a silent
+    // `null!` here would surface as `deletedAt: null` on the wire, which the
+    // contract says cannot happen.
+    if (!row.deletedAt) {
+      throw new TaskNotFoundError();
+    }
+    return { task: toSummary(row), deletedAt: row.deletedAt.toISOString() };
+  }
+
+  /** FR-TASK-014 — undo a soft-delete (FEAT-013 §3.2). Clears the column and
+   * returns the task to its **original list and status**: `list_id` and
+   * `completed_at` were never touched by the delete, so nothing has to be
+   * reconstructed. `isOverdue` re-derives on the way out — a task whose due
+   * date passed while it sat deleted comes back overdue. Idempotent on a task
+   * that was never deleted (D3). */
+  async restore(ownerId: string, id: string): Promise<TaskSummary> {
+    return toSummary(await this.setDeletion(ownerId, id, false));
+  }
+
+  private async setDeletion(
+    ownerId: string,
+    id: string,
+    deleted: boolean,
+  ): Promise<TaskRow> {
+    assertTaskLookupId(id);
+    const row = await this.tasks.setDeletion(ownerId, id, deleted);
+    if (!row) {
+      throw new TaskNotFoundError();
+    }
+    return row;
+  }
+
   private async setCompletion(
     ownerId: string,
     id: string,

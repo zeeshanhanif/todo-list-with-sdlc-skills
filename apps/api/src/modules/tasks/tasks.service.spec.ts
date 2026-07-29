@@ -587,6 +587,115 @@ describe('TasksService — task detail (FEAT-011)', () => {
     );
   });
 
+  // --- FEAT-013 T3 — softDelete / restore (FR-TASK-013/014) ---
+
+  it('FEAT-013 AC-1/AC-2/AC-3: softDelete hides the task and returns its instant; restore brings it back', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const task = await tasks.create(owner, inbox, 'Recoverable', {
+      priority: 'medium',
+    });
+
+    const { task: deleted, deletedAt } = await tasks.softDelete(
+      owner,
+      task.id,
+    );
+    expect(deletedAt).toMatch(/Z$/);
+    expect(new Date(deletedAt).toISOString()).toBe(deletedAt); // ISO-8601 UTC
+    // The task comes back as it stood — a delete moves no other field.
+    expect(deleted).toMatchObject({
+      id: task.id,
+      listId: inbox,
+      title: 'Recoverable',
+      priority: 'medium',
+      completedAt: null,
+    });
+
+    // Removed from normal views: the detail read and the list view alike.
+    await expect(tasks.detail(owner, task.id)).rejects.toThrow(
+      TaskNotFoundError,
+    );
+    const view = await tasks.listView(owner, inbox);
+    expect(view.active).toHaveLength(0);
+    expect(view.completed).toHaveLength(0);
+
+    const back = await tasks.restore(owner, task.id);
+    expect(back).toMatchObject({ id: task.id, title: 'Recoverable' });
+    expect((await tasks.detail(owner, task.id)).task.title).toBe('Recoverable');
+    expect((await tasks.listView(owner, inbox)).active).toHaveLength(1);
+  });
+
+  it('FEAT-013 AC-3: a task deleted while completed restores completed, timestamp byte-identical', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const task = await tasks.create(owner, inbox, 'Done then deleted');
+    const completedAt = (await tasks.complete(owner, task.id)).completedAt;
+    expect(completedAt).not.toBeNull(); // fixture precondition, asserted
+
+    await tasks.softDelete(owner, task.id);
+    const back = await tasks.restore(owner, task.id);
+
+    // "Original list AND status" (FR-TASK-014) — not merely "back somewhere".
+    expect(back.completedAt).toBe(completedAt);
+    expect(back.listId).toBe(inbox);
+    const view = await tasks.listView(owner, inbox);
+    expect(view.active).toHaveLength(0);
+    expect(view.completed.map((t) => t.completedAt)).toEqual([completedAt]);
+  });
+
+  it('FEAT-013 AC-3: overdue re-derives on restore — it is inherited, never re-implemented', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const late = await tasks.create(owner, inbox, 'Late', { dueAt: PAST });
+    expect(late.isOverdue).toBe(true); // fixture precondition, asserted
+
+    const { task: deleted } = await tasks.softDelete(owner, late.id);
+    // Still overdue while deleted — the single derivation asks about
+    // completion and due date, and a delete changes neither (FEAT-011 D3).
+    expect(deleted.isOverdue).toBe(true);
+
+    const back = await tasks.restore(owner, late.id);
+    expect(back).toMatchObject({ dueAt: PAST, isOverdue: true });
+  });
+
+  it('FEAT-013 AC-4: softDelete does not re-stamp, and restore is idempotent on a live task', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const task = await tasks.create(owner, inbox, 'Double tapped');
+
+    const first = await tasks.softDelete(owner, task.id);
+    await new Promise((r) => setTimeout(r, 15));
+    const second = await tasks.softDelete(owner, task.id);
+    expect(second.deletedAt).toBe(first.deletedAt);
+
+    const live = await tasks.create(owner, inbox, 'Never deleted');
+    await expect(tasks.restore(owner, live.id)).resolves.toMatchObject({
+      id: live.id,
+    });
+    expect((await tasks.listView(owner, inbox)).active).toHaveLength(1);
+  });
+
+  it('FEAT-013 AC-6: unknown, non-uuid and foreign ids raise the same not-found on both operations', async () => {
+    const { id: ownerA, inbox } = await freshUser();
+    const { id: ownerB } = await freshUser();
+    const live = await tasks.create(ownerA, inbox, "A's live task");
+    const deleted = await tasks.create(ownerA, inbox, "A's deleted task");
+    await tasks.softDelete(ownerA, deleted.id);
+
+    for (const [who, id] of [
+      [ownerA, randomUUID()],
+      [ownerA, 'not-a-uuid'], // rejected before it can reach Postgres
+      [ownerB, live.id],
+      [ownerB, deleted.id], // B cannot restore A's deleted task either
+    ] as const) {
+      await expect(tasks.softDelete(who, id)).rejects.toThrow(
+        TaskNotFoundError,
+      );
+      await expect(tasks.restore(who, id)).rejects.toThrow(TaskNotFoundError);
+    }
+
+    // A's live task is untouched by all of it.
+    expect((await tasks.detail(ownerA, live.id)).task.title).toBe(
+      "A's live task",
+    );
+  });
+
   it('AC-11: dueAt crosses the contract as an ISO-8601 UTC string, whatever offset arrived', async () => {
     const { id: owner, inbox } = await freshUser();
 

@@ -62,7 +62,7 @@
       still carry their `deleted_at IS NULL` filter — assert one of them still
       hides a deleted row rather than assuming the projection change was inert.
 
-- [ ] T3 — Domain: `TasksService.softDelete(ownerId, id)` → `{ task, deletedAt }`
+- [x] T3 — Domain: `TasksService.softDelete(ownerId, id)` → `{ task, deletedAt }`
       and `.restore(ownerId, id)` → `TaskSummary` (design §5; FR-TASK-013/014).
       `assertTaskLookupId` reused for the non-uuid path, `TaskNotFoundError` on a
       null row, `toSummary` for the task, `toISOString()` for `deletedAt`
