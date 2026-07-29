@@ -53,7 +53,7 @@
       Done when: `npm run build:shared` succeeds and api + web typecheck against
       the new symbols with no change to any existing export.
 
-- [ ] T2 — API config + token minting (design §5; AC-5, AC-8): `infra/config.ts`
+- [x] T2 — API config + token minting (design §5; AC-5, AC-8): `infra/config.ts`
       gains `realtimeProvider` (default `none`), `supabaseUrl`,
       `supabaseServiceRoleKey`, `supabasePublishableKey`, `supabaseJwtSecret`,
       `realtimeTokenTtlMinutes` (30), `realtimePublishTimeoutMs` (250), each with
