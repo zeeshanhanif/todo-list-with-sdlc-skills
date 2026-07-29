@@ -509,13 +509,14 @@ action tokens were derived (`--color-primary` #0F766E, `--color-accent-text`
 hues are retained for non-text accents.
 
 **Known Gaps.**
-- **Shipped form controls predate the control-boundary rule** (2026-07-29
-  amendment). Every `input`/`textarea`/`select` in `apps/web` — the auth forms,
-  `list-dialog`, `quick-add`, `task-detail` — still draws its outline in
-  `--color-border-strong` (1.48:1). The rule is now stated; the migration is **an
-  accessibility pass across the web tier**, not per-feature work, and it is
-  tracked as **DEF-005** in `docs/defects.md` so it cannot be lost. New controls
-  built from today follow the rule.
+- ~~**Shipped form controls predate the control-boundary rule**~~ — **closed
+  2026-07-29 (DEF-005, `d27af38`).** All 13 control boundaries in `apps/web` now
+  use `--color-text-muted` (4.76:1 light / 6.64:1 dark). `button-secondary`,
+  the segmented `priority-selector` and decorative rings keep
+  `--color-border-strong`, per the rule's own test — is the boundary the only
+  identifier? The rule is now **enforced**, not just stated:
+  `e2e/tests/control-contrast.spec.ts` sweeps every visible control on eight
+  screens and asserts the computed ratio, so a regression fails the build.
 - **Accessibility commitment:** built to AA, but the SRS (NFR-USE-004) commits only
   to best-practice, not formal AA conformance — confirm whether AA becomes a
   post-MVP target (SRS Appendix B, Q5).

@@ -11,7 +11,7 @@ recycled.
 | DEF-003 | 2026-07-28 | NFR-USE-004 (design.md §5 contrast) / FEAT-010, SCR-WEB-008 | `list-view-failure.tsx`'s alert put `--color-danger` text on `--color-danger-subtle` — **3.95:1**, below the 4.5:1 design.md §5 requires. Fixing it surfaced a **second** failure the report had missed: the action inside the tint at **4.48:1** | `bd200ec` (partner tokens; 3.95→6.80 and 4.48→6.21) | 2026-07-28 — measured, rendered output checked, e2e 15 green |
 | DEF-004 | 2026-07-29 | NFR-USE-004 (design.md §5 contrast) / FEAT-011, SCR-WEB-008 + SCR-WEB-010; **also FEAT-009**'s sidebar badge (2nd instance) | `task-meta.tsx`'s **non-overdue** `DueChip` put `--color-text-muted` on `--color-surface-sunken` — **4.34:1** at `caption` (12px), below the 4.5:1 design.md §5 requires. The *overdue* variant was fine (6.80:1, the pairing DEF-003 fixed); it was the ordinary due-date chip that failed — and `lists-nav.tsx`'s count badge, found by grepping the pairing | `1294811` (text on the sunken tint takes `--color-text`; 4.34→16.30 light, 7.05→15.49 dark) | 2026-07-29 — failing contrast test red before / green after; FEAT-011 report re-verified **Accepted (unchanged)**; api 191, e2e 19 |
 
-| DEF-005 | 2026-07-29 | NFR-USE-004 (design.md §5 control boundaries) / all web form controls, FEAT-001/003/005/006/009/011 | **Open.** Every `input`/`textarea`/`select` in `apps/web` outlines in `--color-border-strong` — **1.48:1** light / **1.64:1** dark, below the 3:1 §5 requires for a boundary that is the control's only identifier. Scope is a web-tier accessibility pass, not per-feature work | _open_ | _open_ |
+| DEF-005 | 2026-07-29 | NFR-USE-004 (design.md §5 control boundaries) / all web form controls, FEAT-001/002/003/005/006/009/010/011 | Every `input`/`textarea`/`select` in `apps/web` outlined in `--color-border-strong` — **1.48:1** light / **1.64:1** dark, below the 3:1 §5 requires for a boundary that is the control's only identifier. A web-tier accessibility pass, not per-feature work | `d27af38` (13 sites → `--color-text-muted`; 1.48→4.76 light, 1.64→6.64 dark) | 2026-07-29 — `control-contrast.spec.ts` sweep red before / green after across 8 screens; api 191, worker 20, e2e 21 |
 
 ## DEF-005 — form-control outlines fail the non-text contrast rule
 
@@ -48,6 +48,59 @@ and it is now the *documented* standard rather than an oversight. The same
 `apps/web` test-runner gap that DEF-003 and DEF-004 record applies here too: a
 computed-style assertion would close all three cheaply, which is the strongest
 case yet for standing that runner up.
+
+### Resolution — 2026-07-29
+
+**13 sites, 8 files, one token.** Sign-up, sign-in, forgot, set-new-password,
+resend-verification, quick-add (title / due / priority), change-password
+(current / new), list-dialog, task-detail (title / due) —
+`--color-border-strong` → `--color-text-muted`, taking every control boundary
+from **1.48:1 → 4.76:1** light and **1.64:1 → 6.64:1** dark.
+
+**Three sites were deliberately left alone, and that is the substance of this
+fix rather than a footnote.** The rule is not "replace the token everywhere"; it
+is *is the boundary the only thing identifying this control?*
+
+| Left at `--color-border-strong` | Why |
+| :-- | :-- |
+| `list-dialog`'s **Cancel** button | carries a visible text label — `button-secondary`-class, which design.md §4 explicitly keeps at this token |
+| `task-detail`'s **priority segments** | each option shows its label (and dot); the text identifies them, so the outline is decorative |
+| `verify`'s **spinner ring** | decorative, `aria-hidden` — not a control at all, and outside 1.4.11 by definition |
+
+A blanket find-and-replace would have been wrong on all three, and would have
+quietly contradicted design.md §4's own `button-secondary` spec.
+
+**The guard: `e2e/tests/control-contrast.spec.ts`.** It sweeps **every visible
+`input`/`textarea`/`select`** across eight screens spanning
+FEAT-001/002/003/005/006/009/010/011, and asserts a **computed contrast ratio**
+between each boundary and the colour actually behind it — the control's own
+fill, or the nearest opaque ancestor when the fill is transparent, which is what
+the eye compares the outline against. Observed **red at 1.48:1 before the fix
+and green after**.
+
+Two properties worth keeping when this spec is edited:
+- **It measures a ratio, not a colour.** A future token change that keeps the
+  rule stays green; one that breaks it goes red. A hardcoded-hex assertion
+  cannot tell those apart.
+- **It fails on an empty sweep.** If a selector or a screen silently stops
+  matching, "no controls found" fails rather than passing vacuously — the
+  failure mode that makes coverage sweeps untrustworthy.
+
+**Belongs to no single feature**, which is why it is its own spec rather than an
+addition to one feature's suite: the rule is one every form in the product has
+to keep, and a per-feature home would have implied otherwise.
+
+**Verification.** Ratios computed from `tokens.json`'s values (WCAG 2.1); the
+rendered result inspected in **both themes** — fields are clearly delineated
+without reading as heavy, which is the check this row asked for rather than
+assumed. Full gate: api 191 serial, worker 20, e2e 21, boundaries, lint, build
+clean.
+
+**No per-feature re-verification, by the plan this row set out.** Eight features
+are touched and none has a criterion about input borders — they all defer to
+design.md's component spec, which the 2026-07-29 amendment corrected. Their
+suites are green at `d27af38`, and the sweep above is the standing record. Six
+re-verification reports would have added ceremony, not confidence.
 
 ## DEF-004 — the ordinary due-date chip fails AA contrast
 
