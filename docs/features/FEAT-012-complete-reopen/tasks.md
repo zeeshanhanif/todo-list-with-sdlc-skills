@@ -37,7 +37,7 @@
       Done when: `npm run build:shared` succeeds and api + web typecheck against
       the new symbols with **no change to any existing exported shape**.
 
-- [ ] T2 — Domain: repository `setCompletion(ownerId, id, completed)` (design §5;
+- [x] T2 — Domain: repository `setCompletion(ownerId, id, completed)` (design §5;
       FR-TASK-009, FR-TASK-010, FR-AUTHZ-002/003/005). **One** statement —
       `UPDATE tasks SET completed_at = COALESCE(completed_at, now()) | NULL,
       updated_at = now() WHERE owner_id = $1 AND id = $2 AND deleted_at IS NULL

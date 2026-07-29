@@ -191,6 +191,47 @@ export class TasksRepository {
     return row ? toTaskRow(row) : null;
   }
 
+  /**
+   * Complete or reopen one of the caller's tasks (FR-TASK-009/010; FEAT-012
+   * §5), returning the stored row or null for the same uniform not-found
+   * `findById` returns.
+   *
+   * **`COALESCE(completed_at, now())` is the whole idempotency mechanism**
+   * (FEAT-012 D2), and it is worth reading twice: completing a task that is
+   * already completed keeps the **original** instant. Not a re-stamp — because
+   * FR-TASK-009 records the moment the task was finished, not the moment of the
+   * last click, and the completed section sorts on that column, so re-stamping
+   * would silently reorder a list on a no-op. Not a `409` either: a checkbox
+   * over a network is double-tapped and retried, and UC-011 defines no
+   * exception flow for "already completed".
+   *
+   * The alternative encoding — `WHERE … AND completed_at IS NULL` — is what
+   * this deliberately avoids: a zero-row result would then mean *either*
+   * not-found *or* already-done, and telling those apart costs a second
+   * statement, which AC-9 (NFR-PERF-001) forbids.
+   *
+   * `updated_at` does move on a no-op repeat, which is correct: a legitimate
+   * operation was requested and re-affirmed. (Contrast FEAT-011's *empty patch*,
+   * which writes nothing at all — that was a malformed request.)
+   */
+  async setCompletion(
+    ownerId: string,
+    id: string,
+    completed: boolean,
+    q: TxClient = this.db,
+  ): Promise<TaskRow | null> {
+    const res = await q.query<TaskRowShape>(
+      `UPDATE tasks
+          SET completed_at = ${completed ? 'COALESCE(completed_at, now())' : 'NULL'},
+              updated_at = now()
+        WHERE owner_id = $1 AND id = $2 AND deleted_at IS NULL
+        RETURNING ${TASK_COLUMNS}`,
+      [ownerId, id],
+    );
+    const row = res.rows[0];
+    return row ? toTaskRow(row) : null;
+  }
+
   /** Insert an **active** task (`completed_at` NULL) into one of the caller's
    * lists (FR-TASK-001). Ownership of the list is the caller's to check first;
    * `owner_id` is the session user, never a client-supplied field
