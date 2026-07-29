@@ -507,3 +507,61 @@ export const reopenTaskPath = (id: string): string => `${taskPath(id)}/reopen`;
 export interface TaskStatusResponse {
   task: TaskSummary;
 }
+
+// --- Tasks: delete / restore (FEAT-013) ---
+
+/**
+ * Path of the restore transition: `POST /tasks/{id}/restore` (FR-TASK-014).
+ *
+ * The delete side needs no helper — `taskPath(id)` with the DELETE method is
+ * the whole contract (FEAT-013 technical-design D1): HTTP already has a verb
+ * for "remove this resource", and whether removal is *soft* is a storage fact
+ * the client has no business encoding. Restore has no such verb, so it takes a
+ * route beside `complete` and `reopen`.
+ *
+ * **Idempotent** — restoring a task that is not deleted returns 200 with
+ * `deleted_at` already NULL, the same shape as reopening an active task (D3).
+ */
+export const restoreTaskPath = (id: string): string =>
+  `${taskPath(id)}/restore`;
+
+/**
+ * Success response (200) of `DELETE /tasks/{id}` — the task as stored, plus
+ * the instant its retention clock started (FR-TASK-013 → FR-TASK-015).
+ *
+ * **The task is not destroyed**: `deleted_at` is set, the row stays, and
+ * `POST /tasks/{id}/restore` brings it back until FEAT-020's purge removes it
+ * 30 days later. Nothing else about the row moves — which is exactly what
+ * makes FR-TASK-014's "returning it to its original list and status" free.
+ *
+ * **`deletedAt` is here and NOT on `TaskSummary`** (D4): every read in the
+ * system filters soft-deleted rows out, so the field would be `null` in 100%
+ * of every other response. On the wire once, where it is the operation's own
+ * result — and where it makes the idempotency of a repeat DELETE observable
+ * without reading the database.
+ *
+ * **Idempotent, and it does not re-stamp** (D3): deleting an already-deleted
+ * task returns the ORIGINAL `deletedAt`. A re-stamp would silently extend the
+ * retention window on a double-tapped click, letting a client influence a
+ * privacy-relevant schedule.
+ */
+export interface DeleteTaskResponse {
+  task: TaskSummary;
+  /** ISO-8601 UTC (NFR-LOC-001). The server's instant, never client-supplied
+   * (FR-AUTHZ-004) — neither route takes a request body. */
+  deletedAt: string;
+}
+
+/**
+ * Success response (200) of `POST /tasks/{id}/restore` — the task, back in its
+ * original list and status (FR-TASK-014).
+ *
+ * `listId` and `completedAt` were never touched by the delete, so a task
+ * deleted while completed restores into the completed section with its
+ * timestamp intact, and `isOverdue` re-derives on the way out: one whose due
+ * date passed while it sat deleted comes back overdue, which is FR-TASK-007's
+ * rule applied to a now-visible task rather than a second rule.
+ */
+export interface RestoreTaskResponse {
+  task: TaskSummary;
+}

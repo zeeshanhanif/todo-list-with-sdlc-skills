@@ -37,7 +37,7 @@
 > clear `auth_rate_buckets` for `::1` — do not "fix" it by weakening a test.
 > `apps/web/AGENTS.md`: read `node_modules/next/dist/docs/` before writing web code.
 
-- [ ] T1 — Shared contracts (`@todo/shared`, design §5): `restoreTaskPath(id)`,
+- [x] T1 — Shared contracts (`@todo/shared`, design §5): `restoreTaskPath(id)`,
       `DeleteTaskResponse` (`{ task, deletedAt }` — D4) and `RestoreTaskResponse`
       (`{ task }`) in a FEAT-013 block beside FEAT-012's. `taskPath(id)` already
       addresses the DELETE. **`TaskSummary` does not change** (D4).
