@@ -9,6 +9,102 @@ recycled.
 | DEF-001 | 2026-07-27 | *(no FR — test infrastructure)* / FEAT-003, FEAT-005, FEAT-006 suites | Specs sharing an IP range delete each other's `auth_rate_buckets` rows mid-test, breaking `429` assertions | `24ae0d3` (disjoint ranges + `rate-limit-isolation.spec.ts` guard) | 2026-07-27 — guard red before / green after; flake rate ~25% → ~8% |
 | DEF-002 | 2026-07-27 | *(no FR — test infrastructure)* / api suite | **Open.** Residual ~7% parallel-run flakiness after DEF-001: a *different* test fails each run, always "a row that should exist doesn't". Cross-worker DB interference **ruled out** — per-worker databases were tried and reverted | _open_ | _open_ |
 | DEF-003 | 2026-07-28 | NFR-USE-004 (design.md §5 contrast) / FEAT-010, SCR-WEB-008 | `list-view-failure.tsx`'s alert put `--color-danger` text on `--color-danger-subtle` — **3.95:1**, below the 4.5:1 design.md §5 requires. Fixing it surfaced a **second** failure the report had missed: the action inside the tint at **4.48:1** | `bd200ec` (partner tokens; 3.95→6.80 and 4.48→6.21) | 2026-07-28 — measured, rendered output checked, e2e 15 green |
+| DEF-004 | 2026-07-29 | NFR-USE-004 (design.md §5 contrast) / FEAT-011, SCR-WEB-008 + SCR-WEB-010 | **Open.** `task-meta.tsx`'s **non-overdue** `DueChip` puts `--color-text-muted` on `--color-surface-sunken` — **4.34:1** at `caption` (12px), below the 4.5:1 design.md §5 requires. The *overdue* variant is fine (6.80:1, the pairing DEF-003 fixed); it is the ordinary due-date chip that fails | _open_ | _open_ |
+
+| DEF-005 | 2026-07-29 | NFR-USE-004 (design.md §5 control boundaries) / all web form controls, FEAT-001/003/005/006/009/011 | **Open.** Every `input`/`textarea`/`select` in `apps/web` outlines in `--color-border-strong` — **1.48:1** light / **1.64:1** dark, below the 3:1 §5 requires for a boundary that is the control's only identifier. Scope is a web-tier accessibility pass, not per-feature work | _open_ | _open_ |
+
+## DEF-005 — form-control outlines fail the non-text contrast rule
+
+**Reported:** 2026-07-29, by the FEAT-012 design-system amendment, which ruled on
+the product-wide question that FEAT-012's ui-design escalation raised.
+
+**Symptom.** `--color-border-strong` (#CBD5E1) on `--color-surface` (#FFFFFF)
+measures **1.48:1** light and **1.64:1** dark. design.md §5 requires **≥ 3:1**
+for a boundary that is a control's only identifier, and a text field's
+`--color-surface` fill is indistinguishable from the page (1.05:1), so the
+outline is that identifier. Affected: the auth forms (sign-up, sign-in, forgot,
+reset, change-password), `list-dialog`, `quick-add`, and `task-detail`'s title
+and due inputs.
+
+**Why it is a defect and not just a migration.** §5's 3:1 rule for UI graphics
+has been in design.md since ux-foundations; what the 2026-07-29 amendment added
+was the *explicit* statement that a control's outline falls under it (§4 had
+positively specified the failing token, which is why every feature inherited it
+in good faith). The shipped code therefore violates a standing requirement, which
+is what puts it in this ledger — but no single feature authored the mistake, so
+it is **not** routed to one feature's rework.
+
+**Scope and route.** A web-tier accessibility pass: one token substitution
+(`--color-border-strong` → `--color-text-muted`) at each control, plus a visual
+check that the darker outline reads correctly in both themes — inputs will look
+noticeably heavier, which is the intended consequence of the rule and should be
+confirmed by eye rather than assumed. Re-verification touches several features'
+reports, so the honest close is a single dated note in this ledger plus whatever
+screenshot evidence the pass produces, not six re-verifications.
+
+**Not urgent, not invisible.** Nothing is unusable — the fields are found by
+their labels and layout — but it is the most widespread AA gap in the product,
+and it is now the *documented* standard rather than an oversight. The same
+`apps/web` test-runner gap that DEF-003 and DEF-004 record applies here too: a
+computed-style assertion would close all three cheaply, which is the strongest
+case yet for standing that runner up.
+
+## DEF-004 — the ordinary due-date chip fails AA contrast
+
+**Reported:** 2026-07-29, by FEAT-012's ui-design, while measuring whether a
+completed `task-row`'s muted title survives the hovered-row tint. Found by
+measurement, not by looking for it — the third time in this project that
+computing every pairing before specifying has turned up a failure nobody saw.
+
+**Symptom.** `apps/web/src/components/task-meta.tsx`'s `DueChip` renders its
+**non-overdue** variant as `color: var(--color-text-muted)` (#64748B) on
+`background: var(--color-surface-sunken)` (#F1F5F9) — measured **4.34:1**,
+against the **4.5:1** design.md §5 states for body text, at `caption` (12px)
+size where no large-text exemption applies. Every task with a due date that has
+not yet passed renders this chip, on both SCR-WEB-008's rows and SCR-WEB-010's
+detail panel.
+
+**Why it is a defect and not a design gap.** Unlike DEF-003, nothing about the
+token set is missing here: `--color-text-muted` is documented in `tokens.json` as
+"4.6:1 on bg — AA", and it *is* AA on `--color-surface` (**4.76:1**) and on
+`--color-background` (**4.55:1**). The tint is what eats the margin. The system
+made a satisfiable pairing available all along; the shipped component chose one
+that isn't. FEAT-011's acceptance measured the overdue chip (which is why the
+overdue path is correct) and did not measure the default one.
+
+**Scope.** One component, one variant, two token references. Both screens that
+render a due date are affected. Nothing about FEAT-011's *behaviour* is wrong —
+the dates, the timezone handling and the `isOverdue` derivation are all correct;
+this is presentation drifting below the standard the same feature otherwise met.
+
+**Candidates measured while finding it** (the choice belongs to whoever picks
+this up, per DEF-003's precedent of recording rather than pre-deciding):
+
+| Option | Ratio | Note |
+| :-- | --: | :-- |
+| drop the chip's tint — muted text on `--color-surface` | **4.76:1** ✅ | smallest change; the chip keeps its shape via `--radius-full` + border, and the metadata hierarchy is unchanged |
+| `--color-text` on `--color-surface-sunken` | 12.6:1 ✅ | passes easily but flattens the muted/primary distinction the row depends on |
+| a new `--color-text-muted-strong` token | — | a design-system amendment; only worth it if the general rule (below) says muted text must survive the tint everywhere |
+
+**The general form, which is larger than this row.** Muted text is AA on
+`surface` and `background` but **not** on the `surface-sunken` tint. design.md §2
+documents the danger-tint pairing rule (added 2026-07-28) but says nothing about
+where muted text is valid. That is a **design-system** question, filed with
+FEAT-012's ui-design escalation toward ux-foundations, not resolved in this
+ledger. This row is the one place the rule is currently violated in shipped code.
+
+**Not urgent, not invisible.** It is a 0.16 shortfall on secondary metadata, which
+is why it is a ledger row rather than an interrupt — but it is a real AA failure
+on verified behaviour, it affects the *common* case rather than an error state,
+and it is the second contrast defect to come out of the same component family.
+
+**Fix protocol when it is picked up** (maintenance route): the owning feature is
+**FEAT-011** (RTM → FR-TASK-006/007 → Plan ref FEAT-011). The "failing test
+first" rule still has no home — `apps/web` has no unit-test runner, the gap
+DEF-003 recorded and FEAT-012's design re-flagged as its third concrete case — so
+the same two honest options apply: stand the runner up first (a computed-style
+assertion would make this trivial and would cover DEF-003's fix too), or fix and
+re-verify by inspection with the measurement recorded.
 
 ## DEF-003 — the list-view error alert fails AA contrast
 

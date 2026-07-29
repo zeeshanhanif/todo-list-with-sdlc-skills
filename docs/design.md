@@ -30,14 +30,14 @@ token exists for.
 | Surface | `--color-surface` | #FFFFFF | Cards, panels, sidebar, task rows |
 | Surface sunken | `--color-surface-sunken` | #F1F5F9 | Insets, hovered rows |
 | Border | `--color-border` | #E2E8F0 | Hairlines, dividers |
-| Border strong | `--color-border-strong` | #CBD5E1 | Input outlines, emphasis |
+| Border strong | `--color-border-strong` | #CBD5E1 | Emphasis borders on components identified by their own text or fill (`button-secondary`, cards). **Not a control boundary** — 1.5:1 on surface; see §5 |
 | Text | `--color-text` | #0F172A | Headings, body |
 | Text muted | `--color-text-muted` | #64748B | Metadata, secondary |
 | Text subtle | `--color-text-subtle` | #94A3B8 | Non-essential/large only |
 | Primary | `--color-primary` | #0F766E | Primary buttons, links, active |
 | Primary hover | `--color-primary-hover` | #115E59 | Hover on primary |
 | Primary active | `--color-primary-active` | #134E4A | Pressed |
-| Primary bright | `--color-primary-bright` | #14B8A6 | Brand accent, checkbox fill, selection (non-text) |
+| Primary bright | `--color-primary-bright` | #14B8A6 | Brand accent, selection (non-text) |
 | Primary subtle | `--color-primary-subtle` | #CCFBF1 | Selected nav bg, teal badge bg |
 | On primary | `--color-on-primary` | #FFFFFF | Text/icon on primary fill |
 | Focus ring | `--color-focus-ring` | #14B8A6 | 2px focus ring |
@@ -58,7 +58,9 @@ token exists for.
 text-muted #64748B on background = 4.6:1 ✓ (AA normal); primary #0F766E + white =
 4.5:1 ✓; accent-text #B45309 on surface = 4.8:1 ✓; danger #DC2626 + white =
 4.5:1 ✓; danger-text #991B1B on danger-subtle #FEE2E2 = 6.8:1 ✓; success check
-#059669 on surface = 3.4:1 ✓ (graphical). **text-subtle
+#059669 on surface = 3.4:1 ✓ (graphical); the check glyph itself, on-primary on
+success fill = 3.8:1 light / 8.8:1 dark ✓ (graphical); control boundary
+text-muted #64748B on surface = 4.8:1 light / 6.6:1 dark ✓. **text-subtle
 #94A3B8 is below AA for body text — use only for large or decorative text.** Raw
 brand teal #14B8A6 and raw amber #F59E0B fail AA as text/small-button fills — that
 is why `--color-primary` and `--color-accent-text` exist; use them for anything
@@ -71,6 +73,25 @@ on `--color-danger-subtle` is `--color-danger-text` (6.8:1), **not**
 pairing rule holds for accent, success and warning. *(The danger partner was
 added by the FEAT-011 amendment, 2026-07-28 — it was the one missing member of
 the family, found by the overdue chip.)*
+
+**A control's boundary is what identifies it, so it takes ≥ 3:1.** Where a
+control is recognisable *only* by its outline — `checkbox`, `radio`, and
+`input`/`textarea`/`select` (whose `--color-surface` fill is indistinguishable
+from the page at 1.05:1) — the boundary uses **`--color-text-muted`** (4.8:1
+light / 6.6:1 dark), not `--color-border-strong` (**1.5:1** light / **1.6:1**
+dark, below §5's 3:1 for UI graphics). Where the component carries its own text
+or fill — `button-secondary`, cards, dividers — the boundary is decorative
+emphasis and `--color-border-strong` remains correct. *(Added by the FEAT-012
+amendment, 2026-07-29 — the unchecked checkbox was the first control whose ring
+was its only identifier.)*
+
+**Muted text is AA on `surface` and `background`, not on the sunken tint.**
+`--color-text-muted` measures 4.8:1 on `--color-surface` and 4.6:1 on
+`--color-background`, but only **4.3:1** on `--color-surface-sunken` — below
+§5's 4.5:1. Text that sits on the sunken tint (chip backgrounds, inset wells,
+hovered rows) takes `--color-text`. The one exemption is **disabled** controls,
+whose muted-on-sunken treatment is deliberate and outside the contrast
+requirement.
 
 ```css
 :root {
@@ -272,14 +293,19 @@ active / disabled** (plus **loading / error** where noted).
 
 ### Core — Forms
 - **`input` / `textarea` / `select`** — `--color-surface` bg, 1px
-  `--color-border-strong`, radius `--radius-md`, height `--control-md`, padding
+  `--color-text-muted` (the control-boundary rule, §2 — the fill alone does not
+  distinguish the field from the page), radius `--radius-md`, height `--control-md`, padding
   `--space-3`; text `--color-text`, placeholder `--color-text-subtle`. Focus:
   border `--color-primary` + 2px `--color-focus-ring` ring. Error: border
   `--color-danger`, error text below in `--color-danger` `small`. Disabled: sunken
   bg, muted text. (shadcn `Input`/`Textarea`/`Select`.)
 - **`checkbox`** — the **task-complete** control: `--radius-full` circle, 20px
-  (44px hit area), 2px `--color-border-strong` unchecked; checked = `--color-success`
-  fill with white check; focus ring as above; animates check in `--duration-fast`.
+  (44px hit area), 2px `--color-text-muted` unchecked (the control-boundary rule,
+  §2); checked = `--color-success` fill with the check glyph in
+  `--color-on-primary` — the theme-aware ink, since literal white measures 1.9:1
+  on the dark theme's success; focus ring as above; animates check in
+  `--duration-fast`. Use a real `<input type="checkbox">` so Space toggles it and
+  the state is announced without added ARIA (§5).
 - **`radio` / `switch`** — Radix primitives themed with `--color-primary` when on.
 - **`field`** — label (`caption`, `--color-text`), optional help (`small`,
   `--color-text-muted`), error slot (`small`, `--color-danger`). Label always
@@ -358,6 +384,13 @@ destructive actions) and **NFR-USE-003** (loading/empty/error states).
   body text in `--color-text-subtle`, raw `--color-primary-bright`, raw
   `--color-accent`, or `--color-success` fill — and never `--color-danger` on
   `--color-danger-subtle` (3.95:1); a tint takes its `*-text` partner (§2).
+  `--color-text-muted` is AA on `--color-surface` and `--color-background` but
+  **not** on `--color-surface-sunken` (4.34:1) — text on the sunken tint takes
+  `--color-text` (§2).
+- **Control boundaries:** a control identified only by its outline — `checkbox`,
+  `radio`, `input`/`textarea`/`select` — needs **≥ 3:1** on that outline, so it
+  uses `--color-text-muted`, never `--color-border-strong` (1.5:1). Borders on
+  components that carry their own text or fill are decorative and exempt (§2).
 - **Focus:** every interactive element shows a visible 2px `--color-focus-ring`
   ring with 2px offset on `:focus-visible`. Never remove outlines without a
   replacement.
@@ -412,8 +445,10 @@ actions (never joke in a delete confirmation or an error).
 - **Most-used tokens:** text `#0F172A` / muted `#64748B`; surface `#FFFFFF` / bg
   `#F8FAFC`; primary `#0F766E`; border `#E2E8F0`; radius md `8px` / lg `12px`;
   space unit `4px` (common 8/12/16/24); focus ring `#14B8A6` 2px.
-- **Task complete** → circular `--color-success` checkbox with white check;
-  completed title = strikethrough + `--color-text-muted`.
+- **Task complete** → circular `--color-success` checkbox with the check in
+  `--color-on-primary` (not literal white — it must re-value on dark); unchecked
+  ring `--color-text-muted`; completed title = strikethrough + `--color-text-muted`
+  (on `--color-surface`, not on the sunken tint — §2).
 - **Overdue** → due chip on `--color-danger-subtle` with `--color-danger-text`
   + the word "Overdue" (not color alone).
 - **Priority dot** → `--priority-{high|medium|low|none}` (no `color-` prefix).
@@ -424,6 +459,32 @@ actions (never joke in a delete confirmation or an error).
 ## 9. Provenance & Known Gaps
 
 **Amendments.**
+- **2026-07-29 — FEAT-012 (complete checkbox).** **Documentation-only — no token
+  value changed, so `tokens.json` and `tokens.generated.css` are untouched.** The
+  first screen to render the `checkbox` measured its specified pairings and found
+  three §5 violations in this file's own prose:
+  1. **The unchecked ring.** §4 specified 2px `--color-border-strong`, which is
+     **1.48:1** on `--color-surface` light and **1.64:1** dark — below §5's 3:1
+     for UI graphics, on the one mark that identifies an unchecked control. §2 and
+     §5 now carry the **control-boundary rule**: outline-identified controls
+     (`checkbox`, `radio`, `input`/`textarea`/`select`) use `--color-text-muted`
+     (4.76:1 / 6.64:1); components carrying their own text or fill
+     (`button-secondary`, cards, dividers) keep `--color-border-strong`, whose
+     usage note in §2 now says so. **This is the ruling on the product-wide
+     question the filing raised** — the line is WCAG 1.4.11's own (is the boundary
+     the identifier?), not a blanket re-value of the token.
+  2. **"White check" was a light-theme-only statement.** On dark, `--color-success`
+     re-values to #34D399 and a white glyph measures **1.92:1**. §4 and §8 now say
+     `--color-on-primary`, which re-values per theme (3.77:1 light / 8.81:1 dark).
+  3. **§2's token table contradicted §4/§8**, annotating `--color-primary-bright`
+     as the "checkbox fill" where both component specs say `--color-success` — and
+     unbuildable anyway (a check glyph on it is 2.49:1). The usage note now reads
+     "Brand accent, selection (non-text)".
+  Also added, from the same measurement pass: **muted text is AA on `surface` and
+  `background` but not on the `surface-sunken` tint** (4.34:1) — §2 and §5, with
+  the disabled-control exemption stated. Filed by
+  `docs/features/FEAT-012-complete-reopen/ui-design.md` §Escalations; no component
+  was forked.
 - **2026-07-28 — FEAT-011 (overdue chip).** Added `--color-danger-text` (#991B1B
   light / #FCA5A5 dark), the one missing member of the `*-text` family, after the
   overdue chip showed that the only pairing the set could produce —
@@ -448,6 +509,13 @@ action tokens were derived (`--color-primary` #0F766E, `--color-accent-text`
 hues are retained for non-text accents.
 
 **Known Gaps.**
+- **Shipped form controls predate the control-boundary rule** (2026-07-29
+  amendment). Every `input`/`textarea`/`select` in `apps/web` — the auth forms,
+  `list-dialog`, `quick-add`, `task-detail` — still draws its outline in
+  `--color-border-strong` (1.48:1). The rule is now stated; the migration is **an
+  accessibility pass across the web tier**, not per-feature work, and it is
+  tracked as **DEF-005** in `docs/defects.md` so it cannot be lost. New controls
+  built from today follow the rule.
 - **Accessibility commitment:** built to AA, but the SRS (NFR-USE-004) commits only
   to best-practice, not formal AA conformance — confirm whether AA becomes a
   post-MVP target (SRS Appendix B, Q5).
