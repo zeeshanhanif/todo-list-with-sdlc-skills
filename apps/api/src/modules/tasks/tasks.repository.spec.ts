@@ -225,8 +225,13 @@ describe('TasksRepository (integration)', () => {
       priority: string;
       updated_at: Date;
       completed_at: Date | null;
+      deleted_at: Date | null;
+      list_id: string;
+      created_at: Date;
     }>(
-      'SELECT title, due_at, priority, updated_at, completed_at FROM tasks WHERE id = $1',
+      `SELECT title, due_at, priority, updated_at, completed_at, deleted_at,
+              list_id, created_at
+         FROM tasks WHERE id = $1`,
       [id],
     );
     return r.rows[0];
@@ -474,6 +479,129 @@ describe('TasksRepository (integration)', () => {
     expect(now.completed_at).toBeNull();
     expect(now.updated_at.toISOString()).toBe(
       beforeDeletedAttempt.updated_at.toISOString(),
+    );
+  });
+
+  // --- FEAT-013 T2 — setDeletion (FR-TASK-013/014) ---
+
+  it('FEAT-013 AC-1: deleting stores an instant inside the request window and disturbs no other column', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const task = await tasks.create(owner, inbox, 'Buy milk', {
+      dueAt: new Date('2026-08-01T09:00:00.000Z'),
+      priority: 'high',
+    });
+    const before = await storedRow(task.id);
+    expect(before.deleted_at).toBeNull(); // fixture precondition, asserted
+
+    const at0 = Date.now();
+    const gone = await tasks.setDeletion(owner, task.id, true);
+    const at1 = Date.now();
+
+    expect(gone?.deletedAt).toBeInstanceOf(Date);
+    const at = gone!.deletedAt!.getTime();
+    expect(at).toBeGreaterThanOrEqual(at0 - 1000);
+    expect(at).toBeLessThanOrEqual(at1 + 1000);
+
+    const after = await storedRow(task.id);
+    expect(after.deleted_at?.toISOString()).toBe(gone!.deletedAt!.toISOString());
+    // A delete moves deleted_at and updated_at, and NOTHING else — which is
+    // what makes FR-TASK-014's "original list and status" free (§3.1).
+    expect(after.title).toBe(before.title);
+    expect(after.list_id).toBe(before.list_id);
+    expect(after.priority).toBe(before.priority);
+    expect(after.completed_at).toBeNull();
+    expect(after.due_at?.toISOString()).toBe(before.due_at?.toISOString());
+    expect(after.created_at.toISOString()).toBe(before.created_at.toISOString());
+  });
+
+  it('FEAT-013 AC-2/AC-3: a soft-deleted row is invisible to every other statement, and restore reaches it anyway', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const task = await tasks.create(owner, inbox, 'Recoverable');
+    expect(await tasks.setDeletion(owner, task.id, true)).not.toBeNull();
+
+    // The five statements that filter `deleted_at IS NULL` — asserted rather
+    // than assumed, because FEAT-013 changed the shared projection they use.
+    expect(await tasks.findById(owner, task.id)).toBeNull();
+    expect(await tasks.findByList(owner, inbox)).toHaveLength(0);
+    expect(await tasks.update(owner, task.id, { title: 'x' })).toBeNull();
+    expect(await tasks.setCompletion(owner, task.id, true)).toBeNull();
+
+    // setDeletion is the ONE statement that can see it (D5).
+    const back = await tasks.setDeletion(owner, task.id, false);
+    expect(back?.deletedAt).toBeNull();
+    expect((await storedRow(task.id)).deleted_at).toBeNull();
+    expect(await tasks.findById(owner, task.id)).toMatchObject({
+      title: 'Recoverable',
+    });
+  });
+
+  it('FEAT-013 AC-3: restore returns a completed task to the completed side, timestamp intact', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const task = await tasks.create(owner, inbox, 'Finished then deleted');
+    const done = await tasks.setCompletion(owner, task.id, true);
+    const completedAt = done!.completedAt!.toISOString();
+
+    await tasks.setDeletion(owner, task.id, true);
+    const back = await tasks.setDeletion(owner, task.id, false);
+
+    // Original STATUS, not just original list: completed_at was never touched.
+    expect(back?.completedAt?.toISOString()).toBe(completedAt);
+    expect(back?.listId).toBe(inbox);
+    const rows = await tasks.findByList(owner, inbox);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].completedAt?.toISOString()).toBe(completedAt);
+  });
+
+  it('FEAT-013 AC-4: a repeat delete keeps the ORIGINAL instant, and restore is idempotent on a live task', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const task = await tasks.create(owner, inbox, 'Double tapped');
+
+    const first = await tasks.setDeletion(owner, task.id, true);
+    const firstAt = first!.deletedAt!.toISOString();
+    await new Promise((r) => setTimeout(r, 15)); // now() would differ if re-stamped
+    const second = await tasks.setDeletion(owner, task.id, true);
+
+    // Not re-stamped: the retention clock FR-TASK-015 runs off must not move
+    // because a user clicked twice (D3). Asserted at the row, not just the
+    // return value.
+    expect(second!.deletedAt!.toISOString()).toBe(firstAt);
+    expect((await storedRow(task.id)).deleted_at?.toISOString()).toBe(firstAt);
+
+    // Restore on a task that was never deleted is a no-op, not an error.
+    const live = await tasks.create(owner, inbox, 'Never deleted');
+    const restored = await tasks.setDeletion(owner, live.id, false);
+    expect(restored?.deletedAt).toBeNull();
+    expect((await storedRow(live.id)).deleted_at).toBeNull();
+  });
+
+  it('FEAT-013 AC-6: setDeletion is owner-scoped — including for rows that are already deleted', async () => {
+    const { id: ownerA, inbox: inboxA } = await freshUser();
+    const { id: ownerB } = await freshUser();
+    const live = await tasks.create(ownerA, inboxA, "A's live task");
+    const deleted = await tasks.create(ownerA, inboxA, "A's deleted task");
+    await tasks.setDeletion(ownerA, deleted.id, true);
+
+    const liveBefore = await storedRow(live.id);
+    const deletedBefore = await storedRow(deleted.id);
+
+    // B cannot delete A's live task, cannot restore A's deleted one, and an
+    // unknown id is the same nothing — the uniform null the 404 is built on.
+    expect(await tasks.setDeletion(ownerB, live.id, true)).toBeNull();
+    expect(await tasks.setDeletion(ownerB, deleted.id, false)).toBeNull();
+    expect(await tasks.setDeletion(ownerB, randomUUID(), true)).toBeNull();
+
+    // Neither of A's rows moved — deleted_at AND updated_at.
+    const liveAfter = await storedRow(live.id);
+    expect(liveAfter.deleted_at).toBeNull();
+    expect(liveAfter.updated_at.toISOString()).toBe(
+      liveBefore.updated_at.toISOString(),
+    );
+    const deletedAfter = await storedRow(deleted.id);
+    expect(deletedAfter.deleted_at?.toISOString()).toBe(
+      deletedBefore.deleted_at?.toISOString(),
+    );
+    expect(deletedAfter.updated_at.toISOString()).toBe(
+      deletedBefore.updated_at.toISOString(),
     );
   });
 

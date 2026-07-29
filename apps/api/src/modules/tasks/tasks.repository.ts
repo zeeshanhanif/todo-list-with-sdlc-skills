@@ -15,6 +15,11 @@ export interface TaskRow {
   dueAt: Date | null;
   /** FR-TASK-008 — never null; the column is NOT NULL DEFAULT 'none'. */
   priority: TaskPriority;
+  /** FR-TASK-013 — NULL = live. Non-null on exactly one path: the row a
+   * `setDeletion` call just soft-deleted. Every other statement in this file
+   * filters `deleted_at IS NULL`, so they can only ever return null here
+   * (FEAT-013 D5). */
+  deletedAt: Date | null;
 }
 
 /** The fields PATCH /tasks/{id} may change (FEAT-011 §3.2). **Key presence is
@@ -29,9 +34,15 @@ export interface TaskPatch {
   priority?: TaskPriority;
 }
 
-/** The columns every task read projects — one list so the three statements below
- * cannot drift apart as the table grows (FEAT-012/013/014 each add to it). */
-const TASK_COLUMNS = `id, list_id, title, completed_at, created_at, due_at, priority`;
+/** The columns every task read projects — one list so the statements below
+ * cannot drift apart as the table grows (FEAT-014 still to add to it).
+ *
+ * `deleted_at` joined it in FEAT-013, which is the only feature that has a use
+ * for the value: `setDeletion` must return the instant it wrote (or the one it
+ * preserved on a repeat, D3). The five statements that filter
+ * `deleted_at IS NULL` now project a column they know is null — the cost of
+ * keeping ONE projection, and cheaper than the drift two would buy. */
+const TASK_COLUMNS = `id, list_id, title, completed_at, deleted_at, created_at, due_at, priority`;
 
 /**
  * Persistence for the `tasks` table (FEAT-010 technical-design §5).
@@ -232,6 +243,48 @@ export class TasksRepository {
     return row ? toTaskRow(row) : null;
   }
 
+  /**
+   * Soft-delete or restore one of the caller's tasks (FR-TASK-013/014;
+   * FEAT-013 §5), returning the stored row or null for the same uniform
+   * not-found `findById` returns.
+   *
+   * **This is the only statement in this file without `AND deleted_at IS NULL`,
+   * and that omission is the method** (D5). Restore must reach a row every
+   * other statement deliberately cannot see; delete must be able to answer a
+   * repeat with the instant already stored. Ownership is untouched by the
+   * omission — `owner_id = $1` still scopes every row this can reach
+   * (FR-AUTHZ-002/003/005).
+   *
+   * **`COALESCE(deleted_at, now())` is the idempotency mechanism** (D3), the
+   * same one `setCompletion` uses one method up, and it carries more weight
+   * here: `deleted_at` is the retention clock FR-TASK-015's purge runs off. A
+   * re-stamp on a double-tapped delete would silently extend how long the row
+   * lives, which lets a client influence a privacy-relevant schedule. A 404 on
+   * the repeat would be worse in the other direction — the UI would report
+   * "that task no longer exists" for an operation that in fact succeeded.
+   *
+   * Restore sets a plain NULL: idempotent on a task that was never deleted,
+   * and it touches neither `list_id` nor `completed_at`, which is what makes
+   * FR-TASK-014's "original list and status" free rather than reconstructed.
+   */
+  async setDeletion(
+    ownerId: string,
+    id: string,
+    deleted: boolean,
+    q: TxClient = this.db,
+  ): Promise<TaskRow | null> {
+    const res = await q.query<TaskRowShape>(
+      `UPDATE tasks
+          SET deleted_at = ${deleted ? 'COALESCE(deleted_at, now())' : 'NULL'},
+              updated_at = now()
+        WHERE owner_id = $1 AND id = $2
+        RETURNING ${TASK_COLUMNS}`,
+      [ownerId, id],
+    );
+    const row = res.rows[0];
+    return row ? toTaskRow(row) : null;
+  }
+
   /** Insert an **active** task (`completed_at` NULL) into one of the caller's
    * lists (FR-TASK-001). Ownership of the list is the caller's to check first;
    * `owner_id` is the session user, never a client-supplied field
@@ -269,6 +322,7 @@ interface TaskRowShape {
   list_id: string;
   title: string;
   completed_at: Date | null;
+  deleted_at: Date | null;
   created_at: Date;
   due_at: Date | null;
   priority: TaskPriority;
@@ -280,6 +334,7 @@ function toTaskRow(row: TaskRowShape): TaskRow {
     listId: row.list_id,
     title: row.title,
     completedAt: row.completed_at,
+    deletedAt: row.deleted_at,
     createdAt: row.created_at,
     dueAt: row.due_at,
     priority: row.priority,

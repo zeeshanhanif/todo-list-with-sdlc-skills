@@ -44,7 +44,7 @@
       Done when: `npm run build:shared` succeeds and api + web typecheck against
       the new symbols with **no change to any existing exported shape**.
 
-- [ ] T2 — Domain: repository `setDeletion(ownerId, id, deleted)` (design §5;
+- [x] T2 — Domain: repository `setDeletion(ownerId, id, deleted)` (design §5;
       FR-TASK-013, FR-TASK-014, FR-AUTHZ-002/003/005). Extend `TASK_COLUMNS` with
       `deleted_at` and `TaskRow` with `deletedAt: Date | null` (D5), then **one**
       statement — `UPDATE tasks SET deleted_at = COALESCE(deleted_at, now()) | NULL,
