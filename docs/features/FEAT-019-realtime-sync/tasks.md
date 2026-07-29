@@ -159,7 +159,7 @@
       with the FEAT-009..013 specs still green. Two registrations per run push the
       per-IP limiter — see the harness trap above.
 
-- [ ] T8 — Provisioning artifacts and the AC-1b checklist (design §4/§8/D9):
+- [x] T8 — Provisioning artifacts and the AC-1b checklist (design §4/§8/D9):
       `deploy/supabase/realtime-authorization.sql` (the topic-scoped RLS policy on
       `realtime.messages`, with a header comment stating it is applied by hand
       against a provisioned project and why it is not a migration); the four new
