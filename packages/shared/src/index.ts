@@ -469,3 +469,41 @@ export interface CreateTaskRequest {
 export interface CreateTaskResponse {
   task: TaskSummary;
 }
+
+// --- Tasks: complete / reopen (FEAT-012) ---
+
+/**
+ * Path of the complete transition: `POST /tasks/{id}/complete` (FR-TASK-009).
+ *
+ * A **verb route**, not a field on PATCH: the completion instant is the
+ * server's fact, never the client's, and FEAT-011's PATCH contract refuses
+ * `completedAt` in the body outright (FEAT-012 technical-design D1).
+ *
+ * **Idempotent** — completing an already-completed task returns 200 with the
+ * ORIGINAL `completedAt`, not a re-stamp and not a 409. A checkbox over a
+ * network gets double-tapped and retried after a timeout, and FR-TASK-009's
+ * "recording the completion timestamp" means the moment it was finished, not
+ * the moment of the last click (D2).
+ */
+export const completeTaskPath = (id: string): string =>
+  `${taskPath(id)}/complete`;
+
+/** Path of the reopen transition: `POST /tasks/{id}/reopen` (FR-TASK-010).
+ * Clears the completion timestamp; idempotent on an already-active task (D2). */
+export const reopenTaskPath = (id: string): string => `${taskPath(id)}/reopen`;
+
+/**
+ * Success response (200) of **both** transitions — the task as stored, with
+ * `isOverdue` recomputed.
+ *
+ * That recomputation is why this carries the task rather than being an empty
+ * 204: completing a late task is the same call that clears its overdue
+ * indication (FR-TASK-009's own note), and the client renders the server's
+ * answer rather than deriving a second one (FEAT-011 technical-design D3).
+ *
+ * Neither route takes a request body — method, path and session fully specify
+ * both operations (D8).
+ */
+export interface TaskStatusResponse {
+  task: TaskSummary;
+}

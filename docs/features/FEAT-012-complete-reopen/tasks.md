@@ -30,7 +30,7 @@
 > clear `auth_rate_buckets` for `::1` — do not "fix" it by weakening a test.
 > `apps/web/AGENTS.md`: read `node_modules/next/dist/docs/` before writing web code.
 
-- [ ] T1 — Shared contracts (`@todo/shared`, design §5): `completeTaskPath(id)`,
+- [x] T1 — Shared contracts (`@todo/shared`, design §5): `completeTaskPath(id)`,
       `reopenTaskPath(id)` and `TaskStatusResponse` in a FEAT-012 block beside
       FEAT-011's. Nothing existing changes shape — `TaskSummary.completedAt`
       already carries the status on the wire.
