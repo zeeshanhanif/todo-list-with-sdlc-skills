@@ -44,7 +44,7 @@
 > for `::1`; do not "fix" it by weakening a test.
 > `apps/web/AGENTS.md`: read `node_modules/next/dist/docs/` before writing web code.
 
-- [ ] T1 — Shared contracts (`@todo/shared`, design §3): a FEAT-019 block with
+- [x] T1 — Shared contracts (`@todo/shared`, design §3): a FEAT-019 block with
       `REALTIME_TOKEN_PATH` (`/realtime/token`), the discriminated
       `RealtimeTokenResponse` (`{ enabled: false }` | `{ enabled: true, url,
       publishableKey, token, channel, expiresAt }`), and `userChannel(userId)`

@@ -565,3 +565,70 @@ export interface DeleteTaskResponse {
 export interface RestoreTaskResponse {
   task: TaskSummary;
 }
+
+// --- Realtime cross-device sync (FEAT-019) ---
+
+/**
+ * Path of the Realtime token endpoint: `GET /realtime/token` (NFR-PERF-004,
+ * ADR-006).
+ *
+ * The caller sends **nothing** — no body, no query, no user id. The subject is
+ * always the session user, so there is no request shape that makes the API mint
+ * another user's channel (FEAT-019 technical-design §3.1, FR-AUTHZ-002/003).
+ */
+export const REALTIME_TOKEN_PATH = "/realtime/token";
+
+/**
+ * The per-user Broadcast topic (ADR-006). Derived server-side from the session
+ * and re-derived client-side only to subscribe — exported so the two sides
+ * cannot drift on the string.
+ */
+export const userChannel = (userId: string): string => `user:${userId}`;
+
+/** The Broadcast event name. One event, because the signal says only *that*
+ * something changed, never what (technical-design §3.2). */
+export const REALTIME_CHANGED_EVENT = "changed";
+
+/**
+ * The signal's entire payload — a change cursor and nothing else.
+ *
+ * No task id, no list id, no title, no change type. That emptiness is what lets
+ * Realtime be used without Supabase Auth or RLS over our data (ADR-005/ADR-006):
+ * even a mis-scoped channel leaks nothing, and every actual read still goes
+ * through the authenticated API, which stays the sole enforcer of ownership.
+ *
+ * The client does **not** use `cursor` to suppress refreshes — a duplicate
+ * refresh costs one refetch, a dropped one leaves a stale screen (D6). It is
+ * here for ADR fidelity, log correlation, and a future `since`-style refetch.
+ */
+export interface RealtimeChangedPayload {
+  /** ISO-8601 UTC instant assigned by the API at publish time. */
+  cursor: string;
+}
+
+/**
+ * Success response (200) of `GET /realtime/token`.
+ *
+ * `enabled: false` is the honest answer when no Realtime provider is configured
+ * — **not** an error, and the default configuration today. The client does not
+ * retry it; it falls back to the adaptive refetch schedule, which is what keeps
+ * NFR-PERF-004 satisfied without a socket (technical-design D4).
+ */
+export type RealtimeTokenResponse =
+  | { enabled: false }
+  | {
+      enabled: true;
+      /** Supabase project URL the client opens the socket against. */
+      url: string;
+      /** The project's publishable (anon) key — public by design. **Never** the
+       * service-role key, which signs broadcasts and stays server-side (D5). */
+      publishableKey: string;
+      /** Short-lived HS256 JWT: `sub` = the session user, `role` =
+       * "authenticated". Accepted by Supabase Realtime and by nothing else —
+       * presenting it to this API authenticates nothing (AC-6). */
+      token: string;
+      /** Always `user:{session user id}` — server-derived, never requested. */
+      channel: string;
+      /** ISO-8601 UTC expiry; the client re-mints at 80% of the lifetime. */
+      expiresAt: string;
+    };
