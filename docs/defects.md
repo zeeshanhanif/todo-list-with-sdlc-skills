@@ -13,6 +13,43 @@ recycled.
 
 | DEF-005 | 2026-07-29 | NFR-USE-004 (design.md §5 control boundaries) / all web form controls, FEAT-001/002/003/005/006/009/010/011 | Every `input`/`textarea`/`select` in `apps/web` outlined in `--color-border-strong` — **1.48:1** light / **1.64:1** dark, below the 3:1 §5 requires for a boundary that is the control's only identifier. A web-tier accessibility pass, not per-feature work | `d27af38` (13 sites → `--color-text-muted`; 1.48→4.76 light, 1.64→6.64 dark) | 2026-07-29 — `control-contrast.spec.ts` sweep red before / green after across 8 screens; api 191, worker 20, e2e 21 |
 
+| DEF-006 | 2026-07-29 | NFR-USE-004 (design.md §5 contrast) / FEAT-001, FEAT-003, FEAT-005, FEAT-009 — the **inline-alert** instances DEF-003 and DEF-004 both missed | **Open.** Five shipped sites still put `--color-danger` on `--color-danger-subtle` at `small` — the **3.95:1** pairing DEF-003 measured and `--color-danger-text` (6.80:1) exists to replace: `app/signup/page.tsx:89`, `app/signin/page.tsx:128`, `app/reset-password/page.tsx:46`, `components/lists-nav.tsx:117`, `components/list-dialog.tsx:196`. A web-tier pass, not per-feature rework | _open_ | _open_ |
+
+## DEF-006 — the inline-alert instances of the DEF-003 pairing
+
+**Reported:** 2026-07-29, by FEAT-013's ui-design, while specifying a confirm
+dialog whose error slot copies `list-dialog.tsx`.
+
+**Symptom.** `--color-danger` (#DC2626) on `--color-danger-subtle` (#FEE2E2)
+measures **3.95:1** — the exact pairing DEF-003 measured and fixed — and design.md
+§5 requires 4.5:1 at `small` (14px). Five sites still carry it:
+`app/signup/page.tsx:89-91` (FEAT-001), `app/signin/page.tsx:128-130` (FEAT-003),
+`app/reset-password/page.tsx:46-48` (FEAT-005), `components/lists-nav.tsx:117-119`
+and `components/list-dialog.tsx:196-198` (FEAT-009). The partner token
+`--color-danger-text` (6.80:1 light / 7.8:1 dark) has existed since the
+2026-07-28 amendment.
+
+**Why two earlier sweeps missed it.** DEF-003 fixed the *screen-level failure*
+component it was found in (`list-view-failure.tsx`) and DEF-004 swept the
+**chip/badge** shape of the same family. Neither grepped for the pairing in
+**form-level inline alerts**, which is where the remaining five live. Worth
+recording as a method note: each of these three defects was found by rendering
+one new thing and looking, not by the sweep the previous one ran — the sweeps
+were scoped to the shape that failed rather than to the token pairing.
+
+**Scope and route.** One token substitution per site
+(`--color-danger` → `--color-danger-text` for text **on the subtle tint**; fill
+and border uses of `--color-danger` are correct and stay), plus a rendered check
+in both themes. Re-verification touches four features' reports, so the honest
+close is a single dated note here plus the sweep's evidence — the DEF-005 shape —
+not four re-verifications. A failing test first, per the maintenance route:
+`e2e/tests/control-contrast.spec.ts` already sweeps 8 screens for the DEF-005
+rule and is the natural home for a text-on-tint assertion.
+
+**Not FEAT-013's rework.** FEAT-013's own confirm dialog is specified with
+`--color-danger-text` (ui-design §SCR-WEB-010 Conformance), so that feature ships
+correct whether or not this is fixed first.
+
 ## DEF-005 — form-control outlines fail the non-text contrast rule
 
 **Reported:** 2026-07-29, by the FEAT-012 design-system amendment, which ruled on
