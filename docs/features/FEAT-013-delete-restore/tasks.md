@@ -89,7 +89,7 @@
       cookie, nothing written), and AC-8 (**exactly one** `DbService` query per
       route, inside the 300 ms bound), each rendering the `ApiError` envelope.
 
-- [ ] T5 — Contract: the cross-feature consequences of a deletion
+- [x] T5 — Contract: the cross-feature consequences of a deletion
       (`tasks-lists-integration.spec.ts`; design §3 side-effects; FR-TASK-013,
       FR-LIST-005, and the FEAT-010/011/012 routes).
       Done when: AC-2 passes (after a delete the task is in **neither** `active` nor
