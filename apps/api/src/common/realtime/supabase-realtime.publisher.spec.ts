@@ -123,11 +123,19 @@ describe('SupabaseRealtimePublisher', () => {
     ).resolves.toBeUndefined();
 
     expect(errors).toHaveLength(1);
-    const line = JSON.parse(errors[0]) as { msg: string; reason: string };
+    const line = JSON.parse(errors[0]) as {
+      msg: string;
+      reason: string;
+      userId: string;
+    };
     expect(line.msg).toBe('realtime publish failed');
     expect(line.reason).toBe('http_500');
-    // The key is never in a log line (AC-8).
+    // AC-11 names both halves: the reason AND whose signal was lost — without
+    // that, an operator sees that sync broke but not for whom.
+    expect(line.userId).toBe(USER);
+    // ...and never the payload or a secret (AC-8, AC-11).
     expect(errors[0]).not.toContain(SERVICE_KEY);
+    expect(errors[0]).not.toContain('cursor');
   });
 
   it('swallows a refused connection (AC-4)', async () => {
@@ -160,6 +168,27 @@ describe('SupabaseRealtimePublisher', () => {
     await new SupabaseRealtimePublisher().publishChanged(USER);
     expect(errors).toEqual([]);
     expect(warns).toEqual([]);
+  });
+
+  it('costs a healthy write far less than the 300 ms budget (AC-4)', async () => {
+    // AC-4's measurement clause. The publish is awaited before the response is
+    // released (D3), so whatever it costs comes straight out of
+    // NFR-PERF-001's 300 ms — the number has to be observed, not assumed.
+    const publisher = new SupabaseRealtimePublisher();
+    const samples: number[] = [];
+    for (let i = 0; i < 20; i++) {
+      const started = process.hrtime.bigint();
+      await publisher.publishChanged(USER);
+      samples.push(Number(process.hrtime.bigint() - started) / 1e6);
+    }
+
+    samples.sort((a, b) => a - b);
+    const p95 = samples[Math.floor(samples.length * 0.95) - 1];
+    // Indicative, not a production measurement: a loopback stub is faster than
+    // a real Supabase round trip. What it rules out is the publisher itself
+    // being expensive — the remaining unknown is network, bounded by the cap.
+    expect(p95).toBeLessThan(50);
+    expect(captured).toHaveLength(20);
   });
 
   describe('circuit breaker (AC-4)', () => {

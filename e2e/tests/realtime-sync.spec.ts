@@ -191,6 +191,81 @@ test("AC-9: a background refresh does not disturb what the user is doing", async
   await deviceB.context().close();
 });
 
+test("AC-9: the list dialog keeps its half-typed name across a refresh", async ({
+  browser,
+  page,
+  request,
+}) => {
+  // AC-9 names the LIST dialog alongside the delete confirm — a different
+  // component (list-dialog.tsx) with its own state, so covering one does not
+  // cover the other.
+  const email = uniqueEmail();
+  await register(request, email);
+  await signIn(page, email);
+  const deviceB = await secondDevice(browser, email);
+
+  await deviceB.getByTestId("new-list").click();
+  await expect(deviceB.getByTestId("list-dialog")).toBeVisible();
+  const nameInput = deviceB.getByTestId("list-name-input");
+  await nameInput.fill("Groceries, half-typed");
+
+  await addTask(page, `Landing under the dialog ${Date.now()}`);
+  await deviceB.evaluate(() => window.__todoSync?.signal());
+  await deviceB.waitForTimeout(1_000);
+
+  await expect(deviceB.getByTestId("list-dialog")).toBeVisible();
+  await expect(nameInput).toHaveValue("Groceries, half-typed");
+  await expect(nameInput).toBeFocused();
+
+  await deviceB.context().close();
+});
+
+test("AC-9: a refresh mid-write does not roll back an optimistic control", async ({
+  browser,
+  page,
+  request,
+}) => {
+  // The clause with the sharpest failure mode: the checkbox is optimistic with
+  // rollback (FEAT-012 ui-design D1), so a refresh landing while its write is
+  // still in flight must not make the box snap back to the server's older
+  // truth. Nothing else in the suite exercises a refresh DURING a write.
+  const email = uniqueEmail();
+  await register(request, email);
+  await signIn(page, email);
+  const deviceB = await secondDevice(browser, email);
+
+  await addTask(page, `Optimistic ${Date.now()}`);
+  await expect(deviceB.getByTestId("task-row")).toHaveCount(1, {
+    timeout: SYNC_BUDGET_MS,
+  });
+
+  // Hold B's completion request open for 2.5 s so the write is genuinely in
+  // flight while the refresh lands. The handler stays installed and completes
+  // the request itself — unrouting a pending handler is what "Route is already
+  // handled" means, and it would be teardown noise, not a finding.
+  await deviceB.route("**/api/tasks/*/complete", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 2_500));
+    await route.continue();
+  });
+
+  const box = deviceB.getByTestId("task-checkbox").first();
+  await box.check();
+  await expect(box).toBeChecked(); // optimistic, before the server answers
+
+  // A refresh lands underneath the in-flight write.
+  await deviceB.evaluate(() => window.__todoSync?.signal());
+  await deviceB.waitForTimeout(1_000);
+  await expect(box).toBeChecked(); // not rolled back by the refresh
+
+  // And the write still lands, so the assertion above is about a refresh
+  // arriving mid-write rather than about a request that never completed.
+  await expect(deviceB.getByTestId("completed-section")).toBeVisible({
+    timeout: 10_000,
+  });
+
+  await deviceB.context().close();
+});
+
 test("AC-10: sync belongs to the authenticated zone only", async ({ page }) => {
   // No session at all: the auth screens mount no provider, so there is no seam,
   // no token request and no polling.
