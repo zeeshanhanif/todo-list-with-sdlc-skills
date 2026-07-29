@@ -1,7 +1,12 @@
 # Tasks: FEAT-019 — Realtime cross-device sync
 
 > Executes: docs/features/FEAT-019-realtime-sync/technical-design.md
-> Status: not started · Last updated: 2026-07-29
+> Status: **all tasks done — developer-done** · Last updated: 2026-07-29
+> **AC-1b is OPEN**, as the design said it would be: the Realtime socket
+> transport needs a provisioned Supabase project. `staging-checklist.md` is
+> written and unrun. Everything else is demonstrated (map below). Do not read
+> AC-1 as covering AC-1b — AC-1 drives the client from the provider's signal
+> entry point; the transport underneath it is what remains unproven.
 > Notes: **No migration** (design §4) — this feature stores nothing. The one piece
 > of SQL it delivers (`deploy/supabase/realtime-authorization.sql`, T8) must **not**
 > go into `migrations/`: that chain runs against the local docker Postgres, which
@@ -175,7 +180,7 @@
       execute cold, the env documentation lists every new variable with its default
       and whether it is a secret, and `git grep` finds no committed key.
 
-- [ ] T9 — Verify: acceptance criteria **AC-1..AC-12** (design §6) demonstrably
+- [x] T9 — Verify: acceptance criteria **AC-1..AC-12** (design §6) demonstrably
       pass, with **AC-1b recorded as open** unless a Supabase project was
       provisioned and the T8 checklist was actually run — in which case record its
       result. Confirm: `migrations/` is unchanged and `npm run db:migrate` is a
@@ -188,3 +193,33 @@
       re-checked serially before it is attributed to this feature.
       Done when: the full feature suite passes, the checklist above is satisfied,
       and AC-1b's status is written down rather than assumed.
+
+## Verification record (T9, 2026-07-29)
+
+Run at head with `REALTIME_PROVIDER` unset — the shipped default — so every
+number below is the configuration users actually get.
+
+| AC | Demonstrated by | Result |
+| :- | :--- | :--- |
+| AC-1 (signal → converge < 5 s) | `e2e/tests/realtime-sync.spec.ts` "AC-1", two contexts | pass |
+| **AC-1b (socket transport)** | `staging-checklist.md` — needs a Supabase project | **OPEN, not run** |
+| AC-2 (fallback converges; focus/online immediate; back-off) | e2e "AC-2" (real stack, no socket) + `sync-schedule.spec.ts` + `sync-provider.spec.tsx` | pass |
+| AC-3 (ten routes signal once; failures/reads none) | `change-signal.interceptor.spec.ts`, route by route | pass |
+| AC-4 (write untouched by 500 / refusal / hang; breaker; latency) | `supabase-realtime.publisher.spec.ts` + interceptor spec | pass |
+| AC-5 (token claims, TTL, `{enabled:false}`, 401) | `realtime.controller.spec.ts`, `realtime-token.service.spec.ts` | pass |
+| AC-6 (no request shape mints another channel; token is no API credential) | `realtime.controller.spec.ts` | pass |
+| AC-7 (content-free body) | `supabase-realtime.publisher.spec.ts` — whole body asserted | pass |
+| AC-8 (secret hygiene) | controller + publisher specs; `git grep` for committed keys | pass |
+| AC-9 (typing, open dialog, coalescing) | e2e "AC-9" + `sync-provider.spec.tsx` | pass |
+| AC-10 (authenticated zone only) | e2e "AC-10" + unmount test | pass |
+| AC-11 (structured logs, silent on success) | `supabase-realtime.publisher.spec.ts` | pass |
+| AC-12 (no regression) | api 240 (serial), worker 20, web 23, e2e 28; boundaries, lint, build clean | pass |
+
+Also confirmed: `migrations/` untouched and `db:migrate` a no-op at head; no
+existing exported contract changed shape; the API and worker gained **no**
+dependency and `@supabase/supabase-js` appears only in `apps/web`.
+
+One transient: during T5 a single unidentified api test failed once and did not
+reproduce across four subsequent serial runs. Consistent with DEF-002's known
+residual flakiness but **not confirmed** as such — recorded rather than
+attributed.
