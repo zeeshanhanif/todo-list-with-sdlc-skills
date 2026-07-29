@@ -97,6 +97,24 @@ should name the unit runner and E2E framework.*
 - **Web fonts:** dropped create-next-app's `next/font/google` (Geist) in
   `layout.tsx` — the design system uses Inter via the token font stack, and
   removing the Google Fonts fetch keeps the build network-free/offline-safe.
+- **Web-tier unit test runner added (2026-07-29, foundations — not a feature).**
+  The scaffold gave `apps/api` and `apps/worker` Jest but left `apps/web` with no
+  unit runner, so every client-side assertion had to be paid for at Playwright
+  prices. FEAT-012, FEAT-013 and FEAT-019 each recorded this as a growing debt;
+  FEAT-019 forced it, because its sync scheduler is **timing logic NFR-PERF-004
+  depends on** and back-off behaviour is slow and flaky to assert through a
+  browser. Now: **Jest 30 + `next/jest` + Testing Library + jsdom** in
+  `apps/web` (`jest.config.ts`, `jest.setup.ts`), specs beside the code as
+  `src/**/*.spec.ts[x]` — the api/worker convention, not a separate `__tests__`
+  tree. `next/jest` supplies the Next compiler transform, the `@/*` alias, and
+  the style/image/font mocks, so the config carries almost nothing of ours.
+  Wired into the root `npm test`, so **CI picks it up with no workflow change**.
+  Two limits, both from Next's own testing guide: **async Server Components are
+  not unit-testable** (E2E keeps covering those — which is most `app/**/page.tsx`
+  here), and a stale `.next/standalone` build directory collides in Jest's haste
+  map, so `.next` is in `modulePathIgnorePatterns`. First spec:
+  `src/lib/due-date.spec.ts` — real shipped code, chosen so the runner's first
+  proof was a real assertion rather than a smoke test.
 
 ## Boilerplate removed
 
