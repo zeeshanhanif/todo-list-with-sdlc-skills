@@ -205,7 +205,12 @@ export function ListsNav({
                       padding: "0 var(--space-2)",
                       borderRadius: "var(--radius-full)",
                       background: "var(--color-surface-sunken)",
-                      color: "var(--color-text-muted)",
+                      // Text on the sunken tint takes `--color-text`
+                      // (design.md §2): muted here measures 4.34:1, under the
+                      // 4.5:1 §5 requires at `caption`. The second instance of
+                      // DEF-004, found by grepping the pairing rather than by
+                      // stopping at the reported component.
+                      color: "var(--color-text)",
                       fontSize: "var(--font-size-caption)",
                     }}
                   >

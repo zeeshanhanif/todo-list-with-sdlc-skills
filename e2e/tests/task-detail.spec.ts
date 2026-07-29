@@ -323,3 +323,128 @@ test("FR-AUTHZ-003: an unknown task id renders one uniform not-found, in the she
   // The shell stays operable — a data failure never strands the frame.
   await expect(page.getByTestId("lists-nav")).toBeVisible();
 });
+
+/**
+ * WCAG 2.1 contrast ratio between two `rgb(r, g, b)` strings, as the browser
+ * reports computed styles. Lives here rather than in a helper module because
+ * this is the only suite that measures colour today; move it when a second one
+ * needs it.
+ */
+function contrastRatio(fg: string, bg: string): number {
+  const parse = (c: string): number[] => {
+    const m = c.match(/\d+(\.\d+)?/g);
+    if (!m || m.length < 3) throw new Error(`unparseable colour: ${c}`);
+    return m.slice(0, 3).map(Number);
+  };
+  const lum = (rgb: number[]): number => {
+    const [r, g, b] = rgb.map((v) => {
+      const s = v / 255;
+      return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const [a, b] = [lum(parse(fg)), lum(parse(bg))];
+  const [hi, lo] = a > b ? [a, b] : [b, a];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/**
+ * DEF-004 regression guard, and the first automated contrast check in the
+ * project.
+ *
+ * design.md §5 requires **4.5:1** for text at `caption` (12px) size, and the
+ * due-date `chip` is the component that has failed it twice: DEF-003 fixed the
+ * overdue variant's text and action, and DEF-004 is the ORDINARY variant —
+ * `--color-text-muted` on `--color-surface-sunken`, which measures 4.34:1.
+ *
+ * Asserted as a RATIO computed from the rendered colours rather than as
+ * expected hex values, deliberately: the criterion is the ratio, so a future
+ * token change that keeps the rule stays green while one that breaks it goes
+ * red — which a hardcoded-colour assertion could not tell apart.
+ */
+test("NFR-USE-004 / design.md §5: both due-chip variants meet 4.5:1 [DEF-004]", async ({
+  page,
+  request,
+}) => {
+  const email = uniqueEmail();
+  expect(
+    (
+      await request.post(`${API}/auth/register`, {
+        data: { email, password: PW },
+      })
+    ).status(),
+  ).toBe(201);
+  await markVerified(email);
+  await page.goto("/signin");
+  await page.getByTestId("email-input").fill(email);
+  await page.getByTestId("password-input").fill(PW);
+  await page.getByTestId("submit").click();
+  await page.waitForURL("/");
+
+  await page.getByTestId("quick-add-input").fill("Contrast check");
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("task-row")).toHaveCount(1);
+
+  const chipColours = async () =>
+    page
+      .getByTestId("task-row")
+      .getByTestId("due-chip")
+      .evaluate((el) => {
+        const s = getComputedStyle(el);
+        return { color: s.color, background: s.backgroundColor };
+      });
+
+  // --- the ORDINARY variant: a due date that has not passed (DEF-004) ---
+  await page.getByTestId("task-row-link").click();
+  await expect(page.getByTestId("task-detail")).toBeVisible();
+  await page.getByTestId("detail-due").fill(localDateTime(3));
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("detail-panel")).toHaveCount(0);
+  await expect(page.getByTestId("due-chip")).toHaveAttribute(
+    "data-overdue",
+    "false",
+  );
+
+  const upcoming = await chipColours();
+  const upcomingRatio = contrastRatio(upcoming.color, upcoming.background);
+  expect(
+    upcomingRatio,
+    `upcoming due chip ${upcoming.color} on ${upcoming.background} = ${upcomingRatio.toFixed(2)}:1`,
+  ).toBeGreaterThanOrEqual(4.5);
+
+  // --- the OVERDUE variant: the one DEF-003 already fixed, guarded so it
+  //     cannot regress while the other is being changed ---
+  await page.getByTestId("task-row-link").click();
+  await expect(page.getByTestId("task-detail")).toBeVisible();
+  await page.getByTestId("detail-due").fill(localDateTime(-3));
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("detail-panel")).toHaveCount(0);
+  await expect(page.getByTestId("due-chip")).toHaveAttribute(
+    "data-overdue",
+    "true",
+  );
+
+  const overdue = await chipColours();
+  const overdueRatio = contrastRatio(overdue.color, overdue.background);
+  expect(
+    overdueRatio,
+    `overdue due chip ${overdue.color} on ${overdue.background} = ${overdueRatio.toFixed(2)}:1`,
+  ).toBeGreaterThanOrEqual(4.5);
+
+  // --- the SECOND instance of DEF-004: the sidebar count badge, which uses the
+  //     identical muted-on-sunken pairing at the identical size. Found by
+  //     grepping the pairing rather than by stopping at the reported component,
+  //     and guarded here so the two cannot drift apart again. ---
+  const badge = await page
+    .getByTestId("list-count")
+    .first()
+    .evaluate((el) => {
+      const s = getComputedStyle(el);
+      return { color: s.color, background: s.backgroundColor };
+    });
+  const badgeRatio = contrastRatio(badge.color, badge.background);
+  expect(
+    badgeRatio,
+    `sidebar count badge ${badge.color} on ${badge.background} = ${badgeRatio.toFixed(2)}:1`,
+  ).toBeGreaterThanOrEqual(4.5);
+});

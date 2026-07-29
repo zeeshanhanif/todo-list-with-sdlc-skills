@@ -39,9 +39,13 @@ export function DueChip({
         background: isOverdue
           ? "var(--color-danger-subtle)"
           : "var(--color-surface-sunken)",
+        // Both pairings are the design system's own tint rules (design.md §2),
+        // and both were measured rather than eyeballed. The ordinary variant is
+        // `--color-text` because muted on the sunken tint is 4.34:1 — under the
+        // 4.5:1 §5 requires at this size, which was DEF-004.
         color: isOverdue
           ? "var(--color-danger-text)"
-          : "var(--color-text-muted)",
+          : "var(--color-text)",
       }}
     >
       {isOverdue && <strong>Overdue</strong>}
