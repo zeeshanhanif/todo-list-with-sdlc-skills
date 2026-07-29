@@ -9,7 +9,7 @@ recycled.
 | DEF-001 | 2026-07-27 | *(no FR — test infrastructure)* / FEAT-003, FEAT-005, FEAT-006 suites | Specs sharing an IP range delete each other's `auth_rate_buckets` rows mid-test, breaking `429` assertions | `24ae0d3` (disjoint ranges + `rate-limit-isolation.spec.ts` guard) | 2026-07-27 — guard red before / green after; flake rate ~25% → ~8% |
 | DEF-002 | 2026-07-27 | *(no FR — test infrastructure)* / api suite | **Open.** Residual ~7% parallel-run flakiness after DEF-001: a *different* test fails each run, always "a row that should exist doesn't". Cross-worker DB interference **ruled out** — per-worker databases were tried and reverted | _open_ | _open_ |
 | DEF-003 | 2026-07-28 | NFR-USE-004 (design.md §5 contrast) / FEAT-010, SCR-WEB-008 | `list-view-failure.tsx`'s alert put `--color-danger` text on `--color-danger-subtle` — **3.95:1**, below the 4.5:1 design.md §5 requires. Fixing it surfaced a **second** failure the report had missed: the action inside the tint at **4.48:1** | `bd200ec` (partner tokens; 3.95→6.80 and 4.48→6.21) | 2026-07-28 — measured, rendered output checked, e2e 15 green |
-| DEF-004 | 2026-07-29 | NFR-USE-004 (design.md §5 contrast) / FEAT-011, SCR-WEB-008 + SCR-WEB-010 | **Open.** `task-meta.tsx`'s **non-overdue** `DueChip` puts `--color-text-muted` on `--color-surface-sunken` — **4.34:1** at `caption` (12px), below the 4.5:1 design.md §5 requires. The *overdue* variant is fine (6.80:1, the pairing DEF-003 fixed); it is the ordinary due-date chip that fails | _open_ | _open_ |
+| DEF-004 | 2026-07-29 | NFR-USE-004 (design.md §5 contrast) / FEAT-011, SCR-WEB-008 + SCR-WEB-010; **also FEAT-009**'s sidebar badge (2nd instance) | `task-meta.tsx`'s **non-overdue** `DueChip` put `--color-text-muted` on `--color-surface-sunken` — **4.34:1** at `caption` (12px), below the 4.5:1 design.md §5 requires. The *overdue* variant was fine (6.80:1, the pairing DEF-003 fixed); it was the ordinary due-date chip that failed — and `lists-nav.tsx`'s count badge, found by grepping the pairing | `1294811` (text on the sunken tint takes `--color-text`; 4.34→16.30 light, 7.05→15.49 dark) | 2026-07-29 — failing contrast test red before / green after; FEAT-011 report re-verified **Accepted (unchanged)**; api 191, e2e 19 |
 
 | DEF-005 | 2026-07-29 | NFR-USE-004 (design.md §5 control boundaries) / all web form controls, FEAT-001/003/005/006/009/011 | **Open.** Every `input`/`textarea`/`select` in `apps/web` outlines in `--color-border-strong` — **1.48:1** light / **1.64:1** dark, below the 3:1 §5 requires for a boundary that is the control's only identifier. Scope is a web-tier accessibility pass, not per-feature work | _open_ | _open_ |
 
@@ -105,6 +105,52 @@ DEF-003 recorded and FEAT-012's design re-flagged as its third concrete case —
 the same two honest options apply: stand the runner up first (a computed-style
 assertion would make this trivial and would cover DEF-003's fix too), or fix and
 re-verify by inspection with the measurement recorded.
+
+### Resolution — 2026-07-29
+
+**The premise above was wrong, and that is the most useful thing in this entry.**
+"Failing test first has no home" assumed a *unit* runner. It does not need one:
+**Playwright reads computed styles**, so a contrast assertion had a home all
+along — in the e2e suite, against the rendered element, which is a *better* place
+to measure colour than a jsdom unit test would have been. FEAT-012's acceptance
+run demonstrated the technique (`toHaveCSS`) and this fix generalized it. DEF-003
+was closed without a regression test on a premise that was never true; its
+pairing is now covered by the guard below.
+
+**The guard.** `e2e/tests/task-detail.spec.ts` asserts a **computed contrast
+ratio**, not expected hex values — the criterion is the ratio, so a future token
+change that keeps the rule stays green while one that breaks it goes red, which
+a hardcoded-colour assertion cannot distinguish. It covers three surfaces: the
+upcoming chip (this defect), the overdue chip (DEF-003's fix, guarded against
+regression while its neighbour was edited), and the sidebar badge. Observed
+**red at 4.34:1 before the fix, green after**.
+
+**A second instance, found by grepping the pairing rather than the component.**
+`lists-nav.tsx`'s sidebar count badge used identical colours at an identical
+size and is on screen constantly. It belongs to **FEAT-009**, not the reporting
+feature — fixed together, for the reason DEF-003 recorded: leaving an identical
+instance is how these drift apart. The scope line above ("one component, two
+token references") was an underestimate, written before the pairing was grepped.
+
+**The fix is the system's own rule, not a new invention.** design.md §2, as
+amended 2026-07-29 by FEAT-012's escalation, already says text on the sunken
+tint takes `--color-text`. Applying it needed no token and no further amendment.
+
+| Pairing | Before | After | |
+| :-- | --: | --: | :-- |
+| chip / badge, light | 4.34:1 ❌ | **16.30:1** ✅ | `--color-text-muted` → `--color-text` |
+| chip / badge, dark | 7.05:1 ✅ | 15.49:1 ✅ | **dark was already passing — this was a light-theme-only defect** |
+
+**Verification.** Ratios computed from `tokens.json`'s actual values (WCAG 2.1),
+the *rendered* output confirmed in both themes by screenshot, and the full gate
+re-run: api 191 serial, e2e 19, boundaries, lint, build clean. FEAT-011's
+acceptance report carries a dated re-verification — **Accepted (unchanged)**.
+
+**What the hierarchy lost, and where it went.** The muted grey was doing two jobs:
+signalling "secondary metadata" and, accidentally, failing contrast. After the
+fix that signal is carried by size and the pill tint instead — the upcoming chip
+still reads as secondary, and the overdue chip stays visibly more urgent through
+its red tint plus the word "Overdue". Confirmed by eye, not assumed.
 
 ## DEF-003 — the list-view error alert fails AA contrast
 

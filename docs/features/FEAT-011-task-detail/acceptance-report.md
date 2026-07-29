@@ -1,15 +1,95 @@
 # Acceptance Report: FEAT-011 — Task detail (title, due date, priority, overdue)
 
-> Verdict: **Accepted** · Date: 2026-07-28 (re-verification after rework)
-> Prior verdict: **Rework** · 2026-07-28 · preserved in full below
+> Verdict: **Accepted** · Date: 2026-07-29 (re-verification after the DEF-004 fix)
+> Prior verdicts: **Accepted** 2026-07-28 (after rework) · **Rework** 2026-07-28 · both preserved below
 > Standard: technical-design.md §6 (AC-1..AC-14) · Sources: docs/srs.md,
 > docs/use-cases.md, docs/design.md, docs/features/FEAT-011-task-detail/ui-design.md,
 > docs/design-manifest.json
-> Repo state audited: `d19d45a` (first pass: `db94955`)
+> Repo state audited: `1294811` (prior: `d19d45a`; first pass: `db94955`)
 
 ---
 
-# Re-verification — 2026-07-28 · Verdict: Accepted
+# Re-verification — 2026-07-29 · Verdict: Accepted (unchanged)
+
+Triggered by the **DEF-004** fix (`1294811`), which changed one token reference
+in this feature's `task-meta.tsx`: the ordinary due-date chip's text moved from
+`--color-text-muted` to `--color-text`. Re-verification is scoped to what a
+colour change can affect — the rendered result and the suites — not a
+re-derivation of contracts that no commit touched.
+
+**What the defect was.** `--color-text-muted` on `--color-surface-sunken`
+measures **4.34:1** at `caption` (12px), below the **4.5:1** design.md §5
+requires. This feature's acceptance on 2026-07-28 measured the *overdue* chip
+(AC-14's subject, and DEF-003's fix) and never measured the ordinary one, which
+is the variant on screen for every task with a due date that has not yet passed.
+It was found on 2026-07-29 by FEAT-012's ui-design while measuring an unrelated
+pairing.
+
+**The fix applies this system's own rule** — design.md §2, as amended
+2026-07-29: text on the sunken tint takes `--color-text`. No new token, no
+further amendment.
+
+| Pairing | Before | After | |
+| :-- | --: | --: | :-- |
+| due chip (upcoming), light | 4.34:1 ❌ | **16.30:1** ✅ | `--color-text-muted` → `--color-text` |
+| due chip (upcoming), dark | 7.05:1 ✅ | 15.49:1 ✅ | dark was already passing — this was a light-theme-only defect |
+| due chip (overdue) | 6.80:1 ✅ | 6.80:1 ✅ | unchanged; DEF-003's pairing, now guarded |
+
+**A second instance was found and fixed with it.** Grepping the *pairing* rather
+than the reported component turned up `lists-nav.tsx`'s sidebar count badge —
+identical colours, identical size, on screen constantly. It belongs to FEAT-009,
+not this feature, but it is the same defect, and DEF-003 already recorded what
+happens when a fix stops at the reported symptom. FEAT-009's own suites (`lists`
+unit specs and `lists.spec.ts` e2e) are green at this commit; its badge is now
+covered by the contrast guard below.
+
+## Re-executed (2026-07-29, from `1294811`)
+
+| Suite | Observed |
+| :-- | :-- |
+| api, serial (`--runInBand`) | **191 passed**, 31 suites |
+| e2e (`npm run test:e2e`) | **19 passed** — 18 prior + the new DEF-004 guard |
+| boundaries / lint / build | clean |
+
+**The new test is the durable guard both contrast defects wanted.** It asserts a
+**computed contrast ratio** read off the rendered element, not expected hex
+values — so a future token change that keeps the rule stays green while one that
+breaks it goes red, which a hardcoded-colour assertion could not tell apart. It
+covers three surfaces: the upcoming chip (DEF-004), the overdue chip (DEF-003's
+fix, guarded against regression while its neighbour was being edited), and the
+sidebar badge (the second instance). It was **observed red at 4.34:1 before the
+fix and green after** — the failing-test-first step the maintenance route
+requires, which DEF-003 could not take because no harness for it existed.
+
+Both themes were rendered and inspected: the upcoming chip reads clearly without
+overpowering the row, and the overdue chip remains visibly more urgent through
+its red tint and the word "Overdue". The hierarchy that the muted grey had been
+carrying is now carried by size and tint instead of by low contrast — which is
+the correct place for it.
+
+## Findings (2026-07-29 re-verification)
+
+- **Rework: none.** **Design defect: none.**
+- **Minor, carried forward unchanged:** `apps/web` still has no unit-test runner.
+  This fix narrows the gap's consequences — contrast is now assertable in
+  Playwright, which is how the guard exists at all — but component state and
+  failure modes still have no cheap home. Recorded against DEF-003/DEF-004 and
+  FEAT-012's report.
+- **Minor, new:** this feature's AC-14 names the overdue chip's colour treatment
+  but no criterion ever covered the **ordinary** chip's presentation, which is
+  why the audit that accepted this feature could not have caught DEF-004. Not
+  worth a design amendment on a shipped feature; recorded so future ui-facing
+  criteria name *every* variant of a component they constrain, not just the
+  notable one.
+
+## RTM (2026-07-29 re-verification)
+
+No change. The Test ref already points at this report, and this dated section is
+the record — the computed-verification rule the pipeline uses throughout.
+
+---
+
+# Re-verification — 2026-07-28 · Verdict: Accepted *(superseded, preserved)*
 
 Both rework findings are resolved, verified against the specs that raised them
 rather than against the rework's own description, and the full standard was
