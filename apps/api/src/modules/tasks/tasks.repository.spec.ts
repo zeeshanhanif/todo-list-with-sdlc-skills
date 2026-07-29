@@ -459,7 +459,9 @@ describe('TasksRepository (integration)', () => {
     expect(await tasks.setCompletion(ownerA, randomUUID(), true)).toBeNull();
     let now = await storedRow(task.id);
     expect(now.completed_at).toBeNull();
-    expect(now.updated_at.toISOString()).toBe(untouched.updated_at.toISOString());
+    expect(now.updated_at.toISOString()).toBe(
+      untouched.updated_at.toISOString(),
+    );
 
     // Soft-deleted — not found even for its own owner (FEAT-013 owns restore).
     await db.query('UPDATE tasks SET deleted_at = now() WHERE id = $1', [

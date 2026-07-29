@@ -88,7 +88,7 @@
       restores it) — the first feature able to move a row across that aggregate's
       predicate, so it is asserted rather than assumed.
 
-- [ ] T6 — UI integration point (design §5): BFF routes
+- [x] T6 — UI integration point (design §5): BFF routes
       `app/api/tasks/[id]/complete/route.ts` and `.../reopen/route.ts` (POST,
       cookie forwarded, status + JSON relayed verbatim, no body);
       `components/task-checkbox.tsx` as a **new client island** (design.md §4

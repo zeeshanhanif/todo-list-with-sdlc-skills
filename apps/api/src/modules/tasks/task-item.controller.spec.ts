@@ -413,7 +413,9 @@ describe('task item endpoints (contract)', () => {
     const afterReopen = await request(server())
       .get(taskPath(task.id))
       .set('Cookie', cookie);
-    expect((afterReopen.body as TaskDetailResponse).task.completedAt).toBeNull();
+    expect(
+      (afterReopen.body as TaskDetailResponse).task.completedAt,
+    ).toBeNull();
   });
 
   it('FEAT-012 AC-5: repeating either transition is 200 with the same state, never 409', async () => {
@@ -439,7 +441,9 @@ describe('task item endpoints (contract)', () => {
       .post(reopenTaskPath(task.id))
       .set('Cookie', cookie);
     expect(reopenAgain.status).toBe(200);
-    expect((reopenAgain.body as TaskStatusResponse).task.completedAt).toBeNull();
+    expect(
+      (reopenAgain.body as TaskStatusResponse).task.completedAt,
+    ).toBeNull();
   });
 
   it('FEAT-012 AC-7: 404 task_not_found is byte-identical across all four cases, on both routes', async () => {

@@ -12,10 +12,12 @@ import {
   type UpdateTaskResponse,
 } from "@todo/shared";
 import {
+  formatDueDate,
   fromDateTimeLocalValue,
   toDateTimeLocalValue,
 } from "@/lib/due-date";
 import { DueChip, PRIORITY_LABELS } from "@/components/task-meta";
+import { TaskCheckbox } from "@/components/task-checkbox";
 
 // SCR-WEB-010 — Task Detail (FEAT-011 ui-design). design.md §4
 // `task-detail-panel`: editable title, due-date picker, priority selector.
@@ -25,10 +27,12 @@ import { DueChip, PRIORITY_LABELS } from "@/components/task-meta";
 // own saving and error state, so a failure on one leaves the others operable,
 // and a failed save KEEPS the user's value rather than reverting it (NFR-REL-004).
 //
-// Deliberately absent, each with a feature that owns it: the complete-checkbox
-// and status control (FEAT-012), delete (FEAT-013). And NO `list-picker`: no FR
-// authorizes moving a task between lists and the PATCH contract rejects `listId`
-// (ui-design D3) — a control the API will not honour is worse than none.
+// FEAT-012 turns the read-only status line into the status CONTROL — the same
+// `checkbox` the list rows use (ui-design D2), so completing works identically
+// on both screens. Still deliberately absent: delete (FEAT-013), and the
+// `list-picker` — no FR authorizes moving a task between lists and the PATCH
+// contract rejects `listId` (ui-design D3); a control the API will not honour is
+// worse than none.
 // All values are design tokens.
 
 type Field = "title" | "dueAt" | "priority";
@@ -264,18 +268,23 @@ export function TaskDetail({
       </div>
       <FieldError message={errors.priority} testId="detail-priority-error" />
 
-      {/* Status — read-only here; completing a task is FEAT-012's. */}
-      <p
-        data-testid="detail-status"
-        style={{
-          marginTop: "var(--space-5)",
-          marginBottom: 0,
-          fontSize: "var(--font-size-small)",
-          color: "var(--color-text-muted)",
-        }}
-      >
-        {task.completedAt ? "Completed" : "Active"}
-      </p>
+      {/* Status — the control, not a line of text (FEAT-012). The same
+          `checkbox` the list rows use, so there is one target and one keyboard
+          path (Space) on both screens. It owns its own in-flight and error
+          state, exactly like the per-field saves above, so a failed toggle
+          leaves everything else operable. */}
+      <div data-testid="detail-status" style={{ marginTop: "var(--space-5)" }}>
+        <TaskCheckbox
+          taskId={task.id}
+          completed={task.completedAt !== null}
+          variant="detail"
+          label={
+            task.completedAt
+              ? `Completed ${formatDueDate(task.completedAt)}`
+              : "Mark complete"
+          }
+        />
+      </div>
     </div>
   );
 }
