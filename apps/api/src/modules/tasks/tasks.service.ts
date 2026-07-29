@@ -150,6 +150,46 @@ export class TasksService {
     }
     return toSummary(updated);
   }
+
+  /**
+   * FR-TASK-009 — mark an active task completed (FEAT-012 §3.1).
+   *
+   * The completion instant is the **server's**, written in SQL; nothing about
+   * it is client-supplied (FR-AUTHZ-004). Idempotent — completing a completed
+   * task returns the original instant rather than a re-stamp or a 409 (D2).
+   *
+   * Note what this method does **not** do: it does not clear the overdue flag.
+   * `toSummary` derives `isOverdue` in the one place FEAT-011 D3 put it, and
+   * its first clause is `completedAt === null` — so the response that completes
+   * a late task is already the response that reports it no longer overdue.
+   * FR-TASK-009's "completing clears overdue indication" is satisfied by
+   * inheritance, and a second implementation here would be exactly the drift
+   * that derivation exists to prevent.
+   */
+  async complete(ownerId: string, id: string): Promise<TaskSummary> {
+    return this.setCompletion(ownerId, id, true);
+  }
+
+  /** FR-TASK-010 — return a completed task to active (FEAT-012 §3.2). Clears
+   * the completion timestamp; `isOverdue` re-derives on the way out, so a task
+   * reopened with a past due date is overdue again. Idempotent on an already
+   * active task (D2). */
+  async reopen(ownerId: string, id: string): Promise<TaskSummary> {
+    return this.setCompletion(ownerId, id, false);
+  }
+
+  private async setCompletion(
+    ownerId: string,
+    id: string,
+    completed: boolean,
+  ): Promise<TaskSummary> {
+    assertTaskLookupId(id);
+    const row = await this.tasks.setCompletion(ownerId, id, completed);
+    if (!row) {
+      throw new TaskNotFoundError();
+    }
+    return toSummary(row);
+  }
 }
 
 /** Row → wire shape. Timestamps become ISO-8601 UTC strings; an active task

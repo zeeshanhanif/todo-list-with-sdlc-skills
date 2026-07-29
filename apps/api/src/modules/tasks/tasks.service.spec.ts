@@ -4,7 +4,11 @@ import { TASK_TITLE_MAX_LENGTH, type UpdateTaskRequest } from '@todo/shared';
 import { DbService } from '../../infra/db.service';
 import { TasksRepository } from './tasks.repository';
 import { TasksService } from './tasks.service';
-import { ListNotFoundError, TaskTitleInvalidError } from './tasks.errors';
+import {
+  ListNotFoundError,
+  TaskNotFoundError,
+  TaskTitleInvalidError,
+} from './tasks.errors';
 
 // Integration tests (need local Postgres; schema ensured by jest globalSetup).
 // FEAT-010 T3 — TasksService, the same AC set as T2 asserted through the wire
@@ -495,6 +499,92 @@ describe('TasksService — task detail (FEAT-011)', () => {
     expect(view.active[0]).toMatchObject({ dueAt: PAST, priority: 'high' });
     expect(view.active[1]).toMatchObject({ dueAt: FUTURE, priority: 'none' });
     expect(view.active[2]).toMatchObject({ dueAt: null, priority: 'none' });
+  });
+
+  // --- FEAT-012 T3 — complete / reopen (FR-TASK-009/010) ---
+
+  it('FEAT-012 AC-1/AC-2: complete sets an ISO-8601 UTC completedAt; reopen clears it', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const task = await tasks.create(owner, inbox, 'Wire it up');
+    expect(task.completedAt).toBeNull(); // fixture precondition, asserted
+
+    const done = await tasks.complete(owner, task.id);
+    expect(done.completedAt).toMatch(/Z$/);
+    expect(new Date(done.completedAt!).toISOString()).toBe(done.completedAt);
+    expect((await tasks.detail(owner, task.id)).task.completedAt).toBe(
+      done.completedAt,
+    );
+
+    const reopened = await tasks.reopen(owner, task.id);
+    expect(reopened.completedAt).toBeNull();
+    expect((await tasks.detail(owner, task.id)).task.completedAt).toBeNull();
+    // Nothing else moved across either transition.
+    expect(reopened).toMatchObject({
+      id: task.id,
+      listId: task.listId,
+      title: 'Wire it up',
+      priority: 'none',
+      dueAt: null,
+    });
+  });
+
+  it('FEAT-012 AC-4: completing clears overdue, reopening restores it, dueAt untouched', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const late = await tasks.create(owner, inbox, 'Late', { dueAt: PAST });
+    expect(late.isOverdue).toBe(true); // fixture precondition, asserted
+
+    // FR-TASK-009's note — satisfied by the ONE isOverdue derivation, not by a
+    // second rule here (design D4).
+    const done = await tasks.complete(owner, late.id);
+    expect(done.isOverdue).toBe(false);
+    expect(done.dueAt).toBe(PAST);
+    expect((await tasks.detail(owner, late.id)).task.isOverdue).toBe(false);
+
+    const reopened = await tasks.reopen(owner, late.id);
+    expect(reopened.isOverdue).toBe(true);
+    expect(reopened.dueAt).toBe(PAST);
+
+    // A completed task with a FUTURE due date is not overdue either — for the
+    // ordinary reason, not the completion one.
+    const soon = await tasks.create(owner, inbox, 'Soon', { dueAt: FUTURE });
+    expect((await tasks.complete(owner, soon.id)).isOverdue).toBe(false);
+  });
+
+  it('FEAT-012 AC-5: both transitions are idempotent through the service surface', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const task = await tasks.create(owner, inbox, 'Twice');
+
+    const first = await tasks.complete(owner, task.id);
+    await new Promise((r) => setTimeout(r, 25));
+    const again = await tasks.complete(owner, task.id);
+    expect(again.completedAt).toBe(first.completedAt); // original instant kept
+
+    await tasks.reopen(owner, task.id);
+    expect((await tasks.reopen(owner, task.id)).completedAt).toBeNull();
+  });
+
+  it('FEAT-012 AC-7: unknown, non-uuid, foreign and soft-deleted ids all raise the same not-found', async () => {
+    const { id: ownerA, inbox } = await freshUser();
+    const { id: ownerB } = await freshUser();
+    const task = await tasks.create(ownerA, inbox, "A's task");
+
+    for (const [who, id] of [
+      [ownerA, randomUUID()],
+      [ownerA, 'not-a-uuid'], // rejected before it can reach Postgres
+      [ownerB, task.id],
+    ] as const) {
+      await expect(tasks.complete(who, id)).rejects.toThrow(TaskNotFoundError);
+      await expect(tasks.reopen(who, id)).rejects.toThrow(TaskNotFoundError);
+    }
+    // A's task is untouched by any of it.
+    expect((await tasks.detail(ownerA, task.id)).task.completedAt).toBeNull();
+
+    await db.query('UPDATE tasks SET deleted_at = now() WHERE id = $1', [
+      task.id,
+    ]);
+    await expect(tasks.complete(ownerA, task.id)).rejects.toThrow(
+      TaskNotFoundError,
+    );
   });
 
   it('AC-11: dueAt crosses the contract as an ISO-8601 UTC string, whatever offset arrived', async () => {

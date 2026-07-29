@@ -52,7 +52,7 @@
       and a soft-deleted id all return null with the target row's `completed_at`
       **and** `updated_at` unmodified).
 
-- [ ] T3 — Domain: `TasksService.complete(ownerId, id)` / `.reopen(ownerId, id)`
+- [x] T3 — Domain: `TasksService.complete(ownerId, id)` / `.reopen(ownerId, id)`
       (design §5; FR-TASK-009/010). `assertTaskLookupId` reused for the non-uuid
       path, `TaskNotFoundError` on a null row, `toSummary` for the response — so
       `isOverdue` comes from the **single existing derivation** and this feature
