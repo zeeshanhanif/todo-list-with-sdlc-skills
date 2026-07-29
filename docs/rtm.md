@@ -91,7 +91,7 @@
 | NFR-PERF-001 | p95 core ops < 300 ms | Must | Active | GOAL (G4) | — | arch §8, §10 | Foundations | features/FEAT-010-create-task/acceptance-report.md (partial) |
 | NFR-PERF-002 | FCP < 2.5 s, interactive < 3.5 s | Should | Active | GOAL (G4) | — | ADR-002; arch §8 | Foundations | _TBD_ |
 | NFR-PERF-003 | p95 search < 500 ms @ 5k tasks | Should | Active | GOAL (G4) | UC-013 | ADR-003 | FEAT-015 | _TBD_ |
-| NFR-PERF-004 | Cross-device sync < 5 s | Should | Active | GOAL (G3) | — | ADR-006; features/FEAT-019-realtime-sync/technical-design.md; features/FEAT-019-realtime-sync/ui-design.md | FEAT-019 | _TBD_ |
+| NFR-PERF-004 | Cross-device sync < 5 s | Should | Active | GOAL (G3) | — | ADR-006; features/FEAT-019-realtime-sync/technical-design.md; features/FEAT-019-realtime-sync/ui-design.md | FEAT-019 | features/FEAT-019-realtime-sync/acceptance-report.md (verified via the adaptive fallback; the Realtime transport is AC-1b, open pending a provisioned Supabase project) |
 | NFR-SCAL-001 | 10k users / 1k concurrent | Must | Active | GOAL | — | ADR-001; ADR-004 | Foundations | _TBD_ |
 | NFR-SCAL-002 | 100 lists / 5k tasks per user | Should | Active | GOAL | — | ADR-003 | Foundations | _TBD_ |
 | NFR-SCAL-003 | Horizontally scalable app tier | Should | Active | GOAL | — | ADR-004 | Foundations | _TBD_ |
