@@ -101,7 +101,7 @@
       body unchanged (AC-4 at the controller surface); `npm run boundaries` is
       clean; and the full FEAT-009..013 api suite passes unmodified (AC-12).
 
-- [ ] T5 — Contract: `GET /realtime/token` on `RealtimeController`
+- [x] T5 — Contract: `GET /realtime/token` on `RealtimeController`
       (`common/realtime`, design §3.1) behind `SessionGuard`, taking **no
       parameter of any kind**.
       Done when: supertest tests pass for AC-5 (configured → `200 { enabled: true,

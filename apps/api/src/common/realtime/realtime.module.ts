@@ -5,6 +5,10 @@ import { NoopRealtimePublisher } from './noop-realtime.publisher';
 import { SupabaseRealtimePublisher } from './supabase-realtime.publisher';
 import { RealtimeTokenService } from './realtime-token.service';
 import { ChangeSignalInterceptor } from './change-signal.interceptor';
+import { RealtimeController } from './realtime.controller';
+import { SessionGuard } from '../authz/session.guard';
+import { SessionService } from '../authz/session.service';
+import { SessionsRepository } from '../authz/sessions.repository';
 
 /**
  * The `realtime` cross-cutting block (architecture §5; FEAT-019 D2).
@@ -20,7 +24,11 @@ import { ChangeSignalInterceptor } from './change-signal.interceptor';
  * performs no I/O, so nothing in the system depends on a provisioned project.
  */
 @Module({
+  controllers: [RealtimeController],
   providers: [
+    SessionGuard,
+    SessionService,
+    SessionsRepository,
     RealtimeTokenService,
     ChangeSignalInterceptor,
     NoopRealtimePublisher,
