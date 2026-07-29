@@ -131,7 +131,7 @@ export function ResendVerification({
             style={{
               ...inputBase,
               border: `var(--border-width-hairline) solid ${
-                fieldError ? "var(--color-danger)" : "var(--color-border-strong)"
+                fieldError ? "var(--color-danger)" : "var(--color-text-muted)"
               }`,
             }}
           />

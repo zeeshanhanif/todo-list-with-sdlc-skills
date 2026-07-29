@@ -125,7 +125,7 @@ export function TaskDetail({
           fontSize: "var(--font-size-body-lg)",
           boxSizing: "border-box",
           border: `var(--border-width-hairline) solid ${
-            errors.title ? "var(--color-danger)" : "var(--color-border-strong)"
+            errors.title ? "var(--color-danger)" : "var(--color-text-muted)"
           }`,
         }}
       />
@@ -182,7 +182,7 @@ export function TaskDetail({
               color: "var(--color-text)",
               fontSize: "var(--font-size-body)",
               border: `var(--border-width-hairline) solid ${
-                errors.dueAt ? "var(--color-danger)" : "var(--color-border-strong)"
+                errors.dueAt ? "var(--color-danger)" : "var(--color-text-muted)"
               }`,
             }}
           />

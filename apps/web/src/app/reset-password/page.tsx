@@ -161,7 +161,7 @@ function ForgotForm() {
             style={{
               ...inputBase,
               border: `var(--border-width-hairline) solid ${
-                emailError ? "var(--color-danger)" : "var(--color-border-strong)"
+                emailError ? "var(--color-danger)" : "var(--color-text-muted)"
               }`,
             }}
           />
@@ -286,7 +286,7 @@ function ResetForm({ token }: { token: string }) {
             style={{
               ...inputBase,
               border: `var(--border-width-hairline) solid ${
-                passwordError ? "var(--color-danger)" : "var(--color-border-strong)"
+                passwordError ? "var(--color-danger)" : "var(--color-text-muted)"
               }`,
             }}
           />

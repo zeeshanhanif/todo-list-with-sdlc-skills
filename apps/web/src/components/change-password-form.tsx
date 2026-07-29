@@ -167,7 +167,7 @@ export function ChangePasswordForm() {
               border: `var(--border-width-hairline) solid ${
                 currentError
                   ? "var(--color-danger)"
-                  : "var(--color-border-strong)"
+                  : "var(--color-text-muted)"
               }`,
             }}
           />
@@ -194,7 +194,7 @@ export function ChangePasswordForm() {
             style={{
               ...inputBase,
               border: `var(--border-width-hairline) solid ${
-                newError ? "var(--color-danger)" : "var(--color-border-strong)"
+                newError ? "var(--color-danger)" : "var(--color-text-muted)"
               }`,
             }}
           />

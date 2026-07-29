@@ -97,7 +97,7 @@ export function QuickAdd({ listId }: { listId: string }) {
             fontSize: "var(--font-size-body)",
             boxSizing: "border-box",
             border: `var(--border-width-hairline) solid ${
-              error ? "var(--color-danger)" : "var(--color-border-strong)"
+              error ? "var(--color-danger)" : "var(--color-text-muted)"
             }`,
           }}
         />
@@ -160,7 +160,7 @@ export function QuickAdd({ listId }: { listId: string }) {
               color: "var(--color-text)",
               fontSize: "var(--font-size-small)",
               border:
-                "var(--border-width-hairline) solid var(--color-border-strong)",
+                "var(--border-width-hairline) solid var(--color-text-muted)",
             }}
           />
         </label>
@@ -188,7 +188,7 @@ export function QuickAdd({ listId }: { listId: string }) {
               color: "var(--color-text)",
               fontSize: "var(--font-size-small)",
               border:
-                "var(--border-width-hairline) solid var(--color-border-strong)",
+                "var(--border-width-hairline) solid var(--color-text-muted)",
             }}
           >
             {TASK_PRIORITIES.map((p) => (
