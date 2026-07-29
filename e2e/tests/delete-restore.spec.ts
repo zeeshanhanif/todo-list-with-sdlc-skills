@@ -53,6 +53,21 @@ async function storedState(
   }
 }
 
+/** The task's id, for the paths that address it after the UI has forgotten it. */
+async function storedId(title: string): Promise<string> {
+  const client = new Client({ connectionString: DATABASE_URL });
+  await client.connect();
+  try {
+    const r = await client.query<{ id: string }>(
+      "SELECT id FROM tasks WHERE title = $1",
+      [title],
+    );
+    return r.rows[0].id;
+  } finally {
+    await client.end();
+  }
+}
+
 const activeTitles = (page: Page) =>
   page
     .getByTestId("active-tasks")
@@ -126,6 +141,21 @@ test("UC-012: a task is deleted behind a confirmation and restored from the undo
   // The destructive button holds focus, and the dialog names the task.
   await expect(page.getByTestId("task-delete-confirm")).toBeFocused();
   await expect(page.getByTestId("task-delete-dialog")).toContainText(doomed);
+
+  // AC-9b says focus is TRAPPED, not merely placed: tabbing forward from the
+  // last control wraps back inside the dialog rather than escaping into the
+  // panel behind it, which a modal claiming aria-modal has to make true.
+  // (Added by acceptance verification — the original test asserted the initial
+  // focus and stopped there.)
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  expect(
+    await page.evaluate(() =>
+      document
+        .querySelector('[data-testid="task-delete-dialog"]')
+        ?.contains(document.activeElement),
+    ),
+  ).toBe(true);
 
   // Backing out writes NOTHING — no request, no row change, and focus returns
   // to the control that opened it.
@@ -212,6 +242,19 @@ test("UC-012 alt 3a: left alone, the snackbar dismisses and the task stays delet
   // ...while the row itself is still there, restorable until FEAT-020's purge
   // (AC-12). Nothing in this feature hard-deletes.
   expect(await storedState(doomed)).toEqual({ exists: true, deleted: true });
+
+  // AC-12's second clause, which the original test left implicit: the snackbar
+  // expiring ends the AFFORDANCE, not the recoverability. The contract still
+  // restores the task long after the ~7s window closed — the UI simply offers
+  // no path to it until a "recently deleted" view exists (ui-design D7).
+  // (Added by acceptance verification.)
+  const restored = await page.request.post(
+    `/api/tasks/${await storedId(doomed)}/restore`,
+  );
+  expect(restored.status()).toBe(200);
+  expect(await storedState(doomed)).toEqual({ exists: true, deleted: false });
+  await page.reload();
+  await expect(page.getByTestId("task-row")).toHaveCount(2);
 });
 
 test("UC-012: a delete that fails leaves the task on screen, and a failed undo keeps its snackbar", async ({
