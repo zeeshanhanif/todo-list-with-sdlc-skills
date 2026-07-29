@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { ListSummary } from "@todo/shared";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ListsNav } from "@/components/lists-nav";
+import { SyncProvider } from "@/components/sync-provider";
 
 // SCR-WEB-007 app-shell frame (design.md §3; FEAT-009 ui-design D3). Persistent
 // 280px sidebar ≥ md; below md a hamburger opens the sidebar as a full drawer over
@@ -53,6 +54,12 @@ export function ShellFrame({
 
   return (
     <div className="shell" data-drawer={drawerOpen ? "open" : "closed"}>
+      {/* Cross-device sync (FEAT-019). Renders nothing — it only decides when
+          to refetch. Mounted HERE rather than in the root layout because the
+          shell is the authenticated zone: no token is minted and no socket is
+          opened on /signin, /signup, /verify or /reset-password (AC-10), and
+          signing out unmounts it. */}
+      <SyncProvider />
       <div className="shell-topbar">
         <button
           type="button"

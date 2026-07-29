@@ -137,6 +137,13 @@
       mints or polls on `/signin`, `/signup`, `/verify` or `/reset-password`
       (AC-10). Screens are ui-design's manifest; this feature adds no visual
       surface (D7) — if you find yourself adding an indicator, stop and re-read D7.
+      **Position note (2026-07-29):** the code landed and its unit-level
+      done-when is green (23 web tests: the four schedule cases, coalescing, no
+      socket when disabled, resume-on-drop, close-on-unmount, silent fallback on
+      a failed token fetch). The box stays **unchecked** until T7 runs, because
+      AC-9's preservation items (typing, open dialog) and AC-10's route scope are
+      only observable in the real app — jsdom's `router.refresh()` is a mock and
+      cannot prove what a real refresh preserves.
 
 - [ ] T7 — E2E: two signed-in browser contexts as two devices
       (`e2e/tests/realtime-sync.spec.ts`; AC-1, AC-2). Separate storage state per
