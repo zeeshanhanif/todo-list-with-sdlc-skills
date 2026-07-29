@@ -103,6 +103,23 @@ test("UC-012: a task is deleted behind a confirmation and restored from the undo
   await page.getByTestId("task-row-link").nth(1).click();
   await expect(page.getByTestId("detail-panel")).toBeVisible();
 
+  // AC-9's presentation clause, asserted rather than eyeballed: the control is
+  // design.md §4's `button-danger` — the danger fill with --color-on-primary
+  // ink, NOT literal white, which measures 2.77:1 on the dark theme's danger.
+  const del = page.getByTestId("task-delete");
+  await expect(del).toHaveCSS("background-color", "rgb(220, 38, 38)");
+  await expect(del).toHaveCSS("color", "rgb(255, 255, 255)");
+  // ...and it is the LAST control in the panel, so tabbing forward reaches the
+  // destructive action last.
+  expect(
+    await del.evaluate(
+      (el) =>
+        el.compareDocumentPosition(
+          document.querySelector('[data-testid="detail-status-control"]')!,
+        ) & Node.DOCUMENT_POSITION_PRECEDING,
+    ),
+  ).toBeTruthy();
+
   // UC-012 main 1 — the delete control asks first (NFR-USE-002, AC-9b).
   await page.getByTestId("task-delete").click();
   await expect(page.getByTestId("task-delete-dialog")).toBeVisible();
@@ -140,6 +157,17 @@ test("UC-012: a task is deleted behind a confirmation and restored from the undo
     "aria-live",
     "polite",
   );
+  // AC-10's "without stealing focus", asserted: nothing inside the snackbar
+  // holds focus when it appears. A toast that grabs focus interrupts whatever
+  // the user was typing in the composer right beside it.
+  expect(
+    await page.evaluate(
+      () =>
+        !document
+          .querySelector('[data-testid="undo-snackbar"]')
+          ?.contains(document.activeElement),
+    ),
+  ).toBe(true);
   await page.keyboard.press("Tab");
   await expect(page.getByTestId("undo-snackbar-action")).toBeFocused();
 

@@ -1,7 +1,7 @@
 # Tasks: FEAT-013 — Delete / restore task (soft-delete + undo)
 
 > Executes: docs/features/FEAT-013-delete-restore/technical-design.md
-> Status: pending · Last updated: 2026-07-29
+> Status: all tasks done · Last updated: 2026-07-29
 > Notes: **No migration** (design §4/D8) — `tasks.deleted_at` and the partial
 > `tasks_active_by_list_idx` have existed since migration 007, which named this
 > feature as the column's writer, and four statements plus the list aggregate
@@ -144,7 +144,7 @@
       Done when: `npm run test:e2e` passes against the local stack (Docker + DB up),
       with the FEAT-009, FEAT-010, FEAT-011 and FEAT-012 specs still green.
 
-- [ ] T8 — Verify: acceptance criteria AC-1..AC-12 **including AC-9b** (design §6)
+- [x] T8 — Verify: acceptance criteria AC-1..AC-12 **including AC-9b** (design §6)
       demonstrably pass;
       **no migration was added** (D8 — `migrations/` unchanged and
       `npm run db:migrate` a no-op at head); **no code path hard-deletes a task**
