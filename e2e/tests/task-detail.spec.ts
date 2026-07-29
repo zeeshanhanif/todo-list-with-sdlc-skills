@@ -73,7 +73,15 @@ test("UC-010: open a task, schedule it, prioritize it, then clear the due date",
   // FR-TASK-004's five details, including the list — read-only, no picker
   await expect(page.getByTestId("detail-title")).toHaveValue("Renew passport");
   await expect(page.getByTestId("detail-list")).toHaveText("Inbox");
-  await expect(page.getByTestId("detail-status")).toHaveText("Active");
+  // Status. FEAT-011 shipped this as read-only text ("Active") and recorded
+  // that the control was FEAT-012's; FEAT-012 delivered it, so the assertion
+  // moves to the control — an unchecked checkbox offering "Mark complete",
+  // which states strictly more than the old text did. Updated toward the
+  // design, not toward the code.
+  await expect(page.getByTestId("detail-status")).toHaveText("Mark complete");
+  await expect(
+    page.getByTestId("detail-status").getByTestId("task-checkbox"),
+  ).toHaveAttribute("data-completed", "false");
 
   // --- FR-TASK-005: edit the title, saved on blur (no Save button) ---
   await page.getByTestId("detail-title").fill("Renew passport urgently");

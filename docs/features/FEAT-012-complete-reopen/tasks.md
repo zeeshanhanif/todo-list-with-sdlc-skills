@@ -113,7 +113,7 @@
       **pre-click** state with an inline message, never showing completed while
       the row is still active (AC-12).
 
-- [ ] T7 — E2E: extend `e2e/tests/` with the path this feature completes — sign in
+- [x] T7 — E2E: extend `e2e/tests/` with the path this feature completes — sign in
       → add a task → complete it from the list row → it leaves the active section
       and appears under an expandable Completed section → reopen it from there →
       it returns to active, with the list count moving both ways. [UC-011]
