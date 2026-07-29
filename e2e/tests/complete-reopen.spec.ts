@@ -111,6 +111,22 @@ test("UC-011: a task is completed from its row, collapses into Completed, and is
   ).toBe(true);
   expect(await completedTitles(page)).toEqual(["Buy milk"]);
 
+  // AC-11's presentation clause, asserted rather than eyeballed: a completed
+  // title renders strikethrough in --color-text-muted (#64748B), which is what
+  // design.md §8 specifies for a finished task. Added by acceptance
+  // verification — the build demonstrated this by screenshot, which is real
+  // evidence but not a rerunnable one.
+  // The title is the first span inside the row link (the strikethrough belongs
+  // to the title, not to the whole row — the right cluster is not struck out).
+  const completedTitle = page
+    .getByTestId("completed-tasks")
+    .getByTestId("task-row-link")
+    .locator("span")
+    .first();
+  await expect(completedTitle).toHaveText("Buy milk");
+  await expect(completedTitle).toHaveCSS("text-decoration-line", "line-through");
+  await expect(completedTitle).toHaveCSS("color", "rgb(100, 116, 139)");
+
   // UC-011 main 3/4 — reopen it from inside the section.
   await page
     .getByTestId("completed-tasks")
