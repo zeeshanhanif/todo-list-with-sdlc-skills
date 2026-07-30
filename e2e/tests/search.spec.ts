@@ -251,3 +251,95 @@ test("FR-AUTHZ-002: search never reaches another account's tasks", async ({
   await expect(page.getByTestId("search-result")).toHaveCount(1);
   expect(await titles(page)).toEqual(["My own report"]);
 });
+
+test("AC-11: the loading and error states are real, and neither loses the query", async ({
+  page,
+  request,
+}) => {
+  const email = uniqueEmail();
+  await request.post(`${API}/auth/register`, { data: { email, password: PW } });
+  await seedCorpus(email);
+  await signIn(page, email);
+
+  // --- loading -------------------------------------------------------------
+  // The local stack answers in single-digit milliseconds, so the loading state
+  // is invisible unless the response is held. Delaying the route is what makes
+  // the claim testable rather than merely plausible.
+  await page.route("**/api/search**", async (route) => {
+    await new Promise((r) => setTimeout(r, 1200));
+    return route.continue();
+  });
+
+  await page.getByTestId("search-trigger").click();
+  await page.getByTestId("search-input").fill("report");
+
+  await expect(page.getByTestId("search-loading")).toBeVisible();
+  // ui-design's explicit claim: the field stays live and KEEPS FOCUS while the
+  // panel thinks — a search box that blocks input is unusable at typing speed.
+  await expect(page.getByTestId("search-input")).toBeFocused();
+  await page.getByTestId("search-input").fill("report q");
+  await expect(page.getByTestId("search-input")).toHaveValue("report q");
+
+  await page.unroute("**/api/search**");
+
+  // --- error ---------------------------------------------------------------
+  await page.getByTestId("search-input").fill("report");
+  await expect(page.getByTestId("search-results")).toBeVisible();
+
+  await page.route("**/api/search**", (route) =>
+    route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({
+        statusCode: 500,
+        code: "internal_error",
+        message: "Something went wrong. Please try again.",
+      }),
+    }),
+  );
+  await page.getByTestId("search-input").fill("report again");
+
+  await expect(page.getByTestId("search-error")).toBeVisible();
+  // NFR-REL-004: losing a typed query to a transient failure is the most
+  // annoying possible outcome here, so the query survives the error...
+  await expect(page.getByTestId("search-input")).toHaveValue("report again");
+  // ...and so does the last good answer, rather than the panel going blank.
+  await expect(page.getByTestId("search-results")).toBeVisible();
+});
+
+test("AC-11: every control in the overlay is reachable by keyboard", async ({
+  page,
+  request,
+}) => {
+  const email = uniqueEmail();
+  await request.post(`${API}/auth/register`, { data: { email, password: PW } });
+  await seedCorpus(email);
+  await signIn(page, email);
+
+  await page.getByTestId("search-trigger").click();
+  await expect(page.getByTestId("search-input")).toBeFocused();
+
+  // Tab order follows reading order: query -> status -> due (ui-design D6).
+  const focusedId = () => page.evaluate(() => document.activeElement?.id ?? "");
+  await page.keyboard.press("Tab");
+  expect(await focusedId()).toBe("search-status");
+  await page.keyboard.press("Tab");
+  expect(await focusedId()).toBe("search-due");
+
+  // The filters are operable from the keyboard alone — a select changes with
+  // arrows, which is exactly why ui-design D3 chose native controls over a
+  // chip/segmented control the design system does not have.
+  await page.getByTestId("search-status").focus();
+  await page.getByTestId("search-status").selectOption("completed");
+  await expect(page.getByTestId("search-results")).toBeVisible();
+
+  // Focus stays TRAPPED inside the dialog: tabbing from the last control does
+  // not walk out into the shell behind the scrim, which is what aria-modal
+  // promises and therefore has to be true.
+  for (let i = 0; i < 12; i++) await page.keyboard.press("Tab");
+  const inside = await page.evaluate(() => {
+    const dialog = document.querySelector('[data-testid="search-overlay"]');
+    return dialog?.contains(document.activeElement) ?? false;
+  });
+  expect(inside).toBe(true);
+});
