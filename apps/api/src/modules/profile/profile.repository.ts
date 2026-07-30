@@ -14,11 +14,14 @@ const PATCHABLE = {
   theme: 'theme',
 } as const;
 
-/** A partial profile update — *presence* of a key is what marks a field for
- * writing, so `undefined` and "absent" are the same thing and `null` is a value
- * (technical-design D6). */
+/** A partial profile update — the keys present are exactly the columns to write
+ * (technical-design D6). Spelled out rather than mapped over `PATCHABLE`: a
+ * homomorphic mapped type inherits that object's `as const` **readonly**
+ * modifiers, which makes every assignment in ProfileService a compile error. */
 export type ProfilePatch = {
-  [K in keyof typeof PATCHABLE]?: UserProfile[K];
+  displayName?: UserProfile['displayName'];
+  timezone?: UserProfile['timezone'];
+  theme?: UserProfile['theme'];
 };
 
 interface ProfileRow {

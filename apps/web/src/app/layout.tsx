@@ -41,7 +41,12 @@ export default function RootLayout({
   detail,
 }: Readonly<{ children: React.ReactNode; detail: React.ReactNode }>) {
   return (
-    <html lang="en" className="h-full">
+    // `suppressHydrationWarning` covers exactly one attribute: the `data-theme`
+    // the script above writes before React hydrates. The mismatch is the
+    // mechanism working, not a bug — React's documented escape hatch for a
+    // deliberate server/client difference. It applies to this element only, so
+    // a genuine mismatch anywhere else still warns.
+    <html lang="en" className="h-full" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
       </head>

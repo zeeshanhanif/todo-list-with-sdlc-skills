@@ -121,7 +121,7 @@
       the OS preference changes with no reload; and signing out leaves no `theme`
       cookie behind.
 
-- [ ] T8 — UI integration point (design §5.2): `app/settings/profile/page.tsx`
+- [x] T8 — UI integration point (design §5.2): `app/settings/profile/page.tsx`
       (SCR-WEB-013) + `components/profile-form.tsx` client island consuming
       `PATCH /api/profile`, and the `Settings` nav target moving to
       `/settings/profile` with reciprocal links between the two settings screens

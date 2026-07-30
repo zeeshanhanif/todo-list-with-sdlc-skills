@@ -8,6 +8,7 @@ import { ListsNav } from "@/components/lists-nav";
 import { SyncProvider } from "@/components/sync-provider";
 import { PreferencesProvider } from "@/components/preferences-provider";
 import { ThemeSync } from "@/components/theme-sync";
+import { TimezoneAdoption } from "@/components/timezone-adoption";
 
 // SCR-WEB-007 app-shell frame (design.md §3; FEAT-009 ui-design D3). Persistent
 // 280px sidebar ≥ md; below md a hamburger opens the sidebar as a full drawer over
@@ -20,7 +21,9 @@ import { ThemeSync } from "@/components/theme-sync";
 // All colors/spacing come from token CSS variables.
 
 /** Sidebar nav items the shell knows about. Smart views are placeholders until
- * FEAT-016 makes them real; `settings` is live as of FEAT-006. */
+ * FEAT-016 makes them real; `settings` is live as of FEAT-006 — and as of
+ * FEAT-008 it targets Profile & Preferences (SCR-WEB-013), with Security &
+ * Account one click away through the settings sub-nav (technical-design D5). */
 export type ShellNav = "none" | "settings";
 
 export function ShellFrame({
@@ -67,6 +70,10 @@ export function ShellFrame({
             guessed from the cookie, and re-mirrors the cookie for next time
             (FEAT-008 technical-design D3). Renders nothing. */}
         <ThemeSync theme={profile?.theme ?? null} />
+        {/* Establishes the account's timezone from the browser, once, when it
+            has never been set (FR-PROF-003; technical-design AC-7). Renders
+            nothing. */}
+        <TimezoneAdoption profile={profile ?? null} />
         {/* Cross-device sync (FEAT-019). Renders nothing — it only decides when
           to refetch. Mounted HERE rather than in the root layout because the
           shell is the authenticated zone: no token is minted and no socket is
@@ -151,7 +158,7 @@ export function ShellFrame({
 
           <div style={{ marginTop: "var(--space-6)" }}>
             <SidebarNavItem
-              href="/settings/security"
+              href="/settings/profile"
               label="Settings"
               selected={active === "settings"}
               onClick={() => setDrawerOpen(false)}
