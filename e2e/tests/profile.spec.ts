@@ -284,21 +284,56 @@ test("AC-16 / NFR-USE-004: SCR-WEB-013's pairings meet design.md §5 in BOTH the
   await signIn(page, email);
   await page.goto("/settings/profile");
 
-  /** Text against the nearest painted background behind it. */
+  /**
+   * Text against the background actually painted behind it.
+   *
+   * The compositing matters and is not incidental: the dark theme's `*-subtle`
+   * tints are **translucent** (`rgba(239,68,68,0.15)`), so reading the element's
+   * own `backgroundColor` and dropping the alpha compares the text against the
+   * fully-saturated colour — which measured this screen's alert at 1.98:1 when
+   * the real, composited pairing is well past AA. A contrast check that cannot
+   * see through an alpha channel reports failures that are not there, and would
+   * hide real ones on any surface that stacks two tints.
+   */
   const measure = async (selector: string): Promise<number> => {
     const { color, background } = await page
       .locator(selector)
       .first()
       .evaluate((el) => {
-        const opaque = (node: Element | null): string => {
-          while (node) {
-            const bg = getComputedStyle(node).backgroundColor;
-            if (bg && !/rgba?\([^)]*,\s*0\)/.test(bg)) return bg;
-            node = node.parentElement;
-          }
-          return "rgb(255, 255, 255)";
+        type Rgba = { r: number; g: number; b: number; a: number };
+        const parse = (c: string): Rgba => {
+          const n = (c.match(/[\d.]+/g) ?? []).map(Number);
+          return { r: n[0] ?? 0, g: n[1] ?? 0, b: n[2] ?? 0, a: n[3] ?? 1 };
         };
-        return { color: getComputedStyle(el).color, background: opaque(el) };
+        // Collect every painted layer from the element up to the first opaque
+        // one, then composite them back down onto it.
+        const layers: Rgba[] = [];
+        let node: Element | null = el;
+        let base: Rgba = { r: 255, g: 255, b: 255, a: 1 };
+        while (node) {
+          const c = parse(getComputedStyle(node).backgroundColor);
+          if (c.a > 0) {
+            if (c.a === 1) {
+              base = c;
+              break;
+            }
+            layers.push(c);
+          }
+          node = node.parentElement;
+        }
+        for (let i = layers.length - 1; i >= 0; i--) {
+          const t = layers[i];
+          base = {
+            r: t.r * t.a + base.r * (1 - t.a),
+            g: t.g * t.a + base.g * (1 - t.a),
+            b: t.b * t.a + base.b * (1 - t.a),
+            a: 1,
+          };
+        }
+        return {
+          color: getComputedStyle(el).color,
+          background: `rgb(${base.r}, ${base.g}, ${base.b})`,
+        };
       });
     return contrastRatio(color, background);
   };
@@ -351,7 +386,43 @@ test("AC-16 / NFR-USE-004: SCR-WEB-013's pairings meet design.md §5 in BOTH the
     expect(borderRatio, `${label}: select boundary`).toBeGreaterThanOrEqual(3);
   };
 
+  /**
+   * The form-level alert, which only exists when a save fails for a reason that
+   * is not a field error — so it has to be provoked.
+   *
+   * Measured separately and deliberately: it carries `--color-danger-text` on
+   * `--color-danger-subtle`, the exact pairing DEF-003 fixed and DEF-006 is
+   * still open on in five other places. It is the highest-risk pairing on the
+   * screen and the one a sweep of the happy path would never see.
+   */
+  const measureFormAlert = async (label: string) => {
+    await page.route("**/api/profile", (route) =>
+      route.request().method() === "PATCH"
+        ? route.fulfill({
+            status: 500,
+            contentType: "application/json",
+            body: JSON.stringify({
+              statusCode: 500,
+              code: "internal_error",
+              message: "Something went wrong. Please try again.",
+            }),
+          })
+        : route.continue(),
+    );
+    await page.getByLabel("Display name").fill("Ada");
+    await page.getByTestId("save-display-name").click();
+    await expect(page.getByTestId("profile-form-error")).toBeVisible();
+
+    expect(
+      await measure('[data-testid="profile-form-error"]'),
+      `${label}: form-level alert`,
+    ).toBeGreaterThanOrEqual(4.5);
+    await page.unroute("**/api/profile");
+    await page.reload();
+  };
+
   await sweep("light");
+  await measureFormAlert("light");
 
   // The same sweep in dark — the theme no screen in this product could reach
   // before FEAT-008, which is why this is the first place it is measured live.
@@ -361,4 +432,65 @@ test("AC-16 / NFR-USE-004: SCR-WEB-013's pairings meet design.md §5 in BOTH the
     "dark",
   );
   await sweep("dark");
+  await measureFormAlert("dark");
+});
+
+test("AC-16 / NFR-USE-004: every control on SCR-WEB-013 is reachable and operable by keyboard", async ({
+  page,
+  request,
+}) => {
+  const email = uniqueEmail();
+  await request.post(`${API}/auth/register`, { data: { email, password: PW } });
+  await markVerified(email);
+  await signIn(page, email);
+  await page.goto("/settings/profile");
+
+  // Tab from the top of the document until each control has been focused. The
+  // criterion is that they are REACHABLE in reading order without a mouse, so
+  // the assertion is on what focus actually lands on, not on tabindex markup.
+  const focused = async () =>
+    page.evaluate(() => {
+      const el = document.activeElement;
+      return el ? `${el.tagName.toLowerCase()}#${el.id || ""}` : "none";
+    });
+
+  const reached: string[] = [];
+  await page.locator("body").click({ position: { x: 1, y: 1 } });
+  for (let i = 0; i < 40; i++) {
+    await page.keyboard.press("Tab");
+    reached.push(await focused());
+  }
+
+  expect(reached).toContain("input#displayName");
+  expect(reached).toContain("select#timezone");
+  // A native radio GROUP takes one tab stop — focus lands on the checked member
+  // (`system` for a fresh account) and the arrows move within it, which is the
+  // platform behaviour ui-design D3/D6 chose native controls to inherit.
+  expect(reached.some((el) => el.startsWith("input#theme-"))).toBe(true);
+
+  // ...and the theme radio group is OPERABLE from the keyboard alone: arrow
+  // keys move the selection within a native radio group, which is why
+  // ui-design D6/D3 chose native controls over bespoke ones.
+  await page.locator("#theme-light").focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.getByTestId("profile-status")).toHaveText("Saved");
+  await expect(page.getByLabel("Dark")).toBeChecked();
+  expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe(
+    "dark",
+  );
+
+  // A focus indicator is actually painted (design.md §5). The product has never
+  // set an explicit ring, so what is asserted here is that SOMETHING visible
+  // marks focus — see the acceptance report's minor finding on the design
+  // system's specified 2px --color-focus-ring, which is a product-wide gap.
+  const indicator = await page.locator("#timezone").evaluate((el) => {
+    (el as HTMLElement).focus();
+    const s = getComputedStyle(el);
+    return {
+      outlineStyle: s.outlineStyle,
+      outlineWidth: s.outlineWidth,
+    };
+  });
+  expect(indicator.outlineStyle).not.toBe("none");
+  expect(parseFloat(indicator.outlineWidth)).toBeGreaterThan(0);
 });

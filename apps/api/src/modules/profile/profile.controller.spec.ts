@@ -345,11 +345,16 @@ describe('profile endpoints (contract)', () => {
       [id],
     );
     const listId = inbox.rows[0].id;
-    // One task already late, one due well ahead — the two sides of FR-TASK-007.
-    for (const dueAt of [
-      '2020-01-01T00:00:00.000Z',
-      '2099-01-01T00:00:00.000Z',
-    ]) {
+    // One task already late, one not yet — and both within HOURS of now, which
+    // is what makes this criterion falsifiable. Dates decades away satisfy any
+    // implementation, zone-dependent or not: the assertion would hold while
+    // proving nothing (verified by mutation during acceptance — a deliberately
+    // zone-shifted isOverdue still passed). Three hours either side of now sits
+    // inside every real UTC offset (-12..+14), so an implementation that let the
+    // zone touch the comparison flips at least one of these two.
+    const hoursFromNow = (h: number) =>
+      new Date(Date.now() + h * 3_600_000).toISOString();
+    for (const dueAt of [hoursFromNow(-3), hoursFromNow(3)]) {
       await request(server())
         .post(`/lists/${listId}/tasks`)
         .set('Cookie', cookie)
