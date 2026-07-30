@@ -39,7 +39,7 @@
       new symbols, and **no existing exported shape changes** — `TaskSummary` in
       particular is extended by `SearchResult`, never edited.
 
-- [ ] T2 — Cross-cutting: `src/common/preferences/` (design §5.1, D1) —
+- [x] T2 — Cross-cutting: `src/common/preferences/` (design §5.1, D1) —
       `UserTimeZoneService.effectiveFor(userId)` returning
       `COALESCE(timezone, 'UTC')` in one statement, plus `preferences.module.ts`.
       This is the cross-module read interface FEAT-010 D8 said the third case
