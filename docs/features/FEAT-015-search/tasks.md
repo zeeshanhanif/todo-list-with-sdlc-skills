@@ -49,7 +49,7 @@
       (returns `'UTC'` rather than throwing — a search must not 500 because a
       preference is missing).
 
-- [ ] T3 — Domain: `search.errors.ts` + the cursor codec and criteria rules in
+- [x] T3 — Domain: `search.errors.ts` + the cursor codec and criteria rules in
       `search.service.ts` (design §5.1, D4, D6, D8). Encode/decode the opaque
       `(createdAt, id)` cursor; trim and length-check `q`; **escape `%`, `_` and
       `\`** in the term; reject a body with no criteria.
