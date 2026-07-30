@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
+  isTaskOverdue,
   TASK_PRIORITIES,
   TASK_TITLE_MAX_LENGTH,
   type ListTasksResponse,
@@ -159,7 +160,9 @@ export class TasksService {
    * task returns the original instant rather than a re-stamp or a 409 (D2).
    *
    * Note what this method does **not** do: it does not clear the overdue flag.
-   * `toSummary` derives `isOverdue` in the one place FEAT-011 D3 put it, and
+   * `toSummary` derives `isOverdue` through the shared `isTaskOverdue` —
+   * FEAT-011 D3's single definition, moved to `@todo/shared` by FEAT-015 so the
+   * `search` module can reach it without importing this one — and
    * its first clause is `completedAt === null` — so the response that completes
    * a late task is already the response that reports it no longer overdue.
    * FR-TASK-009's "completing clears overdue indication" is satisfied by
@@ -254,30 +257,8 @@ function toSummary(row: TaskRow): TaskSummary {
     createdAt: row.createdAt.toISOString(),
     dueAt: row.dueAt ? row.dueAt.toISOString() : null,
     priority: row.priority,
-    isOverdue: isOverdue(row),
+    isOverdue: isTaskOverdue(row),
   };
-}
-
-/**
- * FR-TASK-007, derived in **exactly one place** (FEAT-011 D3) so the list view,
- * the detail surface and FEAT-016's Overdue view cannot drift into three
- * definitions.
- *
- * Overdue = **active** AND has a due date AND that instant has passed. The
- * `completedAt === null` clause is the FR's own note — "only active (incomplete)
- * tasks can be overdue" — not an optimization.
- *
- * No timezone enters this comparison, and that is correct rather than an
- * oversight: `due_at` is an absolute instant, so "has it passed?" has the same
- * answer in every zone (D1). Timezone governs how the due date is typed and
- * displayed, which is the client's business.
- */
-function isOverdue(row: TaskRow): boolean {
-  return (
-    row.completedAt === null &&
-    row.dueAt !== null &&
-    row.dueAt.getTime() < Date.now()
-  );
 }
 
 /** FR-TASK-006: a due date is an ISO-8601 instant, or null for "no due date".

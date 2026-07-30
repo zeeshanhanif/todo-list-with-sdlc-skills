@@ -12,9 +12,17 @@ import {
   SearchCriteriaInvalidError,
 } from './search.errors';
 
-/** A decoded keyset cursor — the exact `ORDER BY` tuple (technical-design D4). */
+/**
+ * A decoded keyset cursor — the exact `ORDER BY` tuple (technical-design D4).
+ *
+ * `createdAt` is the timestamp as **text at full database precision**, not a JS
+ * `Date`. `timestamptz` keeps microseconds; a `Date` keeps milliseconds, so
+ * round-tripping through one truncates the value — and a truncated cursor
+ * compares *below* the row it came from, which silently returns an empty second
+ * page for every result set (found by T5's paging test).
+ */
 export interface SearchCursor {
-  createdAt: Date;
+  createdAt: string;
   id: string;
 }
 
@@ -140,10 +148,9 @@ function parseLimit(raw: number | undefined): number {
  * detail we can change without breaking anyone.
  */
 export function encodeCursor(cursor: SearchCursor): string {
-  return Buffer.from(
-    `${cursor.createdAt.toISOString()}|${cursor.id}`,
-    'utf8',
-  ).toString('base64url');
+  return Buffer.from(`${cursor.createdAt}|${cursor.id}`, 'utf8').toString(
+    'base64url',
+  );
 }
 
 /** The inverse. Anything that does not decode to a real tuple is a `400` on
@@ -166,10 +173,11 @@ export function decodeCursor(raw: string | undefined): SearchCursor | null {
   const separator = decoded.lastIndexOf('|');
   if (separator === -1) throw invalid;
 
-  const iso = decoded.slice(0, separator);
+  const createdAt = decoded.slice(0, separator);
   const id = decoded.slice(separator + 1);
-  const createdAt = new Date(iso);
-  if (Number.isNaN(createdAt.getTime()) || !UUID_RE.test(id)) {
+  // Parseability is the check; the string itself is what travels on, so the
+  // database's microseconds survive the round trip.
+  if (Number.isNaN(new Date(createdAt).getTime()) || !UUID_RE.test(id)) {
     throw invalid;
   }
   return { createdAt, id };

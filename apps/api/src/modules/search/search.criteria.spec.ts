@@ -97,17 +97,20 @@ describe('escapeLike (AC-14, D8)', () => {
 });
 
 describe('the cursor codec (D4)', () => {
+  // Full database precision — microseconds, which is why the cursor carries
+  // TEXT rather than a JS Date (a Date truncates to milliseconds, and a
+  // truncated cursor returns an empty second page).
   const cursor = {
-    createdAt: new Date('2026-07-31T09:15:00.000Z'),
+    createdAt: '2026-07-31T09:15:00.123456Z',
     id: '11111111-1111-4111-8111-111111111111',
   };
 
   it('round-trips a cursor through encode → decode', () => {
     const decoded = decodeCursor(encodeCursor(cursor));
     expect(decoded?.id).toBe(cursor.id);
-    expect(decoded?.createdAt.toISOString()).toBe(
-      cursor.createdAt.toISOString(),
-    );
+    // Byte-identical, microseconds included — the assertion a Date-based
+    // cursor cannot pass.
+    expect(decoded?.createdAt).toBe(cursor.createdAt);
   });
 
   it('re-encodes to the same string — the codec is stable', () => {
@@ -132,7 +135,7 @@ describe('the cursor codec (D4)', () => {
     ['base64 of nonsense', Buffer.from('nonsense').toString('base64url')],
     [
       'a valid date but no id',
-      Buffer.from('2026-07-31T09:15:00.000Z|').toString('base64url'),
+      Buffer.from('2026-07-31T09:15:00.123456Z|').toString('base64url'),
     ],
     [
       'a valid id but no date',
@@ -142,7 +145,9 @@ describe('the cursor codec (D4)', () => {
     ],
     [
       'an id that is not a uuid',
-      Buffer.from('2026-07-31T09:15:00.000Z|not-a-uuid').toString('base64url'),
+      Buffer.from('2026-07-31T09:15:00.123456Z|not-a-uuid').toString(
+        'base64url',
+      ),
     ],
     [
       'a date that is not a date',

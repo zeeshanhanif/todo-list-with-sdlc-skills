@@ -70,7 +70,7 @@
       changes), AC-5 (conjunctive; a contradictory pair returns empty), and
       AC-12 (`status=overdue` and `due=overdue` return identical sets).
 
-- [ ] T5 — Domain: `SearchService.search(userId, criteria)` (design §5.1) —
+- [x] T5 — Domain: `SearchService.search(userId, criteria)` (design §5.1) —
       resolves the zone through `UserTimeZoneService`, applies T3's rules, calls
       T4, and maps rows to `SearchResult` reusing the **existing** `isOverdue`
       derivation rather than adding a second one (D5).

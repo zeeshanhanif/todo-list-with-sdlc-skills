@@ -799,3 +799,33 @@ export interface SearchResponse {
    */
   nextCursor: string | null;
 }
+
+/**
+ * FR-TASK-007's overdue rule, in **one** place for the whole system.
+ *
+ * A task is overdue exactly when it is **active**, has a due date, and that
+ * instant has passed. The `completedAt === null` clause is the FR's own note —
+ * "only active (incomplete) tasks can be overdue" — not an optimization.
+ *
+ * **No timezone enters this comparison, and that is correct rather than an
+ * oversight**: `dueAt` is an absolute instant, so "has it passed?" has the same
+ * answer in every zone (FEAT-011 technical-design D1, FEAT-008 D4). Timezone
+ * governs how a due date is typed and displayed, which is the client's business.
+ *
+ * It lives here, not in a module, because two API modules now derive it —
+ * `tasks` (the list view and detail) and `search` (FR-SRCH-003's `overdue`
+ * status and FR-SRCH-004's `overdue` bucket, which are the same predicate by
+ * FEAT-015 D5) — and module boundaries forbid one importing the other. FEAT-011
+ * anticipated exactly this: "derived by the server, in one place, so the list
+ * view, the detail surface and FEAT-016's Overdue view cannot drift into three
+ * definitions."
+ */
+export const isTaskOverdue = (task: {
+  completedAt: Date | string | null;
+  dueAt: Date | string | null;
+}): boolean => {
+  if (task.completedAt !== null || task.dueAt === null) return false;
+  const due =
+    task.dueAt instanceof Date ? task.dueAt.getTime() : Date.parse(task.dueAt);
+  return due < Date.now();
+};

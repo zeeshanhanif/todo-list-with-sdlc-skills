@@ -8,6 +8,9 @@ import type { SearchCriteria } from './search.criteria';
  * derivation — reusing FEAT-011's single definition, never adding a second. */
 export interface SearchRow {
   id: string;
+  /** The row's `created_at` as text at full database precision — what the
+   * cursor is built from, since a JS `Date` would truncate its microseconds. */
+  createdAtExact: string;
   listId: string;
   listName: string;
   title: string;
@@ -19,6 +22,7 @@ export interface SearchRow {
 
 interface RawRow {
   id: string;
+  created_at_exact: string;
   list_id: string;
   list_name: string;
   title: string;
@@ -98,7 +102,7 @@ export class SearchRepository {
       // ties on created_at resolve by id rather than by luck.
       params.push(criteria.cursor.createdAt, criteria.cursor.id);
       where.push(
-        `(t.created_at, t.id) < ($${params.length - 1}, $${params.length})`,
+        `(t.created_at, t.id) < ($${params.length - 1}::timestamptz, $${params.length}::uuid)`,
       );
     }
 
@@ -106,7 +110,9 @@ export class SearchRepository {
 
     const res = await this.db.query<RawRow>(
       `SELECT t.id, t.list_id, l.name AS list_name, t.title,
-              t.completed_at, t.created_at, t.due_at, t.priority
+              t.completed_at, t.created_at, t.due_at, t.priority,
+              to_char(t.created_at AT TIME ZONE 'UTC',
+                      'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS created_at_exact
          FROM tasks t
          JOIN lists l ON l.id = t.list_id
         WHERE ${where.join('\n          AND ')}
@@ -171,6 +177,7 @@ const OVERDUE =
 function toRow(row: RawRow): SearchRow {
   return {
     id: row.id,
+    createdAtExact: row.created_at_exact,
     listId: row.list_id,
     listName: row.list_name,
     title: row.title,
