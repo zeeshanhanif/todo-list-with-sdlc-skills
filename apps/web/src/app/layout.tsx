@@ -20,12 +20,31 @@ export const metadata: Metadata = {
 // triggers the deletion, and one hosted inside the panel would die when the
 // panel closes. It sits inside <body> rather than around <html> — as deep as
 // the requirement allows, per Next's own guidance on provider placement.
+//
+// FEAT-008 adds the pre-paint theme script (technical-design D3). It runs in
+// `<head>`, synchronously, before the browser paints anything, because
+// FR-PROF-004 says the theme is "applied on load" — resolving it after
+// hydration would show every dark-theme user a white flash first. It is an
+// inline <script> rather than next/script: `beforeInteractive` is for external
+// `src` scripts and explicitly does not block hydration, which is precisely the
+// guarantee this needs. It reads the `theme` cookie ThemeSync mirrors; the
+// database row remains the truth and corrects the cookie on every shell render.
+const THEME_BOOTSTRAP = `(function(){try{
+var m=document.cookie.match(/(?:^|; )theme=([^;]*)/);
+var p=m?decodeURIComponent(m[1]):'system';
+var d=p==='dark'||(p!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);
+document.documentElement.dataset.theme=d?'dark':'light';
+}catch(e){}})()`;
+
 export default function RootLayout({
   children,
   detail,
 }: Readonly<{ children: React.ReactNode; detail: React.ReactNode }>) {
   return (
     <html lang="en" className="h-full">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
+      </head>
       <body className="min-h-full">
         <UndoHost>
           {children}

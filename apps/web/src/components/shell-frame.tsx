@@ -7,6 +7,7 @@ import { SignOutButton } from "@/components/sign-out-button";
 import { ListsNav } from "@/components/lists-nav";
 import { SyncProvider } from "@/components/sync-provider";
 import { PreferencesProvider } from "@/components/preferences-provider";
+import { ThemeSync } from "@/components/theme-sync";
 
 // SCR-WEB-007 app-shell frame (design.md §3; FEAT-009 ui-design D3). Persistent
 // 280px sidebar ≥ md; below md a hamburger opens the sidebar as a full drawer over
@@ -62,6 +63,10 @@ export function ShellFrame({
     // saved change re-renders every consumer at once (ui-design D9).
     <PreferencesProvider profile={profile ?? null}>
       <div className="shell" data-drawer={drawerOpen ? "open" : "closed"}>
+        {/* Applies the ACCOUNT's theme over whatever the pre-paint script
+            guessed from the cookie, and re-mirrors the cookie for next time
+            (FEAT-008 technical-design D3). Renders nothing. */}
+        <ThemeSync theme={profile?.theme ?? null} />
         {/* Cross-device sync (FEAT-019). Renders nothing — it only decides when
           to refetch. Mounted HERE rather than in the root layout because the
           shell is the authenticated zone: no token is minted and no socket is

@@ -107,7 +107,7 @@
       `timezone ?? "UTC"`, and a failed profile fetch degrades to the same
       `"UTC"` default without stranding the shell (NFR-REL-004).
 
-- [ ] T7 — Web: theme application (design §5.2, D3; FR-PROF-004). The
+- [x] T7 — Web: theme application (design §5.2, D3; FR-PROF-004). The
       pre-paint inline `<script>` in `app/layout.tsx` (reads the `theme` cookie,
       resolves `system` via `matchMedia`, sets `data-theme` on
       `documentElement`), `components/theme-sync.tsx` (applies + re-mirrors the
