@@ -181,6 +181,26 @@ describe('ProfileService', () => {
       expect(spies.update).not.toHaveBeenCalled();
     });
 
+    it('AC-13: a fully-materialized DTO instance patches only its defined field', async () => {
+      const { repo, calls } = stubRepo();
+      // What the ValidationPipe actually hands the service: class-transformer
+      // materializes EVERY declared property, so the absent two arrive as
+      // `undefined` keys. Branching on `in` would treat all three as sent —
+      // the failure FEAT-011 §8 recorded and T5 reproduced here. This test is
+      // the regression guard for the encoding, so it builds the instance the
+      // way the framework does rather than a hand-written object literal.
+      const materialized = Object.assign(Object.create(null), {
+        displayName: undefined,
+        timezone: undefined,
+        theme: 'dark',
+      }) as { displayName?: string | null; timezone?: string; theme: 'dark' };
+
+      await new ProfileService(repo).update(USER, materialized);
+
+      expect(calls).toEqual([{ theme: 'dark' }]);
+      expect(Object.keys(calls[0])).toEqual(['theme']);
+    });
+
     it('AC-13: writes only the keys the patch carried', async () => {
       const { repo, calls } = stubRepo();
 

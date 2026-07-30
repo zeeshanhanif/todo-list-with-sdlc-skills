@@ -39,11 +39,16 @@ export class ProfileService {
   /**
    * Apply a partial update (FR-PROF-002/003/004/005).
    *
-   * **Key presence — not value — decides what is written** (technical-design D6).
-   * `'displayName' in patch` is true for `{ displayName: null }` and false for an
-   * omitted field, which is exactly the distinction the contract rests on;
-   * branching on `!== undefined` would collapse it the moment a client sent an
-   * explicit `undefined` through some serializer.
+   * **"Sent" is `!== undefined`, not `in`** — the encoding FEAT-011 §8 already
+   * had to correct for the same reason, inherited here rather than rediscovered:
+   * class-transformer materializes every declared DTO property, so
+   * `'displayName' in dto` is true for a body that never mentioned it (it made
+   * every single-field PATCH 400 on a phantom display name during T5).
+   *
+   * `!== undefined` is exact at this boundary because **JSON cannot carry
+   * `undefined`** — a key the client actually sent always holds a real value,
+   * `null` included, which is what preserves technical-design D1's unset
+   * operation while an omitted field stays untouched (D6).
    */
   async update(
     userId: string,
@@ -51,13 +56,13 @@ export class ProfileService {
   ): Promise<UserProfile> {
     const write: ProfilePatch = {};
 
-    if ('displayName' in patch) {
+    if (patch.displayName !== undefined) {
       write.displayName = normalizeDisplayName(patch.displayName);
     }
-    if ('timezone' in patch) {
+    if (patch.timezone !== undefined) {
       write.timezone = validateTimezone(patch.timezone);
     }
-    if ('theme' in patch) {
+    if (patch.theme !== undefined) {
       write.theme = validateTheme(patch.theme);
     }
 

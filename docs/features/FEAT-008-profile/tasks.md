@@ -77,7 +77,7 @@
       each throw `TimezoneInvalidError`), AC-10 (each of the three themes accepted, anything
       else throws), and AC-13 (`{}` throws `EmptyProfilePatchError`).
 
-- [ ] T5 — Contract: `ProfileController` + `dto/update-profile.dto.ts` +
+- [x] T5 — Contract: `ProfileController` + `dto/update-profile.dto.ts` +
       `profile.module.ts`, registered in `app.module.ts` (design §3, §5.1).
       Class-level `@UseGuards(SessionGuard)` **and**
       `@UseInterceptors(ChangeSignalInterceptor)`; `GET` and `PATCH` at
