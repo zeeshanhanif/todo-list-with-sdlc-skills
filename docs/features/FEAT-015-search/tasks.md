@@ -102,7 +102,7 @@
       indicative rather than as a production guarantee. A shape that misses the
       bound is a design escalation (D3's threshold), not a task to grind on.
 
-- [ ] T8 — UI integration point (design §5.3): `app/api/search/route.ts` (BFF
+- [x] T8 — UI integration point (design §5.3): `app/api/search/route.ts` (BFF
       GET, query string + cookie forwarded, envelope relayed verbatim),
       `lib/search.ts`, `components/search-overlay.tsx` consuming it, and the
       trigger in `shell-frame.tsx`. Result rows reuse `DueChip`/`PriorityDot`

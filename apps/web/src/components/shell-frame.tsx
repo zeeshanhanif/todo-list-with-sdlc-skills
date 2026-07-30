@@ -7,6 +7,7 @@ import { SignOutButton } from "@/components/sign-out-button";
 import { ListsNav } from "@/components/lists-nav";
 import { SyncProvider } from "@/components/sync-provider";
 import { PreferencesProvider } from "@/components/preferences-provider";
+import { SearchOverlay } from "@/components/search-overlay";
 import { ThemeSync } from "@/components/theme-sync";
 import { TimezoneAdoption } from "@/components/timezone-adoption";
 
@@ -43,8 +44,25 @@ export function ShellFrame({
   profile?: UserProfile | null;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // SCR-WEB-012 is an OVERLAY mounted here, not a route (FEAT-015 ui-design
+  // D1): search must be reachable from every authenticated screen without
+  // pushing the user's current list out of view or into their back history.
+  const [searchOpen, setSearchOpen] = useState(false);
   const drawerRef = useRef<HTMLElement | null>(null);
   const hamburgerRef = useRef<HTMLButtonElement | null>(null);
+
+  // Ctrl/Cmd+K opens search from anywhere in the authenticated zone
+  // (ui-design D6). The overlay owns Esc and the focus trap once open.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   // Esc closes the drawer and returns focus to its trigger (design.md §5).
   useEffect(() => {
@@ -74,6 +92,9 @@ export function ShellFrame({
             has never been set (FR-PROF-003; technical-design AC-7). Renders
             nothing. */}
         <TimezoneAdoption profile={profile ?? null} />
+        {searchOpen ? (
+          <SearchOverlay onClose={() => setSearchOpen(false)} />
+        ) : null}
         {/* Cross-device sync (FEAT-019). Renders nothing — it only decides when
           to refetch. Mounted HERE rather than in the root layout because the
           shell is the authenticated zone: no token is minted and no socket is
@@ -134,6 +155,43 @@ export function ShellFrame({
           >
             To-Do
           </div>
+
+          {/* The `command-search` trigger (FEAT-015 ui-design, SCR-WEB-007's
+              extension). A real button with an accessible name, styled as the
+              field it opens — not a decorative input, so it is reachable by
+              keyboard like every other sidebar control. */}
+          <button
+            type="button"
+            data-testid="search-trigger"
+            aria-label="Search tasks"
+            onClick={() => {
+              setDrawerOpen(false);
+              setSearchOpen(true);
+            }}
+            style={{
+              marginTop: "var(--space-5)",
+              width: "100%",
+              minHeight: "var(--size-touch-target)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "var(--space-2)",
+              padding: "0 var(--space-3)",
+              borderRadius: "var(--radius-md)",
+              border:
+                "var(--border-width-hairline) solid var(--color-text-muted)",
+              background: "var(--color-surface)",
+              color: "var(--color-text-muted)",
+              fontSize: "var(--font-size-body)",
+              cursor: "pointer",
+              textAlign: "left",
+            }}
+          >
+            <span>Search</span>
+            <span aria-hidden="true" style={{ fontSize: "var(--font-size-caption)" }}>
+              ⌘K
+            </span>
+          </button>
 
           <nav
             style={{
