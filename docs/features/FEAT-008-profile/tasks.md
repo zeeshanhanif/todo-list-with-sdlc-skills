@@ -40,7 +40,7 @@
       new symbols, and **no existing exported shape changes** — `SessionUser` in
       particular stays `{ id, email }` (D7).
 
-- [ ] T2 — Migration `1721570000000_profile-preferences.js` (design §4;
+- [x] T2 — Migration `1721570000000_profile-preferences.js` (design §4;
       FR-PROF-002/003/004): `display_name text` (nullable), `timezone text`
       (nullable), `theme text NOT NULL DEFAULT 'system'`, plus
       `users_theme_check`. No index (design §4).
