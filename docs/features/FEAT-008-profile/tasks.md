@@ -148,7 +148,7 @@
       unchanged) **and** AC-9 passes (a task list read before and after a
       `PATCH { timezone }` returns byte-identical `isOverdue` values).
 
-- [ ] T10 — E2E: extend `e2e/tests/` with the path this feature completes — sign
+- [x] T10 — E2E: extend `e2e/tests/` with the path this feature completes — sign
       in → open Settings → set a display name, a timezone and the dark theme →
       the UI re-themes without a reload → reload and the settings are still
       there → a task's due chip reads in the chosen zone. [UC-007]

@@ -245,12 +245,22 @@ function validateTimezone(raw: string): string {
 The temptation is to normalize through
 `Intl.DateTimeFormat(...).resolvedOptions().timeZone` and to gate on
 `Intl.supportedValuesOf('timeZone')`. **Both are traps on this stack, measured
-on the repo's own runtime** (Node 22.18 / ICU 77) rather than assumed:
-`resolvedOptions()` canonicalizes `Asia/Kolkata` **to** `Asia/Calcutta` here
-while a current browser canonicalizes the other way; `supportedValuesOf` on this
-ICU contains `Asia/Calcutta` and **not** `Asia/Kolkata`; and it excludes `UTC`
-entirely, so a membership gate would reject the system's own fallback zone.
-Hence D2.
+on the repo's own runtimes** rather than assumed:
+
+| Fact (measured) | Node 22.18 / ICU 77 | The E2E suite's Chromium |
+| :-- | :-- | :-- |
+| `resolvedOptions()` for `Asia/Kolkata` | `Asia/Calcutta` | `Asia/Calcutta` |
+| `supportedValuesOf` contains `Asia/Kolkata` | no | no |
+| `supportedValuesOf` contains `UTC` | no | no |
+
+Two consequences. A **membership gate would reject `UTC`**, the system's own
+fallback zone. And which alias spelling a runtime prefers is an ICU-version
+detail, not a fixed fact — the two agree today and are free to diverge on the
+next upgrade of either — so a server that canonicalized would eventually hold a
+zone id the picker's own option list does not contain, and the settings screen
+could not show the user their own saved setting. Hence D2: validate, store
+verbatim, and have the client guarantee the stored zone is present in its list
+(§5.2's `groupZones`).
 
 ### 5.2 Web — the profile's three consumers
 
@@ -424,14 +434,17 @@ comment listing the active modules.
   default cannot express. `NULL` = not yet established; the effective zone
   anywhere the server needs one is `COALESCE(timezone, 'UTC')`; the
   browser-detected adoption is a one-time client `PATCH` when the profile
-  reports `null` (AC-7). Driver, part two — **measured, not assumed** (§5.1):
-  the API's ICU and the browser's ICU canonicalize IANA aliases in **opposite
-  directions** (Node 22.18/ICU 77 resolves `Asia/Kolkata` → `Asia/Calcutta`;
-  current browsers resolve the reverse), and `Intl.supportedValuesOf` on the
-  server excludes both `UTC` and `Asia/Kolkata`. A server that canonicalizes
-  would therefore hand the browser a zone id absent from the browser's own
-  option list — a settings screen that cannot show the user their own saved
-  setting — and a membership gate would reject `UTC`, the system's fallback.
+  reports `null` (AC-7). Driver, part two — **measured on both runtimes, not
+  assumed** (the table in §5.1): `Intl.supportedValuesOf` excludes `UTC` on
+  *both* the API's ICU and the E2E browser's, so a membership gate would reject
+  the system's own fallback zone; and the alias spelling a runtime canonicalizes
+  to is an ICU-version detail (both currently prefer `Asia/Calcutta` over
+  `Asia/Kolkata`, and are free to diverge on the next upgrade of either). A
+  server that canonicalized would therefore be one ICU bump away from holding a
+  zone id absent from the picker's own option list — a settings screen that
+  cannot show the user their own saved setting. The client closes the remaining
+  gap by guaranteeing the stored zone appears in its list regardless (§5.2's
+  `groupZones`).
   So: validate (resolves through `Intl`, not a fixed-offset form) and store the
   caller's string unchanged. The residual cost is that two spellings of one zone
   can both exist in the column; that costs nothing, because the value is only
