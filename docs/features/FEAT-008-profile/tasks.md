@@ -135,7 +135,7 @@
       operable with a visible focus ring) — and the sidebar's Settings item
       reaches SCR-WEB-013 with SCR-WEB-014 one click away.
 
-- [ ] T9 — Web: `lib/due-date.ts` becomes zone-explicit and its four consumers
+- [x] T9 — Web: `lib/due-date.ts` becomes zone-explicit and its four consumers
       pass the profile zone (design §5.3; FR-PROF-003, NFR-LOC-001).
       `zonedParts` + the two-pass offset solve in `fromDateTimeLocalValue`;
       `task-meta.tsx`, `task-detail.tsx` and `quick-add.tsx` reading

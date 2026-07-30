@@ -9,6 +9,7 @@ import {
   type TaskPriority,
 } from "@todo/shared";
 import { fromDateTimeLocalValue } from "@/lib/due-date";
+import { useTimeZone } from "@/components/preferences-provider";
 import { PRIORITY_LABELS } from "@/components/task-meta";
 
 // design.md §4 `quick-add` — the persistent single-line composer at the top of
@@ -22,6 +23,9 @@ import { PRIORITY_LABELS } from "@/components/task-meta";
 // All values are design tokens.
 export function QuickAdd({ listId }: { listId: string }) {
   const router = useRouter();
+  // The typed wall clock is interpreted in the ACCOUNT's zone, not the
+  // browser's (FEAT-008 §5.3, FR-PROF-003).
+  const timeZone = useTimeZone();
   const [title, setTitle] = useState("");
   const [dueAt, setDueAt] = useState("");
   const [priority, setPriority] = useState<TaskPriority>("none");
@@ -40,7 +44,7 @@ export function QuickAdd({ listId }: { listId: string }) {
         // title-only create is byte-identical to what FEAT-010 sent (D8).
         body: JSON.stringify({
           title,
-          ...(dueAt ? { dueAt: fromDateTimeLocalValue(dueAt) } : {}),
+          ...(dueAt ? { dueAt: fromDateTimeLocalValue(dueAt, timeZone) } : {}),
           ...(priority !== "none" ? { priority } : {}),
         }),
       });

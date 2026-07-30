@@ -16,6 +16,7 @@ import {
   fromDateTimeLocalValue,
   toDateTimeLocalValue,
 } from "@/lib/due-date";
+import { useTimeZone } from "@/components/preferences-provider";
 import { DueChip, PRIORITY_LABELS } from "@/components/task-meta";
 import { TaskCheckbox } from "@/components/task-checkbox";
 import { TaskDelete } from "@/components/task-delete";
@@ -54,6 +55,9 @@ export function TaskDetail({
   presentation: "panel" | "page";
 }) {
   const router = useRouter();
+  // The account's zone: the picker shows the user's wall clock and the value it
+  // sends is the instant that clock names (FEAT-008 §5.3, FR-PROF-003).
+  const timeZone = useTimeZone();
   const [task, setTask] = useState(initial);
   const [title, setTitle] = useState(initial.title);
   const [saving, setSaving] = useState<Field | null>(null);
@@ -175,12 +179,12 @@ export function TaskDetail({
             data-testid="detail-due"
             type="datetime-local"
             disabled={saving === "dueAt"}
-            value={task.dueAt ? toDateTimeLocalValue(task.dueAt) : ""}
+            value={task.dueAt ? toDateTimeLocalValue(task.dueAt, timeZone) : ""}
             aria-invalid={Boolean(errors.dueAt)}
             onChange={(e) => {
               const v = e.target.value;
               void save("dueAt", {
-                dueAt: v === "" ? null : fromDateTimeLocalValue(v),
+                dueAt: v === "" ? null : fromDateTimeLocalValue(v, timeZone),
               });
             }}
             style={{
@@ -289,7 +293,7 @@ export function TaskDetail({
           variant="detail"
           label={
             task.completedAt
-              ? `Completed ${formatDueDate(task.completedAt)}`
+              ? `Completed ${formatDueDate(task.completedAt, timeZone)}`
               : "Mark complete"
           }
         />

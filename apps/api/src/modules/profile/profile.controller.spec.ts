@@ -338,6 +338,50 @@ describe('profile endpoints (contract)', () => {
     await patch(cookie, { theme: 'dark' }).expect(401);
   });
 
+  it("AC-9: changing the timezone changes no task's isOverdue", async () => {
+    const { cookie, id } = await signedInUser();
+    const inbox = await db.query<{ id: string }>(
+      'SELECT id FROM lists WHERE owner_id = $1 AND is_default = true',
+      [id],
+    );
+    const listId = inbox.rows[0].id;
+    // One task already late, one due well ahead — the two sides of FR-TASK-007.
+    for (const dueAt of [
+      '2020-01-01T00:00:00.000Z',
+      '2099-01-01T00:00:00.000Z',
+    ]) {
+      await request(server())
+        .post(`/lists/${listId}/tasks`)
+        .set('Cookie', cookie)
+        .send({ title: `due ${dueAt}`, dueAt })
+        .expect(201);
+    }
+    const read = async () => {
+      const res = await request(server())
+        .get(`/lists/${listId}/tasks`)
+        .set('Cookie', cookie);
+      expect(res.status).toBe(200);
+      return (
+        res.body as { active: { title: string; isOverdue: boolean }[] }
+      ).active.map((t) => [t.title, t.isOverdue]);
+    };
+
+    const before = await read();
+    // Move the account half the planet away, twice.
+    await patch(cookie, { timezone: 'Pacific/Kiritimati' }).expect(200); // +14
+    const afterEast = await read();
+    await patch(cookie, { timezone: 'Pacific/Midway' }).expect(200); // -11
+    const afterWest = await read();
+
+    // Overdue is an instant comparison, so its answer is the same in every zone
+    // (FEAT-011 D1/D3, technical-design D4). A future feature that made overdue
+    // zone-dependent would fail exactly here.
+    expect(afterEast).toEqual(before);
+    expect(afterWest).toEqual(before);
+    expect(before.some(([, overdue]) => overdue === true)).toBe(true);
+    expect(before.some(([, overdue]) => overdue === false)).toBe(true);
+  });
+
   it('AC-15: each route issues exactly one profile query, inside 300 ms', async () => {
     const { cookie } = await signedInUser();
 
