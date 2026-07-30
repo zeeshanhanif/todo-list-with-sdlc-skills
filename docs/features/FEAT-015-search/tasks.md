@@ -93,7 +93,7 @@
       duplicates a returned row nor hides an unseen one) — each rendering the
       `ApiError` envelope.
 
-- [ ] T7 — Verify NFR-PERF-003 empirically (design D3; AC-10). Seed a user with
+- [x] T7 — Verify NFR-PERF-003 empirically (design D3; AC-10). Seed a user with
       **5,000 tasks**, then time the four shapes D3 measured — keyword matching
       few rows, keyword matching most rows, filter-only, and a deep cursor page —
       through the **HTTP endpoint**, not just the SQL.
