@@ -1,10 +1,15 @@
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
 import { loadConfig } from './infra/config';
+import { loadEnv } from './infra/load-env';
 import { AppModule } from './app.module';
 import { configureApp } from './app-setup';
 
 async function bootstrap() {
+  // Bring the repo's .env into process.env before anything reads config
+  // (DEF-007). Resolved by walking up, so a workspace-script start finds the
+  // same file the root scripts use.
+  const envFile = loadEnv();
   const config = loadConfig();
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log'],
@@ -23,6 +28,10 @@ async function bootstrap() {
       msg: 'api listening',
       port: config.port,
       env: config.nodeEnv,
+      // Names the file, or says none was found. DEF-007's failure mode was
+      // silence: config that looked applied and was not.
+      envFile: envFile ?? 'none (using defaults + process env)',
+      realtime: config.realtimeProvider,
     }),
   );
 }

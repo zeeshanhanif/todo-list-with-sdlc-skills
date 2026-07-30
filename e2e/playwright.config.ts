@@ -27,6 +27,13 @@ export default defineConfig({
         DATABASE_URL,
         PORT: "3001",
         WEB_ORIGIN: "http://localhost:3000",
+        // Pinned, not inherited (DEF-007). The API's CWD here is the repo root,
+        // so it loads the repo `.env` — and a developer with REALTIME_PROVIDER=
+        // supabase in theirs would otherwise have this suite publishing to a
+        // real external service on every write. The suite tests the fallback
+        // path deliberately (FEAT-019 AC-2); that must not depend on whose
+        // machine it runs on.
+        REALTIME_PROVIDER: "none",
       },
     },
     {

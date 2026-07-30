@@ -10,10 +10,8 @@ recycled.
 | DEF-002 | 2026-07-27 | *(no FR — test infrastructure)* / api suite | **Open.** Residual ~7% parallel-run flakiness after DEF-001: a *different* test fails each run, always "a row that should exist doesn't". Cross-worker DB interference **ruled out** — per-worker databases were tried and reverted | _open_ | _open_ |
 | DEF-003 | 2026-07-28 | NFR-USE-004 (design.md §5 contrast) / FEAT-010, SCR-WEB-008 | `list-view-failure.tsx`'s alert put `--color-danger` text on `--color-danger-subtle` — **3.95:1**, below the 4.5:1 design.md §5 requires. Fixing it surfaced a **second** failure the report had missed: the action inside the tint at **4.48:1** | `bd200ec` (partner tokens; 3.95→6.80 and 4.48→6.21) | 2026-07-28 — measured, rendered output checked, e2e 15 green |
 | DEF-004 | 2026-07-29 | NFR-USE-004 (design.md §5 contrast) / FEAT-011, SCR-WEB-008 + SCR-WEB-010; **also FEAT-009**'s sidebar badge (2nd instance) | `task-meta.tsx`'s **non-overdue** `DueChip` put `--color-text-muted` on `--color-surface-sunken` — **4.34:1** at `caption` (12px), below the 4.5:1 design.md §5 requires. The *overdue* variant was fine (6.80:1, the pairing DEF-003 fixed); it was the ordinary due-date chip that failed — and `lists-nav.tsx`'s count badge, found by grepping the pairing | `1294811` (text on the sunken tint takes `--color-text`; 4.34→16.30 light, 7.05→15.49 dark) | 2026-07-29 — failing contrast test red before / green after; FEAT-011 report re-verified **Accepted (unchanged)**; api 191, e2e 19 |
-
 | DEF-005 | 2026-07-29 | NFR-USE-004 (design.md §5 control boundaries) / all web form controls, FEAT-001/002/003/005/006/009/010/011 | Every `input`/`textarea`/`select` in `apps/web` outlined in `--color-border-strong` — **1.48:1** light / **1.64:1** dark, below the 3:1 §5 requires for a boundary that is the control's only identifier. A web-tier accessibility pass, not per-feature work | `d27af38` (13 sites → `--color-text-muted`; 1.48→4.76 light, 1.64→6.64 dark) | 2026-07-29 — `control-contrast.spec.ts` sweep red before / green after across 8 screens; api 191, worker 20, e2e 21 |
-
-| DEF-007 | 2026-07-30 | NFR-MAINT-003 (externalized config) / walking skeleton — affects every env-driven setting in `apps/api` and `apps/worker` | **Open.** `loadConfig()` calls dotenv with no path, so it resolves `.env` against the **process CWD** — which is `apps/api` when started as a workspace script. The repo's only `.env` is at the root, so `npm run dev:api` / `npm run start -w @todo/api` silently run on **defaults**, ignoring every value an operator set. `.env.example` says "Copy to .env for local development", so the documented path does not work for the API | _open_ | _open_ |
+| DEF-007 | 2026-07-30 | NFR-MAINT-003 (externalized config) / walking skeleton — affects every env-driven setting in `apps/api` and `apps/worker` | `loadConfig()` called dotenv with no path, so it resolved `.env` against the **process CWD** — which is `apps/api` when started as a workspace script. The repo's only `.env` is at the root, so `npm run dev:api` / `npm run start -w @todo/api` silently ran on **defaults**, ignoring every value an operator set. `.env.example` says "Copy to .env for local development", so the documented path did not work | `<this commit>` (env loading moved to the entrypoint, resolved by walking up; `loadConfig()` is now a pure read) | 2026-07-30 — guard red before / green after; the reported symptom reproduced and gone (`npm run start -w @todo/api` now logs `envFile` + honours `REALTIME_PROVIDER`); api 247, worker 24, web 23, e2e 30 |
 | DEF-006 | 2026-07-29 | NFR-USE-004 (design.md §5 contrast) / FEAT-001, FEAT-003, FEAT-005, FEAT-009 — the **inline-alert** instances DEF-003 and DEF-004 both missed | **Open.** Five shipped sites still put `--color-danger` on `--color-danger-subtle` at `small` — the **3.95:1** pairing DEF-003 measured and `--color-danger-text` (6.80:1) exists to replace: `app/signup/page.tsx:89`, `app/signin/page.tsx:128`, `app/reset-password/page.tsx:46`, `components/lists-nav.tsx:117`, `components/list-dialog.tsx:196`. A web-tier pass, not per-feature rework | _open_ | _open_ |
 
 ## DEF-006 — the inline-alert instances of the DEF-003 pairing
@@ -502,3 +500,58 @@ features whose config it touches.
 
 **Workaround until fixed.** Export the values before starting the API:
 `set -a; . ./.env; set +a; npm run start -w @todo/api`.
+
+
+## DEF-007 — fix (2026-07-30)
+
+**Failing test first.** `apps/api/src/infra/load-env.spec.ts` (6 cases) and
+`apps/worker/src/infra/load-env.spec.ts` (4) were written before the fix and run
+red — `Cannot find module './load-env'`, the loader did not exist. They build a
+throwaway tree shaped like the monorepo (root `.env` + nested `apps/<unit>`) and
+assert the file is found from the nested directory, from the root, and from
+deeper still.
+
+**The fix, and why it is shaped this way.** Env loading moved **out of
+`loadConfig()` and into the process entrypoint** (`main.ts` in both apps), with
+the file resolved by **walking up** from the start directory rather than trusting
+the CWD. `loadConfig()` is now a pure read of `process.env`.
+
+That split does three things, only the first of which was the reported bug:
+
+1. A workspace-script start finds the same `.env` the root scripts and
+   `node-pg-migrate` use.
+2. **Unit tests are hermetic by construction.** Previously any spec that deleted
+   an env var and called `loadConfig()` would have had dotenv re-inject the
+   developer's own `.env` — so a suite's result could depend on whose machine it
+   ran on. FEAT-019's `realtime.controller.spec` ("unconfigured answers
+   `{ enabled: false }`") is exactly such a spec, and would have become
+   machine-dependent the moment the path bug was fixed naively.
+3. **dotenv stops running per request.** `loadConfig()` is called from
+   `session.service`, `rate-limit.guard`, `auth.service`, `db.service` and the
+   realtime block — on essentially every request. Each call was hitting the
+   filesystem. (It is also what produced the `injected env (0) from .env` spam
+   through every test run.)
+
+**Precedence is deliberate and asserted: the real environment wins over the
+file.** In Cloud Run these arrive as service env vars with no file present, so a
+stray `.env` baked into an image can never override deployed config.
+
+**Startup now names the file** — `{"msg":"api listening", …, "envFile":"…/.env",
+"realtime":"supabase"}` — or says `none (using defaults + process env)`. The
+defect's failure mode was silence: configuration that looked applied and was not.
+
+**One harness change came with it, and it is not incidental.** The E2E
+`webServer` runs the API with the CWD at the repo root, so it *does* load the
+repo `.env` — meaning a developer with `REALTIME_PROVIDER=supabase` in theirs
+would have had the whole Playwright suite publishing to a real external service
+on every write, while a colleague's identical run did not. `e2e/playwright.config.ts`
+now pins `REALTIME_PROVIDER: "none"` explicitly. FEAT-019 AC-2 tests the fallback
+path on purpose; that must not depend on whose machine it runs on.
+
+**Verification.** Guard specs red before / green after. The reported symptom was
+reproduced and is gone: `npm run start -w @todo/api` with nothing exported now
+logs the root `.env` and `realtime: supabase`, where it previously ran on
+defaults. Full suites after the fix: **api 247** (serial), **worker 24**,
+**web 23**, **e2e 30**; lint, boundaries and build clean. No feature's behaviour
+changes on default configuration — the defaults were always the values these apps
+were actually running on.

@@ -1,5 +1,3 @@
-import { config as loadDotenv } from "dotenv";
-
 export type EmailProvider = "log" | "smtp";
 
 export interface WorkerConfig {
@@ -17,11 +15,14 @@ export interface WorkerConfig {
 }
 
 /**
- * Worker configuration from the environment (NFR-MAINT-003). Reads a local .env
- * in development; in cloud environments these are Cloud Run Job env vars.
+ * Worker configuration from the environment (NFR-MAINT-003). In cloud
+ * environments these are Cloud Run Job env vars.
+ *
+ * **A pure read: it loads no file.** Bringing a local `.env` into `process.env`
+ * is `loadEnv()`'s job, called once from `main.ts` (DEF-007) — the workspace-CWD
+ * defect this app shared with the API.
  */
 export function loadConfig(): WorkerConfig {
-  loadDotenv();
   const provider = process.env.EMAIL_PROVIDER === "smtp" ? "smtp" : "log";
   return {
     databaseUrl:

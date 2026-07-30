@@ -1,5 +1,3 @@
-import { config as loadDotenv } from 'dotenv';
-
 export interface AppConfig {
   port: number;
   nodeEnv: string;
@@ -53,12 +51,16 @@ export interface AppConfig {
 }
 
 /**
- * Loads configuration from the environment (NFR-MAINT-003 — externalized config,
- * no committed secrets). Reads a local .env in development; in cloud environments
- * the values are Cloud Run environment variables set at deploy time.
+ * Reads configuration from the environment (NFR-MAINT-003 — externalized config,
+ * no committed secrets). In cloud environments these are Cloud Run environment
+ * variables set at deploy time.
+ *
+ * **A pure read: it loads no file.** Bringing a local `.env` into `process.env`
+ * is `loadEnv()`'s job, called once from `main.ts` (DEF-007). Keeping the two
+ * separate is what makes this callable per-request without touching the disk,
+ * and what keeps unit tests hermetic.
  */
 export function loadConfig(): AppConfig {
-  loadDotenv();
   return {
     port: Number(process.env.PORT ?? 3001),
     nodeEnv: process.env.NODE_ENV ?? 'development',
