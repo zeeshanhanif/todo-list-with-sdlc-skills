@@ -632,3 +632,90 @@ export type RealtimeTokenResponse =
       /** ISO-8601 UTC expiry; the client re-mints at 80% of the lifetime. */
       expiresAt: string;
     };
+
+// --- Profile & settings (FEAT-008) ---
+
+/** Path of the profile resource — `GET` to read, `PATCH` to edit. Single-subject:
+ * the caller is always the session user, so no id appears in the path, the query
+ * or the body (FR-AUTHZ-004; technical-design §3). */
+export const PROFILE_PATH = "/profile";
+
+/** The three theme preferences (FR-PROF-004). `system` means "match the OS",
+ * which is a stored *preference*, not a resolved value — the client resolves it
+ * per device via `matchMedia` (technical-design D3). */
+export const THEME_PREFERENCES = ["light", "dark", "system"] as const;
+
+/** A stored theme preference. */
+export type ThemePreference = (typeof THEME_PREFERENCES)[number];
+
+/** Maximum display-name length (FR-PROF-002). Shared so the client bound can
+ * never drift from the server rule — the constant-sharing convention FEAT-001
+ * set with PASSWORD_MIN_LENGTH. Names are trimmed before validation. */
+export const DISPLAY_NAME_MAX_LENGTH = 80;
+
+/**
+ * The profile as `GET /profile` returns it (FR-PROF-001).
+ *
+ * Two fields are nullable, and each null means something specific:
+ * - `displayName: null` — never set. The default is **derived at read time**,
+ *   never stored (technical-design D1); render it with `displayNameFor`.
+ * - `timezone: null` — not yet established. The effective zone is `UTC` until
+ *   the client adopts the browser-detected one, which is FR-PROF-003's own
+ *   two-stage default (technical-design D2).
+ */
+export interface UserProfile {
+  /** The account email. Read-only in the MVP (FR-PROF-001). */
+  email: string;
+  displayName: string | null;
+  /** An IANA zone id **exactly as the user chose it** — the server validates it
+   * but deliberately does not re-canonicalize (technical-design D2). */
+  timezone: string | null;
+  theme: ThemePreference;
+}
+
+/** Success response (200) of `GET /profile`. */
+export interface ProfileResponse {
+  profile: UserProfile;
+}
+
+/**
+ * Request body of `PATCH /profile` — **partial**, and *absent ≠ null*
+ * (technical-design D6, the semantics FEAT-011 D4 established for this API).
+ *
+ * Omit a field to leave it alone. `displayName: null` **unsets** it back to the
+ * derived default; `""` is a validation error, not a way to clear it. `timezone`
+ * takes no null — a zone that has been established cannot be un-established.
+ * A body with no recognized field is a `400`, never a silent no-op.
+ */
+export interface UpdateProfileRequest {
+  displayName?: string | null;
+  timezone?: string;
+  theme?: ThemePreference;
+}
+
+/** Success response (200) of `PATCH /profile` — the profile **as stored**. */
+export interface UpdateProfileResponse {
+  profile: UserProfile;
+}
+
+/** Error `code` values the profile endpoints add to the ApiError envelope
+ * (FEAT-008 technical-design §3). Field-level failures reuse the existing
+ * `validation_failed` + `fields[]` convention; the empty patch reports on the
+ * synthetic field `_`, which names the body itself rather than any one field. */
+export const PROFILE_ERROR_CODES = {
+  emptyPatchField: "_",
+} as const;
+
+/**
+ * The display name to show for a user — the single rule both tiers render the
+ * fallback with (technical-design D1).
+ *
+ * A stored name wins; otherwise the email's local part stands in
+ * (`ada@example.com` → `ada`). Derived here rather than backfilled into the
+ * column so that "did the user choose this?" stays answerable, and so the
+ * fallback follows the email instead of drifting from it.
+ */
+export const displayNameFor = (user: {
+  displayName: string | null;
+  email: string;
+}): string => user.displayName ?? user.email.split("@")[0];

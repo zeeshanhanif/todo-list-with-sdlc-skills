@@ -30,7 +30,7 @@
 > `app/signin/page.tsx` — it carries the defect.
 > `apps/web/AGENTS.md`: read `node_modules/next/dist/docs/` before writing web code.
 
-- [ ] T1 — Shared contracts (`@todo/shared`, design §3): a FEAT-008 block adding
+- [x] T1 — Shared contracts (`@todo/shared`, design §3): a FEAT-008 block adding
       `PROFILE_PATH`, `THEME_PREFERENCES` (`["light","dark","system"] as const`)
       + `ThemePreference`, `DISPLAY_NAME_MAX_LENGTH` (80), `UserProfile`,
       `ProfileResponse`, `UpdateProfileRequest`, `UpdateProfileResponse`, and the
