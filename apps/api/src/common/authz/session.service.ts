@@ -1,8 +1,8 @@
 import { createHash, randomBytes } from 'crypto';
 import type { CookieOptions } from 'express';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import type { SessionUser } from '@todo/shared';
-import { loadConfig } from '../../infra/config';
+import { APP_CONFIG, type AppConfig } from '../../infra/config';
 import type { TxClient } from '../../infra/db.service';
 import { SessionsRepository } from './sessions.repository';
 import { sessionCookieOptions } from './session.constants';
@@ -23,7 +23,10 @@ export interface IssuedSession {
  */
 @Injectable()
 export class SessionService {
-  constructor(private readonly sessions: SessionsRepository) {}
+  constructor(
+    private readonly sessions: SessionsRepository,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
+  ) {}
 
   /** SHA-256 hex of a raw token. */
   hashToken(raw: string): string {
@@ -34,7 +37,7 @@ export class SessionService {
    * `tx` lets issuance join an open transaction, so a password change can
    * revoke-all and reissue atomically (FEAT-006 D2). */
   async issue(userId: string, tx?: TxClient): Promise<IssuedSession> {
-    const cfg = loadConfig();
+    const cfg = this.config;
     const rawToken = randomBytes(32).toString('base64url');
     const ttlMs = cfg.sessionTtlDays * 24 * 60 * 60 * 1000;
     const expiresAt = new Date(Date.now() + ttlMs);

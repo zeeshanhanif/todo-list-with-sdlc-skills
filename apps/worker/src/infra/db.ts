@@ -1,5 +1,4 @@
 import { Pool } from "pg";
-import { config as loadDotenv } from "dotenv";
 
 let pool: Pool | null = null;
 
@@ -8,7 +7,9 @@ let pool: Pool | null = null;
 // stays testable (see cleanup.service.spec.ts).
 export function getPool(): Pool {
   if (!pool) {
-    loadDotenv();
+    // No dotenv here: `main.ts` calls loadEnv() once at startup (DEF-007). A
+    // lazy load inside a runtime path was the same defect in miniature — it read
+    // the filesystem on first use and resolved `.env` against the process CWD.
     pool = new Pool({
       connectionString:
         process.env.DATABASE_URL ?? "postgres://todo:todo@localhost:5432/todo",

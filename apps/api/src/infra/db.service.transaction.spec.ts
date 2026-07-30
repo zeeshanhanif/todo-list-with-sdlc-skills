@@ -1,3 +1,4 @@
+import { readConfig } from './config';
 import { DbService } from './db.service';
 
 // Integration test (needs the local Postgres; schema ensured by jest globalSetup).
@@ -7,7 +8,7 @@ describe('DbService.transaction (integration)', () => {
   let db: DbService;
 
   beforeAll(async () => {
-    db = new DbService();
+    db = new DbService(readConfig());
     await db.query('CREATE TABLE IF NOT EXISTS _tx_test (id text primary key)');
     await db.query('TRUNCATE _tx_test');
   });

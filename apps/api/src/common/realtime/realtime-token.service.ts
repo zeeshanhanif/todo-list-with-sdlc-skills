@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from 'crypto';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { userChannel } from '@todo/shared';
-import { loadConfig } from '../../infra/config';
+import { APP_CONFIG, type AppConfig } from '../../infra/config';
 
 /** What a minted token grants: one user, one channel, for a short while. */
 export interface MintedRealtimeToken {
@@ -39,8 +39,10 @@ export interface RealtimeTokenClaims {
  */
 @Injectable()
 export class RealtimeTokenService {
+  constructor(@Inject(APP_CONFIG) private readonly config: AppConfig) {}
+
   mint(userId: string): MintedRealtimeToken {
-    const config = loadConfig();
+    const config = this.config;
     const ttlSeconds = config.realtimeTokenTtlMinutes * 60;
     const iat = Math.floor(Date.now() / 1000);
     const exp = iat + ttlSeconds;
@@ -81,7 +83,7 @@ export class RealtimeTokenService {
     const [header, payload, signature] = parts;
     const expected = sign(
       `${header}.${payload}`,
-      loadConfig().supabaseJwtSecret,
+      this.config.supabaseJwtSecret,
     );
     const given = Buffer.from(signature);
     const want = Buffer.from(expected);

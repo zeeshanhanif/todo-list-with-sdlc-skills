@@ -1,6 +1,6 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, UseGuards } from '@nestjs/common';
 import type { RealtimeTokenResponse, SessionUser } from '@todo/shared';
-import { loadConfig } from '../../infra/config';
+import { APP_CONFIG, type AppConfig } from '../../infra/config';
 import { SessionGuard } from '../authz/session.guard';
 import { CurrentUser } from '../authz/current-user.decorator';
 import { RealtimeTokenService } from './realtime-token.service';
@@ -26,11 +26,14 @@ import { RealtimeTokenService } from './realtime-token.service';
 @Controller('realtime')
 @UseGuards(SessionGuard)
 export class RealtimeController {
-  constructor(private readonly tokens: RealtimeTokenService) {}
+  constructor(
+    private readonly tokens: RealtimeTokenService,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
+  ) {}
 
   @Get('token')
   token(@CurrentUser() user: SessionUser): RealtimeTokenResponse {
-    const config = loadConfig();
+    const config = this.config;
 
     // Unconfigured is the default and is not an error: the client falls back to
     // its adaptive refetch schedule (D4). Nothing is minted and the signing

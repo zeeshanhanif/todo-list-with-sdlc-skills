@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { DbService } from '../../infra/db.service';
-import { loadConfig } from '../../infra/config';
+import { APP_CONFIG, type AppConfig } from '../../infra/config';
 import { PasswordPolicyService } from './password-policy.service';
 import { PasswordHasher } from './password-hasher';
 import { VerificationTokenService } from './verification-token.service';
@@ -44,6 +44,7 @@ export class AuthService {
     private readonly sessions: SessionService,
     private readonly audit: AuditService,
     private readonly resetTokens: ResetTokenService,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
   async register(input: { email: string; password: string }): Promise<void> {
@@ -155,7 +156,7 @@ export class AuthService {
       input.password,
     );
     if (!passwordOk) {
-      const cfg = loadConfig();
+      const cfg = this.config;
       const nextCount = user.failedLoginCount + 1;
       const lockUntil =
         nextCount >= cfg.loginMaxFailedAttempts
@@ -342,7 +343,7 @@ export class AuthService {
       this.db,
       email,
     );
-    const cooldownMs = loadConfig().resendCooldownSeconds * 1000;
+    const cooldownMs = this.config.resendCooldownSeconds * 1000;
     if (lastSentAt && Date.now() - lastSentAt.getTime() < cooldownMs) {
       return; // within cooldown — neutral, no additional send
     }

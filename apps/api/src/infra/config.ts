@@ -51,16 +51,28 @@ export interface AppConfig {
 }
 
 /**
+ * DI token for the single, boot-time `AppConfig` instance (DEF-008).
+ *
+ * Injected rather than called: config is a dependency a service *declares*, not
+ * an ambient global it reaches for, and the values cannot change while the
+ * process lives — so reading `process.env` per request was pure waste.
+ */
+export const APP_CONFIG = 'APP_CONFIG';
+
+/**
  * Reads configuration from the environment (NFR-MAINT-003 — externalized config,
  * no committed secrets). In cloud environments these are Cloud Run environment
  * variables set at deploy time.
  *
  * **A pure read: it loads no file.** Bringing a local `.env` into `process.env`
- * is `loadEnv()`'s job, called once from `main.ts` (DEF-007). Keeping the two
- * separate is what makes this callable per-request without touching the disk,
- * and what keeps unit tests hermetic.
+ * is `loadEnv()`'s job, called once from `main.ts` (DEF-007).
+ *
+ * **Called once, at boot**, by `InfraModule`'s `APP_CONFIG` factory — not by
+ * consumers (DEF-008). It must stay a `useFactory` rather than a `useValue`:
+ * `useValue` would evaluate at module *import* time, before `main.ts` has had a
+ * chance to call `loadEnv()`, and would silently produce a defaults-only config.
  */
-export function loadConfig(): AppConfig {
+export function readConfig(): AppConfig {
   return {
     port: Number(process.env.PORT ?? 3001),
     nodeEnv: process.env.NODE_ENV ?? 'development',

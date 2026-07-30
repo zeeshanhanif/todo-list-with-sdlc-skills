@@ -1,10 +1,11 @@
 import { createHash } from 'crypto';
+import { readConfig } from '../../infra/config';
 import { VerificationTokenService } from './verification-token.service';
 
 // AC-7 (FR-AUTH-005, NFR-SEC-004): issued token has raw != hash, hash = SHA-256(raw),
 // and expiry ~ now + 24h.
 describe('VerificationTokenService', () => {
-  const svc = new VerificationTokenService();
+  const svc = new VerificationTokenService(readConfig());
 
   it('issues a token whose stored hash is SHA-256(raw), not the raw', () => {
     const { raw, hash } = svc.issue();

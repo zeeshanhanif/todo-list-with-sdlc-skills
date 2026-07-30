@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
-import { loadConfig } from './infra/config';
+import { APP_CONFIG, type AppConfig } from './infra/config';
 import { loadEnv } from './infra/load-env';
 import { AppModule } from './app.module';
 import { configureApp } from './app-setup';
@@ -10,10 +10,12 @@ async function bootstrap() {
   // (DEF-007). Resolved by walking up, so a workspace-script start finds the
   // same file the root scripts use.
   const envFile = loadEnv();
-  const config = loadConfig();
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log'],
   });
+  // The one config instance, built by InfraModule's factory once the app is
+  // constructed — i.e. after loadEnv() (DEF-007) and once only (DEF-008).
+  const config = app.get<AppConfig>(APP_CONFIG);
 
   // Global ValidationPipe + error-envelope filter (technical-design §7 D6).
   configureApp(app);

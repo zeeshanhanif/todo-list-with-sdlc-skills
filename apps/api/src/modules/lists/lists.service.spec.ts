@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { Test } from '@nestjs/testing';
 import { LIST_NAME_MAX_LENGTH } from '@todo/shared';
+import { APP_CONFIG, readConfig } from '../../infra/config';
 import { DbService } from '../../infra/db.service';
 import { ListsService } from './lists.service';
 import { ListsRepository } from './lists.repository';
@@ -18,7 +19,12 @@ import {
 // AC-6 (default list is not deletable), AC-7 (reorder persists / is idempotent /
 // rejects a bad set), AC-8 (another owner's id is ListNotFoundError, identical
 // to an unknown uuid), AC-10 (the FR-LIST-009 constraints).
-const providers = [ListsService, ListsRepository, DbService];
+const providers = [
+  ListsService,
+  ListsRepository,
+  DbService,
+  { provide: APP_CONFIG, useFactory: readConfig },
+];
 
 describe('ListsService (integration)', () => {
   let db: DbService;

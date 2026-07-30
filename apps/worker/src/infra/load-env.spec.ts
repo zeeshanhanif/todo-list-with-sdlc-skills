@@ -2,9 +2,9 @@ import { mkdtempSync, mkdirSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { findEnvFile, loadEnv } from "./load-env";
-import { loadConfig } from "../config";
+import { readConfig } from "../config";
 
-// DEF-007 regression guard, worker side. Same defect as the API's: `loadConfig()`
+// DEF-007 regression guard, worker side. Same defect as the API's: `readConfig()`
 // called dotenv with no path, so a workspace-script start (`npm run worker:run`)
 // resolved `.env` against `apps/worker`, which has none — so EMAIL_PROVIDER,
 // SMTP_URL and the backoff settings silently stayed at their defaults. For this
@@ -41,7 +41,7 @@ describe("DEF-007: worker env resolution from a workspace directory", () => {
 
     loadEnv(nested);
 
-    const config = loadConfig();
+    const config = readConfig();
     // The one that would have bitten hardest: configured SMTP actually selected.
     expect(config.emailProvider).toBe("smtp");
     expect(config.smtpUrl).toBe("smtps://u:p@smtp.example.com:465");
@@ -52,13 +52,13 @@ describe("DEF-007: worker env resolution from a workspace directory", () => {
     const { nested } = fakeRepo("EMAIL_PROVIDER=smtp\n");
     process.env.EMAIL_PROVIDER = "log";
     loadEnv(nested);
-    expect(loadConfig().emailProvider).toBe("log");
+    expect(readConfig().emailProvider).toBe("log");
   });
 
-  it("loadConfig performs no file loading of its own", () => {
+  it("readConfig performs no file loading of its own", () => {
     const { nested } = fakeRepo("EMAIL_PROVIDER=smtp\n");
     loadEnv(nested);
     delete process.env.EMAIL_PROVIDER;
-    expect(loadConfig().emailProvider).toBe("log");
+    expect(readConfig().emailProvider).toBe("log");
   });
 });

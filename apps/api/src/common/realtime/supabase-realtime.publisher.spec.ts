@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type Server } from 'http';
 import type { AddressInfo } from 'net';
 import { Logger } from '@nestjs/common';
+import { readConfig, type AppConfig } from '../../infra/config';
 import { SupabaseRealtimePublisher } from './supabase-realtime.publisher';
 import { NoopRealtimePublisher } from './noop-realtime.publisher';
 
@@ -8,6 +9,10 @@ import { NoopRealtimePublisher } from './noop-realtime.publisher';
 // server, because the properties that matter are transport properties: what
 // exactly goes on the wire, and what a sick dependency costs the write that
 // triggered it.
+//
+// Config is injected (DEF-008): each publisher is constructed with the settings
+// its case needs, so nothing here mutates process.env or depends on what a
+// developer has in their .env.
 
 const USER = '33333333-3333-4333-8333-333333333333';
 const SERVICE_KEY = 'test-service-role-key';
@@ -25,9 +30,10 @@ describe('SupabaseRealtimePublisher', () => {
   let captured: CapturedRequest[];
   /** How the stub answers the next requests: 200, 500, or never. */
   let mode: 'ok' | 'error' | 'hang';
-  const env = { ...process.env };
   let errors: string[];
   let warns: string[];
+  /** This spec's config: the stub server's URL and a short cap. */
+  let cfg: (over?: Partial<AppConfig>) => AppConfig;
 
   beforeAll(async () => {
     server = createServer((req, res) => {
@@ -51,6 +57,14 @@ describe('SupabaseRealtimePublisher', () => {
       server.listen(0, '127.0.0.1', resolve),
     );
     baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    cfg = (over: Partial<AppConfig> = {}): AppConfig => ({
+      ...readConfig(),
+      realtimeProvider: 'supabase',
+      supabaseUrl: baseUrl,
+      supabaseServiceRoleKey: SERVICE_KEY,
+      realtimePublishTimeoutMs: 150,
+      ...over,
+    });
   });
 
   afterAll(async () => {
@@ -71,19 +85,14 @@ describe('SupabaseRealtimePublisher', () => {
     jest
       .spyOn(Logger.prototype, 'warn')
       .mockImplementation((m: unknown) => warns.push(String(m)));
-    process.env.REALTIME_PROVIDER = 'supabase';
-    process.env.SUPABASE_URL = baseUrl;
-    process.env.SUPABASE_SERVICE_ROLE_KEY = SERVICE_KEY;
-    process.env.REALTIME_PUBLISH_TIMEOUT_MS = '150';
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
-    process.env = { ...env };
   });
 
   it('puts a cursor on the wire and nothing else (AC-7)', async () => {
-    await new SupabaseRealtimePublisher().publishChanged(USER);
+    await new SupabaseRealtimePublisher(cfg()).publishChanged(USER);
 
     expect(captured).toHaveLength(1);
     const sent = JSON.parse(captured[0].body) as {
@@ -108,7 +117,7 @@ describe('SupabaseRealtimePublisher', () => {
   });
 
   it('marks the broadcast private and authenticates with the service key', async () => {
-    await new SupabaseRealtimePublisher().publishChanged(USER);
+    await new SupabaseRealtimePublisher(cfg()).publishChanged(USER);
 
     expect(captured[0].method).toBe('POST');
     expect(captured[0].url).toBe('/realtime/v1/api/broadcast?private=true');
@@ -119,7 +128,7 @@ describe('SupabaseRealtimePublisher', () => {
   it('swallows a 500 and logs one structured line (AC-4, AC-11)', async () => {
     mode = 'error';
     await expect(
-      new SupabaseRealtimePublisher().publishChanged(USER),
+      new SupabaseRealtimePublisher(cfg()).publishChanged(USER),
     ).resolves.toBeUndefined();
 
     expect(errors).toHaveLength(1);
@@ -140,10 +149,10 @@ describe('SupabaseRealtimePublisher', () => {
 
   it('swallows a refused connection (AC-4)', async () => {
     // Port 1 on loopback: nothing listens, so connect() fails immediately.
-    process.env.SUPABASE_URL = 'http://127.0.0.1:1';
-    await expect(
-      new SupabaseRealtimePublisher().publishChanged(USER),
-    ).resolves.toBeUndefined();
+    const dead = new SupabaseRealtimePublisher(
+      cfg({ supabaseUrl: 'http://127.0.0.1:1' }),
+    );
+    await expect(dead.publishChanged(USER)).resolves.toBeUndefined();
     expect(errors).toHaveLength(1);
   });
 
@@ -151,7 +160,7 @@ describe('SupabaseRealtimePublisher', () => {
     mode = 'hang';
     const started = Date.now();
     await expect(
-      new SupabaseRealtimePublisher().publishChanged(USER),
+      new SupabaseRealtimePublisher(cfg()).publishChanged(USER),
     ).resolves.toBeUndefined();
     const elapsed = Date.now() - started;
 
@@ -165,7 +174,7 @@ describe('SupabaseRealtimePublisher', () => {
   });
 
   it('logs nothing when the publish succeeds (AC-11)', async () => {
-    await new SupabaseRealtimePublisher().publishChanged(USER);
+    await new SupabaseRealtimePublisher(cfg()).publishChanged(USER);
     expect(errors).toEqual([]);
     expect(warns).toEqual([]);
   });
@@ -174,7 +183,7 @@ describe('SupabaseRealtimePublisher', () => {
     // AC-4's measurement clause. The publish is awaited before the response is
     // released (D3), so whatever it costs comes straight out of
     // NFR-PERF-001's 300 ms — the number has to be observed, not assumed.
-    const publisher = new SupabaseRealtimePublisher();
+    const publisher = new SupabaseRealtimePublisher(cfg());
     const samples: number[] = [];
     for (let i = 0; i < 20; i++) {
       const started = process.hrtime.bigint();
@@ -194,7 +203,7 @@ describe('SupabaseRealtimePublisher', () => {
   describe('circuit breaker (AC-4)', () => {
     it('opens after three consecutive failures and stops paying the cap', async () => {
       mode = 'error';
-      const publisher = new SupabaseRealtimePublisher();
+      const publisher = new SupabaseRealtimePublisher(cfg());
 
       for (let i = 0; i < 3; i++) await publisher.publishChanged(USER);
       expect(captured).toHaveLength(3);
@@ -211,7 +220,7 @@ describe('SupabaseRealtimePublisher', () => {
 
     it('lets exactly one probe through after the open window, then closes on success', async () => {
       mode = 'error';
-      const publisher = new SupabaseRealtimePublisher();
+      const publisher = new SupabaseRealtimePublisher(cfg());
       for (let i = 0; i < 3; i++) await publisher.publishChanged(USER);
       expect(captured).toHaveLength(3);
 

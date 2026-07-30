@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { APP_CONFIG, readConfig } from '../../infra/config';
 import { DbService } from '../../infra/db.service';
 import { SessionService } from './session.service';
 import { SessionsRepository } from './sessions.repository';
@@ -11,7 +12,13 @@ import type { AuthenticatedRequest } from './current-user.decorator';
 // Integration tests (need local Postgres; schema ensured by jest globalSetup).
 // FEAT-003 T4: the guard admits a valid session cookie (exposing req.user) and
 // rejects missing/invalid cookies with 401 (AC-7, guard half).
-const providers = [SessionGuard, SessionService, SessionsRepository, DbService];
+const providers = [
+  SessionGuard,
+  SessionService,
+  SessionsRepository,
+  DbService,
+  { provide: APP_CONFIG, useFactory: readConfig },
+];
 
 const contextWithCookies = (
   cookies: Record<string, string>,

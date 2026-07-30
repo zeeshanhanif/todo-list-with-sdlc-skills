@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { Test } from '@nestjs/testing';
+import { APP_CONFIG, readConfig } from '../../infra/config';
 import { DbService } from '../../infra/db.service';
 import { SessionService } from './session.service';
 import { SessionsRepository } from './sessions.repository';
@@ -8,7 +9,12 @@ import { SessionsRepository } from './sessions.repository';
 // FEAT-004 T2 — SessionService.revoke: deletes the session for the presented
 // token and leaves the user's other sessions intact (AC-3); idempotent no-op
 // for empty/unknown tokens (AC-2 domain half).
-const providers = [SessionService, SessionsRepository, DbService];
+const providers = [
+  SessionService,
+  SessionsRepository,
+  DbService,
+  { provide: APP_CONFIG, useFactory: readConfig },
+];
 
 describe('SessionService.revoke (integration)', () => {
   let db: DbService;

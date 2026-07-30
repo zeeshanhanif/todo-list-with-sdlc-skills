@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { REALTIME_CHANGED_EVENT, userChannel } from '@todo/shared';
-import { loadConfig } from '../../infra/config';
+import { APP_CONFIG, type AppConfig } from '../../infra/config';
 import { RealtimePublisher } from './realtime.publisher';
 
 /** Consecutive failures that open the breaker (FEAT-019 D3). */
@@ -40,11 +40,15 @@ export class SupabaseRealtimePublisher extends RealtimePublisher {
   /** Epoch ms until which publishing is skipped; 0 when the breaker is closed. */
   private openUntil = 0;
 
+  constructor(@Inject(APP_CONFIG) private readonly config: AppConfig) {
+    super();
+  }
+
   async publishChanged(userId: string): Promise<void> {
     const now = Date.now();
     if (this.openUntil > now) return;
 
-    const config = loadConfig();
+    const config = this.config;
     const cursor = new Date(now).toISOString();
 
     try {

@@ -11,6 +11,7 @@ recycled.
 | DEF-003 | 2026-07-28 | NFR-USE-004 (design.md §5 contrast) / FEAT-010, SCR-WEB-008 | `list-view-failure.tsx`'s alert put `--color-danger` text on `--color-danger-subtle` — **3.95:1**, below the 4.5:1 design.md §5 requires. Fixing it surfaced a **second** failure the report had missed: the action inside the tint at **4.48:1** | `bd200ec` (partner tokens; 3.95→6.80 and 4.48→6.21) | 2026-07-28 — measured, rendered output checked, e2e 15 green |
 | DEF-004 | 2026-07-29 | NFR-USE-004 (design.md §5 contrast) / FEAT-011, SCR-WEB-008 + SCR-WEB-010; **also FEAT-009**'s sidebar badge (2nd instance) | `task-meta.tsx`'s **non-overdue** `DueChip` put `--color-text-muted` on `--color-surface-sunken` — **4.34:1** at `caption` (12px), below the 4.5:1 design.md §5 requires. The *overdue* variant was fine (6.80:1, the pairing DEF-003 fixed); it was the ordinary due-date chip that failed — and `lists-nav.tsx`'s count badge, found by grepping the pairing | `1294811` (text on the sunken tint takes `--color-text`; 4.34→16.30 light, 7.05→15.49 dark) | 2026-07-29 — failing contrast test red before / green after; FEAT-011 report re-verified **Accepted (unchanged)**; api 191, e2e 19 |
 | DEF-005 | 2026-07-29 | NFR-USE-004 (design.md §5 control boundaries) / all web form controls, FEAT-001/002/003/005/006/009/010/011 | Every `input`/`textarea`/`select` in `apps/web` outlined in `--color-border-strong` — **1.48:1** light / **1.64:1** dark, below the 3:1 §5 requires for a boundary that is the control's only identifier. A web-tier accessibility pass, not per-feature work | `d27af38` (13 sites → `--color-text-muted`; 1.48→4.76 light, 1.64→6.64 dark) | 2026-07-29 — `control-contrast.spec.ts` sweep red before / green after across 8 screens; api 191, worker 20, e2e 21 |
+| DEF-008 | 2026-07-30 | NFR-MAINT-003 / walking skeleton — `apps/api` config layer | `loadConfig()` re-read `process.env` and re-ran its coercions on **every call**, and it was called per-request from 21 sites (session guard, rate-limit guard, db, auth, realtime). Config is ambient rather than declared, and values that cannot change during a process's life were rebuilt thousands of times a minute. Raised by the user reviewing the DEF-007 fix | `<this commit>` (built once at boot, injected as `APP_CONFIG`; `loadConfig` → `readConfig`) | 2026-07-30 — api 247 serial, worker 24, web 23, e2e 30 ×2 consecutive; lint/boundaries/build clean |
 | DEF-007 | 2026-07-30 | NFR-MAINT-003 (externalized config) / walking skeleton — affects every env-driven setting in `apps/api` and `apps/worker` | `loadConfig()` called dotenv with no path, so it resolved `.env` against the **process CWD** — which is `apps/api` when started as a workspace script. The repo's only `.env` is at the root, so `npm run dev:api` / `npm run start -w @todo/api` silently ran on **defaults**, ignoring every value an operator set. `.env.example` says "Copy to .env for local development", so the documented path did not work | `8cafe7e` (env loading moved to the entrypoint, resolved by walking up; `loadConfig()` is now a pure read) | 2026-07-30 — guard red before / green after; the reported symptom reproduced and gone (`npm run start -w @todo/api` now logs `envFile` + honours `REALTIME_PROVIDER`); api 247, worker 24, web 23, e2e 30 |
 | DEF-006 | 2026-07-29 | NFR-USE-004 (design.md §5 contrast) / FEAT-001, FEAT-003, FEAT-005, FEAT-009 — the **inline-alert** instances DEF-003 and DEF-004 both missed | **Open.** Five shipped sites still put `--color-danger` on `--color-danger-subtle` at `small` — the **3.95:1** pairing DEF-003 measured and `--color-danger-text` (6.80:1) exists to replace: `app/signup/page.tsx:89`, `app/signin/page.tsx:128`, `app/reset-password/page.tsx:46`, `components/lists-nav.tsx:117`, `components/list-dialog.tsx:196`. A web-tier pass, not per-feature rework | _open_ | _open_ |
 
@@ -555,3 +556,70 @@ defaults. Full suites after the fix: **api 247** (serial), **worker 24**,
 **web 23**, **e2e 30**; lint, boundaries and build clean. No feature's behaviour
 changes on default configuration — the defaults were always the values these apps
 were actually running on.
+
+
+## DEF-008 — config read per request instead of built once (2026-07-30)
+
+**Not a behaviour defect** — nothing was wrong on screen. It is a design defect in
+the config layer, recorded here because the ledger is where this project keeps
+findings against already-verified code, and because the fix touches nine
+features' files.
+
+**Reported by the user**, reviewing the DEF-007 fix: *"why even call loadConfig
+again and again… if we load them at server start the config object can remain in
+memory."* Correct. There was no decision behind the old shape — it was the
+skeleton's convenience, inherited unexamined through nineteen features. My first
+answer defended it on "purity and cheapness"; that was rationalisation, and the
+count settled it: **21 production call sites**, most of them per-request.
+
+**The fix.** `AppConfig` is built **once**, at boot, by `InfraModule`'s
+`APP_CONFIG` factory, and injected wherever it is needed. `loadConfig` is renamed
+`readConfig` — it never loaded anything after DEF-007, and the name was what made
+the split confusing.
+
+`useFactory`, never `useValue`: a `useValue` would evaluate when the module is
+*imported*, before `main.ts` calls `loadEnv()`, silently handing the whole app a
+defaults-only config and undoing DEF-007. That trap is commented at the
+definition.
+
+**The worker already had it right** (`WORKER_CONFIG` via `useFactory`, FEAT-007).
+The API was the outlier; the worker only needed the rename and one leftover
+`loadDotenv()` inside `getPool()` — the same DEF-007 shape in miniature, reading
+the filesystem on first use from a runtime path.
+
+**What it actually bought, beyond the wasted work:**
+
+- **Config is a declared dependency**, not an ambient global a service reaches
+  for. A constructor now states that it needs config.
+- **Tests stopped mutating global state.** Specs used to set `process.env`,
+  restore it in `afterEach`, and hope nothing else in the worker process
+  interleaved. The realtime specs now pass config objects; the rate-limit ones
+  own the object the app was built with and turn limits up and down on it.
+- **The DEF-007 hazard is closed structurally**: there is exactly one place
+  config is constructed, immediately after env is loaded, and startup logs which
+  file that was.
+
+**Cost, honestly — I underestimated this when proposing it.** I said "most specs
+need no change". Ten needed changes: seven that provide `DbService` directly and
+now must supply its new dependency, and three that toggled `AUTH_RATELIMIT_MAX`
+*inside a test* and relied on the per-request re-read. That last group is the
+interesting one: the guard's comment said *"thresholds are read fresh from config
+each request"*, which I read as description and was in fact a contract three
+specs depended on. It is now stated the other way round — thresholds are fixed
+for the process's life, which is what env vars always were — and those specs
+mutate their own injected object instead.
+
+**One harness fix rode along, and it resolves a carried item.** The E2E
+`webServer` now pins `AUTH_RATELIMIT_MAX`. The suite's own fixtures register
+~25–30 users per run against a production-shaped limit of 30 per 15 minutes, so a
+full run sat one run away from red and two runs inside a window failed outright —
+the FEAT-009 acceptance minor that has been carried since, and that cost this
+session two false alarms (23 specs "failing" that were nothing of the kind).
+**No test was weakened**: no E2E asserts rate limiting, and the limiter's real
+coverage lives in the api specs with their own IP ranges. Proof it worked: two
+consecutive full E2E runs green **without clearing `auth_rate_buckets`**, which
+had never been true before.
+
+**Verification.** api **247** (serial), worker **24**, web **23**, e2e **30**
+twice consecutively; lint, boundaries and build clean. No behaviour change — the
+values the apps run on are identical, they are simply computed once.

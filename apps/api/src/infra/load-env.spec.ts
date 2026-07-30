@@ -3,11 +3,11 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import { config as dotenvDefault } from 'dotenv';
 import { findEnvFile, loadEnv } from './load-env';
-import { loadConfig } from './config';
+import { readConfig } from './config';
 
 // DEF-007 regression guard.
 //
-// The defect: `loadConfig()` called dotenv with no path, so it resolved `.env`
+// The defect: `loadConfig()` (now `readConfig()`) called dotenv with no path, so it resolved `.env`
 // against the process CWD — which is `apps/api` when the API is started as a
 // workspace script (`npm run dev:api`, `npm run start -w @todo/api`). The repo's
 // only `.env` lives at the root, so every value an operator set was silently
@@ -16,7 +16,7 @@ import { loadConfig } from './config';
 //
 // The fix moves env loading to the process entrypoint and resolves the file by
 // walking up from the start directory, so the loader finds the repo root from
-// any depth. `loadConfig()` is now a pure read of `process.env`.
+// any depth. `readConfig()` is now a pure read of `process.env`.
 
 /** A throwaway tree shaped like the monorepo: root `.env` + nested workspace. */
 function fakeRepo(envBody: string): { root: string; nested: string } {
@@ -52,8 +52,8 @@ describe('DEF-007: env resolution from a workspace directory', () => {
 
     // The reported symptom, inverted: values from the root file are now visible
     // to a process whose CWD is the workspace directory.
-    expect(loadConfig().sessionTtlDays).toBe(99);
-    expect(loadConfig().authRateLimitMax).toBe(7);
+    expect(readConfig().sessionTtlDays).toBe(99);
+    expect(readConfig().authRateLimitMax).toBe(7);
   });
 
   it('lets the real environment win over the file (documented precedence)', () => {
@@ -64,7 +64,7 @@ describe('DEF-007: env resolution from a workspace directory', () => {
 
     // Cloud Run passes env vars directly; a stray .env must never override the
     // deployed configuration.
-    expect(loadConfig().sessionTtlDays).toBe(3);
+    expect(readConfig().sessionTtlDays).toBe(3);
   });
 
   it('returns null rather than throwing when there is no .env anywhere', () => {
@@ -73,7 +73,7 @@ describe('DEF-007: env resolution from a workspace directory', () => {
     expect(loadEnv(orphan)).toBeNull();
   });
 
-  it('loadConfig performs no file loading of its own', () => {
+  it('readConfig performs no file loading of its own', () => {
     const { nested } = fakeRepo('SESSION_TTL_DAYS=99\n');
     loadEnv(nested);
     delete process.env.SESSION_TTL_DAYS;
@@ -81,7 +81,7 @@ describe('DEF-007: env resolution from a workspace directory', () => {
     // Config is a pure read: it must not quietly re-inject the file. This is
     // what keeps unit tests hermetic — a spec that deletes a variable gets the
     // default, not whatever a developer happens to have in their .env.
-    expect(loadConfig().sessionTtlDays).toBe(30);
+    expect(readConfig().sessionTtlDays).toBe(30);
   });
 
   it('documents the defect itself: dotenv from a workspace CWD finds nothing', () => {

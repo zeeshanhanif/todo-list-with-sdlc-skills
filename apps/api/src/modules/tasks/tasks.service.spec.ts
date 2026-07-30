@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { Test } from '@nestjs/testing';
 import { TASK_TITLE_MAX_LENGTH, type UpdateTaskRequest } from '@todo/shared';
+import { APP_CONFIG, readConfig } from '../../infra/config';
 import { DbService } from '../../infra/db.service';
 import { TasksRepository } from './tasks.repository';
 import { TasksService } from './tasks.service';
@@ -16,7 +17,12 @@ import {
 // — the half the repository can't do), AC-3 (server-side split), AC-4 (orders),
 // AC-5 (foreign/unknown list is one uniform ListNotFoundError, nothing created),
 // AC-9 (ISO-8601 UTC strings, completedAt null for an active task).
-const providers = [TasksService, TasksRepository, DbService];
+const providers = [
+  TasksService,
+  TasksRepository,
+  DbService,
+  { provide: APP_CONFIG, useFactory: readConfig },
+];
 
 describe('TasksService (integration)', () => {
   let db: DbService;
