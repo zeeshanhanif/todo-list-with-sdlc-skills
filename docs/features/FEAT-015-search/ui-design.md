@@ -2,16 +2,18 @@
 
 > Feature from: docs/implementation-plan.md · Pairs with: technical-design.md
 > Screens: SCR-WEB-012 (Search) · extends SCR-WEB-007 (App Shell) · Mode: per-feature · Status: Draft · Date: 2026-07-31
+> Design-system amendment filed and applied: design.md §4 `command-search` (see §Escalations)
 > Strategy: code-native (project fallback policy; no connected design tool holds this project's screens)
 > Authority: docs/design.md + docs/tokens.json — every value below is a token, never raw.
 
 SCR-WEB-012 is the product's first **overlay** surface and its first
 **incrementally-loading** one. Both are patterns the design system already has
 parts for — `dialog`, `input`, `select`, `badge`, `task-row` — so the screen is a
-composition, with one exception that is **escalated rather than forked**:
-design.md §4's one-line sketch of `command-search` says results are "grouped by
-list", which cannot hold alongside the contract this screen binds to. See
-Escalations.
+composition, with one exception that was **escalated rather than forked**:
+design.md §4's one-line sketch of `command-search` said results were "grouped by
+list", which could not hold alongside the contract this screen binds to. The
+amendment was approved and applied on 2026-07-31 (design.md §4 reworded, §9
+logged); see Escalations for the reasoning.
 
 ## SCR-WEB-012 — Search
 
@@ -46,10 +48,11 @@ Escalations.
   - Query params sent: `q`, `status`, `due`, `limit`, `cursor` — and **nothing is
     sent until at least one criterion exists**, which is the client half of
     technical-design D6
-- **Conformance:** pass on every value (all tokens, no raw); **one escalation
-  filed** on `command-search`'s "grouped by list" description (below). No token
-  and no new component: the row is a documented subset of `task-row` (D2), and
-  the filters are plain `select`s (D3).
+- **Conformance:** pass on every value (all tokens, no raw). One escalation was
+  filed on `command-search`'s "grouped by list" description and **resolved by
+  amendment** (below), so this screen conforms to the design system as it now
+  stands. No token and no new component: the row is a documented subset of
+  `task-row` (D2), and the filters are plain `select`s (D3).
 
 ### idle
 The state before any criterion exists — the reason technical-design D6 makes an
@@ -201,8 +204,14 @@ keyboard like every other sidebar control.
 
 ## Escalations & open items
 
-- **ESCALATION — `command-search`'s "grouped by list" description is
-  unbuildable alongside FR-SRCH-009 and cannot be honoured here.** design.md §4
+- **ESCALATION — RESOLVED 2026-07-31.** *Filed against `command-search`'s
+  "grouped by list" description; the amendment was approved and applied to
+  design.md (§4 reworded, §9 logged). The resolution is recorded at the end of
+  this item — the reasoning is kept in full because it is why the component now
+  reads as it does.*
+
+  **The conflict:** `command-search`'s description was
+  unbuildable alongside FR-SRCH-009 and could not be honoured here. design.md §4
   reads: *"`command-search` — search field opening an overlay of results grouped
   by list."* Three things conflict with it:
   1. **Pagination fragments groups.** Results are keyset-paginated (25 at a
@@ -216,16 +225,18 @@ keyboard like every other sidebar control.
      the system shall "present each search result **with the list it belongs
      to**" — a per-row property, which the list chip delivers exactly.
 
-  **Proposed amendment** (toward ux-foundations, which owns design.md): change
-  the `command-search` line to *"search field opening an overlay of results, each
-  labelled with the list it belongs to"*. This is a description correction, not a
-  new component or token — nothing else in the system references grouping.
-  **Provisional treatment, pending that amendment**: the screen is specified
-  above with per-row list chips, because it is what the requirements and the
-  contract both demand; the manifest entry records the escalation. If the
-  amendment is declined, this screen needs re-design **and** technical-design D2
-  and FR-SRCH-009's interaction with it need revisiting — i.e. the conflict is
-  upstream of the screen, not inside it.
+  **The amendment, approved and applied 2026-07-31**: design.md §4's
+  `command-search` line now reads *"search field opening an overlay of results,
+  **each labelled with the list it belongs to**"*, and adds that the overlay
+  renders the server's order without regrouping or re-sorting. §9 carries the
+  dated entry with this reasoning. It was a description correction — **no
+  component forked, no token changed**, and nothing else in the system referenced
+  grouping.
+
+  **Consequence for this screen: none.** The spec above was written to what the
+  requirements and the contract demand, which is exactly what the amended line
+  now says — so the per-row list chips are the design system's rule rather than a
+  deviation from it, and the manifest entry is `pass`.
 - **No other design-system amendment.** Every other element is an existing
   design.md component used as specified, and every pairing this screen renders
   was measured in the FEAT-008 acceptance sweep: body text 17.85 : 1 light /
