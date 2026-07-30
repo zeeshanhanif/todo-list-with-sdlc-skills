@@ -48,7 +48,7 @@
       (constraint dropped before its column), and re-applying is clean — verified
       against the current schema at migration 009.
 
-- [ ] T3 — Domain: `ProfileRepository` (design §5.1; FR-PROF-001/005,
+- [x] T3 — Domain: `ProfileRepository` (design §5.1; FR-PROF-001/005,
       FR-AUTHZ-002). `findByUserId(userId)` and `update(userId, patch)`, both
       keyed on the primary key, both projecting one shared `PROFILE_COLUMNS`
       constant (`email, display_name, timezone, theme`). The `SET` clause is
