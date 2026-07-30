@@ -58,7 +58,7 @@
       `encode(decode(c)) === c`, and a tampered/foreign cursor rejected rather
       than silently treated as page one.
 
-- [ ] T4 — Domain: `search.repository.ts` (design §5.1, §5.2; FR-SRCH-001..005,
+- [x] T4 — Domain: `search.repository.ts` (design §5.1, §5.2; FR-SRCH-001..005,
       009). ONE owner-scoped statement assembling only the supplied clauses,
       joined to `lists` for `listName`, `ORDER BY created_at DESC, id DESC`,
       `LIMIT n+1` to detect the next page.
