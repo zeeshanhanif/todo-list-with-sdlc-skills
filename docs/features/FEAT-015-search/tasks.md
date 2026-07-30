@@ -1,7 +1,7 @@
 # Tasks: FEAT-015 — Keyword search + status/due filters + pagination
 
 > Executes: docs/features/FEAT-015-search/technical-design.md
-> Status: pending · Last updated: 2026-07-31
+> Status: all tasks done · Last updated: 2026-07-31
 > Notes: **This feature mints the `search` module** and one piece of
 > cross-cutting code (`common/preferences`). `apps/api/src/modules/profile/` is
 > the freshest structural model; `modules/lists` is the model for a repository
@@ -120,7 +120,7 @@
       Done when: `npm run test:e2e` passes against the local stack, with the
       FEAT-008..013 and FEAT-019 specs still green.
 
-- [ ] T10 — Verify: acceptance criteria AC-1..AC-14 (design §6) demonstrably
+- [x] T10 — Verify: acceptance criteria AC-1..AC-14 (design §6) demonstrably
       pass; **no migration was added** (D3 — the check is that `migrations/` is
       unchanged and `npm run db:migrate` is a no-op at head);
       `src/modules/README.md` updated to show `search` half-built (FEAT-016 adds
