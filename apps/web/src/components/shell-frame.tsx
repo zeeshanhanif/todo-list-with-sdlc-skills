@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import type { ListSummary } from "@todo/shared";
+import type { ListSummary, UserProfile } from "@todo/shared";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ListsNav } from "@/components/lists-nav";
 import { SyncProvider } from "@/components/sync-provider";
+import { PreferencesProvider } from "@/components/preferences-provider";
 
 // SCR-WEB-007 app-shell frame (design.md §3; FEAT-009 ui-design D3). Persistent
 // 280px sidebar ≥ md; below md a hamburger opens the sidebar as a full drawer over
@@ -26,6 +27,7 @@ export function ShellFrame({
   active = "none",
   lists,
   activeListId,
+  profile,
 }: {
   children: ReactNode;
   active?: ShellNav;
@@ -33,6 +35,8 @@ export function ShellFrame({
   lists: ListSummary[] | null;
   /** The list currently open, for the selected state (FEAT-010). */
   activeListId?: string;
+  /** The caller's preferences, or null when the fetch failed (FEAT-008). */
+  profile?: UserProfile | null;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerRef = useRef<HTMLElement | null>(null);
@@ -53,107 +57,114 @@ export function ShellFrame({
   }, [drawerOpen]);
 
   return (
-    <div className="shell" data-drawer={drawerOpen ? "open" : "closed"}>
-      {/* Cross-device sync (FEAT-019). Renders nothing — it only decides when
+    // The preference host (FEAT-008 technical-design §5.2): everything inside the
+    // authenticated shell reads the caller's timezone and theme from here, and a
+    // saved change re-renders every consumer at once (ui-design D9).
+    <PreferencesProvider profile={profile ?? null}>
+      <div className="shell" data-drawer={drawerOpen ? "open" : "closed"}>
+        {/* Cross-device sync (FEAT-019). Renders nothing — it only decides when
           to refetch. Mounted HERE rather than in the root layout because the
           shell is the authenticated zone: no token is minted and no socket is
           opened on /signin, /signup, /verify or /reset-password (AC-10), and
           signing out unmounts it. */}
-      <SyncProvider />
-      <div className="shell-topbar">
-        <button
-          type="button"
-          ref={hamburgerRef}
-          data-testid="drawer-toggle"
-          aria-label="Open navigation"
-          aria-expanded={drawerOpen}
-          onClick={() => setDrawerOpen(true)}
-          style={{
-            minWidth: "var(--size-touch-target)",
-            minHeight: "var(--size-touch-target)",
-            borderRadius: "var(--radius-md)",
-            border: "none",
-            background: "transparent",
-            color: "var(--color-text)",
-            fontSize: "var(--font-size-body-lg)",
-            cursor: "pointer",
-          }}
-        >
-          ☰
-        </button>
-        <span
-          style={{
-            color: "var(--color-primary)",
-            fontWeight: "var(--font-weight-semibold)" as unknown as number,
-            fontSize: "var(--font-size-body-lg)",
-          }}
-        >
-          To-Do
-        </span>
-      </div>
-
-      <div
-        className="shell-scrim"
-        data-testid="drawer-scrim"
-        onClick={() => setDrawerOpen(false)}
-        aria-hidden="true"
-      />
-
-      <aside
-        className="shell-sidebar"
-        ref={drawerRef}
-        tabIndex={-1}
-        aria-label="Main navigation"
-      >
-        <div
-          style={{
-            color: "var(--color-primary)",
-            fontWeight: "var(--font-weight-semibold)" as unknown as number,
-            fontSize: "var(--font-size-body-lg)",
-          }}
-        >
-          To-Do
+        <SyncProvider />
+        <div className="shell-topbar">
+          <button
+            type="button"
+            ref={hamburgerRef}
+            data-testid="drawer-toggle"
+            aria-label="Open navigation"
+            aria-expanded={drawerOpen}
+            onClick={() => setDrawerOpen(true)}
+            style={{
+              minWidth: "var(--size-touch-target)",
+              minHeight: "var(--size-touch-target)",
+              borderRadius: "var(--radius-md)",
+              border: "none",
+              background: "transparent",
+              color: "var(--color-text)",
+              fontSize: "var(--font-size-body-lg)",
+              cursor: "pointer",
+            }}
+          >
+            ☰
+          </button>
+          <span
+            style={{
+              color: "var(--color-primary)",
+              fontWeight: "var(--font-weight-semibold)" as unknown as number,
+              fontSize: "var(--font-size-body-lg)",
+            }}
+          >
+            To-Do
+          </span>
         </div>
 
-        <nav
-          style={{
-            marginTop: "var(--space-6)",
-            display: "flex",
-            flexDirection: "column",
-            gap: "var(--space-2)",
-            color: "var(--color-text-muted)",
-          }}
-          aria-label="Smart views"
-        >
-          <span>Today</span>
-          <span>Upcoming</span>
-          <span>Overdue</span>
-        </nav>
-
-        <ListsNav
-          lists={lists}
-          activeListId={activeListId}
-          onNavigate={() => setDrawerOpen(false)}
+        <div
+          className="shell-scrim"
+          data-testid="drawer-scrim"
+          onClick={() => setDrawerOpen(false)}
+          aria-hidden="true"
         />
 
-        <div style={{ marginTop: "var(--space-6)" }}>
-          <SidebarNavItem
-            href="/settings/security"
-            label="Settings"
-            selected={active === "settings"}
-            onClick={() => setDrawerOpen(false)}
+        <aside
+          className="shell-sidebar"
+          ref={drawerRef}
+          tabIndex={-1}
+          aria-label="Main navigation"
+        >
+          <div
+            style={{
+              color: "var(--color-primary)",
+              fontWeight: "var(--font-weight-semibold)" as unknown as number,
+              fontSize: "var(--font-size-body-lg)",
+            }}
+          >
+            To-Do
+          </div>
+
+          <nav
+            style={{
+              marginTop: "var(--space-6)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "var(--space-2)",
+              color: "var(--color-text-muted)",
+            }}
+            aria-label="Smart views"
+          >
+            <span>Today</span>
+            <span>Upcoming</span>
+            <span>Overdue</span>
+          </nav>
+
+          <ListsNav
+            lists={lists}
+            activeListId={activeListId}
+            onNavigate={() => setDrawerOpen(false)}
           />
-        </div>
 
-        <SignOutButton />
-      </aside>
+          <div style={{ marginTop: "var(--space-6)" }}>
+            <SidebarNavItem
+              href="/settings/security"
+              label="Settings"
+              selected={active === "settings"}
+              onClick={() => setDrawerOpen(false)}
+            />
+          </div>
 
-      <main className="shell-main">
-        <div style={{ maxWidth: "var(--size-content-max)", margin: "0 auto" }}>
-          {children}
-        </div>
-      </main>
-    </div>
+          <SignOutButton />
+        </aside>
+
+        <main className="shell-main">
+          <div
+            style={{ maxWidth: "var(--size-content-max)", margin: "0 auto" }}
+          >
+            {children}
+          </div>
+        </main>
+      </div>
+    </PreferencesProvider>
   );
 }
 

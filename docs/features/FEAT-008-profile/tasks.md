@@ -95,7 +95,7 @@
       nothing written), and AC-15 (**exactly one** `DbService` query per route,
       inside the 300 ms bound) — each rendering the `ApiError` envelope.
 
-- [ ] T6 — Web wiring: `lib/profile.ts` (`fetchProfile()`, mirroring
+- [x] T6 — Web wiring: `lib/profile.ts` (`fetchProfile()`, mirroring
       `lib/lists.ts`), `app/api/profile/route.ts` (BFF `GET` + `PATCH`, cookie
       forwarded, status + JSON relayed verbatim), `components/app-shell.tsx`
       fetching the profile in the **same `Promise.all`** as the lists (D7), and
