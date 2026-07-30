@@ -510,6 +510,43 @@ comment listing the active modules.
 
 ## 8. Escalations & open items
 
+**Recorded during implementation** (deviations too small for the amendment path,
+in the house style FEAT-011 §8 set — the design's substance is unchanged):
+
+1. **`'field' in patch` → `patch.field !== undefined` in the service.** D6's
+   absent-vs-null rule stands; only its *encoding* moved, for the reason
+   FEAT-011 already documented: class-transformer materializes every declared
+   DTO property, so `in` is true for a field the client never mentioned (it made
+   every single-field PATCH `400` on a phantom display name). `!== undefined` is
+   exact at this boundary because JSON cannot carry `undefined`. A service test
+   passes a fully-materialized instance to keep it from regressing.
+2. **§5.1's timezone rationale was corrected against measurement.** The original
+   text claimed the API's ICU and the browser's canonicalize aliases in opposite
+   directions. Measured on both (Node 22.18/ICU 77 and the E2E Chromium): they
+   currently *agree* on `Asia/Calcutta`, and both exclude `UTC` from
+   `supportedValuesOf`. D2's decision is unchanged and better supported — see
+   the table in §5.1. The client's `groupZones` guarantees the stored zone is
+   present in the picker regardless of which way a future ICU bump goes.
+3. **AC-7's adoption had no task.** The criterion and §5.2 specify it; tasks.md
+   T1–T11 never named it. Implemented in T8 as `components/timezone-adoption.tsx`
+   (five unit tests + an E2E that counts the request). A tasks.md completeness
+   gap, not a design change.
+4. **`suppressHydrationWarning` on `<html>`.** The pre-paint script mutates the
+   element before React hydrates, which is the mechanism working; React's
+   documented escape hatch marks it, scoped to that one element.
+5. **The form re-syncs from the server during render.** FR-PROF-005/AC-12 needs
+   an already-open second device to converge, and a `useState` seeded once never
+   does. Adjusted during render against previous props (React's own pattern for
+   prop-derived state — the hooks lint rejects the effect form), skipping the
+   display name while it is dirty so FEAT-019 AC-9 still holds.
+
+**Recorded tech debt (not acted on — pre-existing, not caused here):**
+`apps/api/src/modules/auth/change-password.controller.spec.ts:94` does not
+typecheck under `tsc --noEmit` (an `unknown` argument); it passes under ts-jest,
+which is why it has gone unnoticed. Confirmed present before this feature's
+first commit.
+
+
 - **No architecture amendment.** Three columns on `users` — an entity the
   conceptual model already owns (arch §8) — and the `profile` module the
   architecture's building-block view already names. Nothing crosses a

@@ -202,3 +202,163 @@ test("AC-7: a first sign-in adopts the browser's timezone once", async ({
   expect(adoptions).toBe(afterFirst);
   expect(afterFirst).toBe(1);
 });
+
+test("AC-12 (FR-PROF-005): a preference follows the account to another device", async ({
+  browser,
+  page,
+  request,
+}) => {
+  const email = uniqueEmail();
+  await request.post(`${API}/auth/register`, { data: { email, password: PW } });
+  await markVerified(email);
+  await signIn(page, email);
+
+  // Device B is a SEPARATE browser context — its own cookie jar, so nothing
+  // carries over except what the server stores. That is the requirement:
+  // "persisted server-side so it follows the user across devices".
+  const contextB = await browser.newContext();
+  const deviceB = await contextB.newPage();
+  await signIn(deviceB, email);
+  await deviceB.goto("/settings/profile");
+  await expect(deviceB.getByLabel("Match system")).toBeChecked();
+
+  // Save on A...
+  await page.goto("/settings/profile");
+  await page.getByLabel("Display name").fill("Ada Lovelace");
+  await page.getByTestId("save-display-name").click();
+  await expect(page.getByTestId("profile-status")).toHaveText("Saved");
+  await page.getByLabel("Dark").check();
+  await expect(page.getByTestId("profile-status")).toHaveText("Saved");
+
+  // ...and B, already open and untouched, converges on its own. The stack runs
+  // with no Realtime provider, so this is FEAT-019's fallback refetch schedule
+  // doing the work — which is the guarantee that must hold in the DEFAULT
+  // configuration, not only where a socket happens to be configured.
+  await expect(deviceB.getByLabel("Dark")).toBeChecked({ timeout: 15_000 });
+  await expect(deviceB.getByLabel("Display name")).toHaveValue("Ada Lovelace");
+  expect(
+    await deviceB.evaluate(() => document.documentElement.dataset.theme),
+  ).toBe("dark");
+
+  // A third device that has never seen this browser or its cookies gets the
+  // same answer from the server alone.
+  const contextC = await browser.newContext();
+  const deviceC = await contextC.newPage();
+  await signIn(deviceC, email);
+  await deviceC.goto("/settings/profile");
+  await expect(deviceC.getByLabel("Display name")).toHaveValue("Ada Lovelace");
+  await expect(deviceC.getByLabel("Dark")).toBeChecked();
+
+  await contextB.close();
+  await contextC.close();
+});
+
+/** WCAG 2.x relative-contrast ratio from two computed CSS colours. Mirrors
+ * task-detail.spec.ts's DEF-004 guard rather than sharing it — e2e specs are
+ * standalone by convention here, and the formula is four lines. */
+function contrastRatio(fg: string, bg: string): number {
+  const parse = (c: string): number[] => {
+    const m = c.match(/\d+(\.\d+)?/g);
+    if (!m || m.length < 3) throw new Error(`unparseable colour: ${c}`);
+    return m.slice(0, 3).map(Number);
+  };
+  const lum = (rgb: number[]): number => {
+    const [r, g, b] = rgb.map((v) => {
+      const s = v / 255;
+      return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const [a, b] = [lum(parse(fg)), lum(parse(bg))];
+  const [hi, lo] = a > b ? [a, b] : [b, a];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+test("AC-16 / NFR-USE-004: SCR-WEB-013's pairings meet design.md §5 in BOTH themes", async ({
+  page,
+  request,
+}) => {
+  const email = uniqueEmail();
+  await request.post(`${API}/auth/register`, { data: { email, password: PW } });
+  await markVerified(email);
+  await signIn(page, email);
+  await page.goto("/settings/profile");
+
+  /** Text against the nearest painted background behind it. */
+  const measure = async (selector: string): Promise<number> => {
+    const { color, background } = await page
+      .locator(selector)
+      .first()
+      .evaluate((el) => {
+        const opaque = (node: Element | null): string => {
+          while (node) {
+            const bg = getComputedStyle(node).backgroundColor;
+            if (bg && !/rgba?\([^)]*,\s*0\)/.test(bg)) return bg;
+            node = node.parentElement;
+          }
+          return "rgb(255, 255, 255)";
+        };
+        return { color: getComputedStyle(el).color, background: opaque(el) };
+      });
+    return contrastRatio(color, background);
+  };
+
+  // Every pairing the screen introduces, in the theme the user is actually in.
+  // Asserted as computed RATIOS, not expected hex values: the criterion IS the
+  // ratio, so a future token change that keeps the rule stays green while one
+  // that breaks it goes red — the reasoning DEF-004's guard established.
+  const sweep = async (label: string) => {
+    // Put the field error on screen so it can be measured too — the pairing
+    // DEF-003 and DEF-006 both got wrong elsewhere in this product.
+    await page.getByLabel("Display name").fill("Ada\u0007Lovelace");
+    await page.getByTestId("save-display-name").click();
+    await expect(
+      page.getByText(/without special control characters/),
+    ).toBeVisible();
+
+    const pairings: Array<[string, string]> = [
+      ["email", '[data-testid="profile-email"]'],
+      ["field label", 'label[for="displayName"]'],
+      ["help text", "text=Used to show when your tasks are due."],
+      ["field error", "text=without special control characters"],
+      ["active tab", '[data-testid="settings-tab-active"]'],
+      ["inactive tab", '[data-testid="settings-tab-inactive"]'],
+      ["primary button", '[data-testid="save-display-name"]'],
+    ];
+    for (const [what, selector] of pairings) {
+      expect(await measure(selector), `${label}: ${what}`).toBeGreaterThanOrEqual(
+        4.5,
+      );
+    }
+
+    // The control BOUNDARY rule (design.md §2/§5 — the DEF-005 line): a control
+    // identified only by its outline needs >= 3:1 on that outline.
+    const borderRatio = await page.locator("#timezone").evaluate((el) => {
+      const parse = (c: string) =>
+        (c.match(/\d+(\.\d+)?/g) ?? []).slice(0, 3).map(Number);
+      const lum = (rgb: number[]) => {
+        const [r, g, b] = rgb.map((v) => {
+          const x = v / 255;
+          return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+        });
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      };
+      const a = lum(parse(getComputedStyle(el).borderTopColor));
+      const b = lum(parse(getComputedStyle(el.parentElement!).backgroundColor));
+      const [hi, lo] = a > b ? [a, b] : [b, a];
+      return (hi + 0.05) / (lo + 0.05);
+    });
+    expect(borderRatio, `${label}: select boundary`).toBeGreaterThanOrEqual(3);
+  };
+
+  await sweep("light");
+
+  // The same sweep in dark — the theme no screen in this product could reach
+  // before FEAT-008, which is why this is the first place it is measured live.
+  await page.getByLabel("Dark").check();
+  await expect(page.getByTestId("profile-status")).toHaveText("Saved");
+  expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe(
+    "dark",
+  );
+  await sweep("dark");
+});

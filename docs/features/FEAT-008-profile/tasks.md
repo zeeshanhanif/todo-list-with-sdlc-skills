@@ -1,7 +1,7 @@
 # Tasks: FEAT-008 — View/edit profile (display name, timezone, theme)
 
 > Executes: docs/features/FEAT-008-profile/technical-design.md
-> Status: pending · Last updated: 2026-07-30
+> Status: all tasks done · Last updated: 2026-07-30
 > Notes: **This feature mints the `profile` module** — the first new API module
 > since FEAT-010. `apps/api/src/modules/lists/` is the closest structural model
 > (controller + service + repository + errors + dto, framework-free domain
@@ -155,7 +155,7 @@
       Done when: `npm run test:e2e` passes against the local stack (Docker + DB
       up), with the FEAT-009..013 and FEAT-019 specs still green.
 
-- [ ] T11 — Verify: acceptance criteria AC-1..AC-16 (design §6) demonstrably
+- [x] T11 — Verify: acceptance criteria AC-1..AC-16 (design §6) demonstrably
       pass; AC-12 (cross-device persistence + the `changed` signal on a second
       open device) demonstrated explicitly, since no earlier task owns it;
       `src/modules/README.md` and `app.module.ts`'s module comment updated to

@@ -81,6 +81,36 @@ export function ProfileForm({ profile }: { profile: UserProfile }) {
   const [busyField, setBusyField] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  /** Has the user typed a display name they have not saved yet? State rather
+   * than a ref because the render-time sync below has to read it, and refs are
+   * not readable during render. */
+  const [nameDirty, setNameDirty] = useState(false);
+
+  // FR-PROF-005: this screen is not only a writer of preferences, it is a
+  // reader of them — so when the server's copy changes underneath it (the same
+  // account saving on another device, arriving through FEAT-019's refresh), the
+  // controls must follow. Without this the island keeps the values it was
+  // mounted with: the page would re-theme around a radio still pointing at the
+  // old choice.
+  //
+  // Adjusted DURING RENDER against the previous props, which is React's own
+  // pattern for "a state variable that depends on a prop" — an effect would
+  // paint the stale value first and is what the hooks lint rejects here.
+  //
+  // The display name is deliberately excluded while it is DIRTY: FEAT-019 AC-9
+  // requires a background refresh not to disturb what the user is doing, and
+  // discarding a half-typed name is exactly that.
+  const [seen, setSeen] = useState(profile);
+  if (
+    seen.timezone !== profile.timezone ||
+    seen.theme !== profile.theme ||
+    seen.displayName !== profile.displayName
+  ) {
+    setSeen(profile);
+    setTimezone(profile.timezone ?? "UTC");
+    setTheme(profile.theme);
+    if (!nameDirty) setDisplayName(profile.displayName ?? "");
+  }
 
   // The browser's zone database, grouped by region. ~400 entries in a native
   // select rather than a combobox the design system does not have (ui-design D6):
@@ -108,6 +138,7 @@ export function ProfileForm({ profile }: { profile: UserProfile }) {
         const { profile: saved } = (await res.json()) as UpdateProfileResponse;
         // Render the server's truth, not our optimistic copy.
         setDisplayName(saved.displayName ?? "");
+        setNameDirty(false);
         setTimezone(saved.timezone ?? "UTC");
         setTheme(saved.theme);
         setStatus("saved");
@@ -225,7 +256,10 @@ export function ProfileForm({ profile }: { profile: UserProfile }) {
             autoComplete="nickname"
             maxLength={DISPLAY_NAME_MAX_LENGTH}
             value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
+            onChange={(e) => {
+              setNameDirty(true);
+              setDisplayName(e.target.value);
+            }}
             aria-invalid={fieldError.displayName ? true : undefined}
             aria-describedby="displayName-help"
             style={{
