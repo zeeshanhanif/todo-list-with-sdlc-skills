@@ -60,7 +60,7 @@
       at the row), and a patch for an unknown user id returns null without
       writing.
 
-- [ ] T4 — Domain: `ProfileService` + `profile.errors.ts` (design §5.1;
+- [x] T4 — Domain: `ProfileService` + `profile.errors.ts` (design §5.1;
       FR-PROF-002/003/004). `normalizeDisplayName` (trim → non-empty → ≤ 80 → no
       control characters/line breaks), `validateTimezone` (the rule in design
       §5.1 — resolves through `Intl`, no fixed-offset form, **stored verbatim**;
