@@ -196,7 +196,7 @@
       "feature": "FEAT-004",
       "strategy": "code-native",
       "source": {
-        "spec": "features/FEAT-009-lists/ui-design.md#scr-web-007--app-shell--lists-sidebar"
+        "spec": "features/FEAT-008-profile/ui-design.md#scr-web-007--app-shell-this-features-extension"
       },
       "states": {
         "covered": [
@@ -212,18 +212,21 @@
         "GET /lists",
         "POST /lists/reorder",
         "POST /auth/logout",
-        "GET /realtime/token"
+        "GET /realtime/token",
+        "GET /profile",
+        "PATCH /profile"
       ],
-      "notes": "Cumulative entry for the app shell, extended once per shell-touching feature; the `source` locator points at the newest and most complete spec, and the earlier ones remain valid for their own parts: FEAT-004 sign-out control (features/FEAT-004-sign-out/ui-design.md#scr-web-007--app-shell-sign-out-control), FEAT-006 Settings nav item (features/FEAT-006-change-password/ui-design.md, D2), FEAT-009 lists section (current spec). FEAT-009 makes the sidebar the product's primary navigation: one `sidebar-nav-item` per list in `position` order with an activeTaskCount `badge` (hidden at zero — ui-design D2), a per-row `dropdown-menu` (rename / move up / move down / delete, with Delete absent on the default list — D1), and a 'New list' action, all opening SCR-WEB-011. Reorder is menu-driven, not drag-and-drop (D5) — design.md specifies a drag handle only on task-row, and §5 requires the move-up/down keyboard path regardless. FEAT-009 also implements the shell's `< md` full drawer that design.md §3 specified and FEAT-006 §8 recorded as unbuilt (D3), so 'ready' now covers both the desktop sidebar and the mobile drawer. No `empty` state exists by design: FR-LIST-003 guarantees every account has an Inbox. FEAT-010 is the entry's fourth extension: sidebar rows become LINKS to /lists/{id} and gain design.md's `sidebar-nav-item` selected state (primary-subtle bg + primary text + left accent bar, aria-current=page) for the open list, the drawer closes when a row is followed, and the count badge finally moves on its own now that tasks can be created; the `/` placeholder is replaced by SCR-WEB-008 rendering the default list (FEAT-010 technical-design D2). Delta spec: features/FEAT-010-create-task/ui-design.md#scr-web-007--app-shell-this-features-extension. Lucide icons remain unwired — controls are text/glyph with aria-labels (carried deviation, not an escalation). SCR-WEB-010's UC-004 tag is a likely source typo — no entry created for it. FEAT-011 is the entry's FIFTH extension (delta spec: features/FEAT-011-task-detail/ui-design.md#scr-web-007--app-shell-this-features-extension): the shell gains the DETAIL HOST its inventory entry always described — the `--size-detail-panel-width` (420px) right region SCR-WEB-010 slides into at >=lg, an overlay at md, full-viewport below md, and NOT RENDERED AT ALL when no task is open (no empty gutter). Esc closes it from anywhere in the shell and focus returns to the task-row that opened it (design.md §5). The earlier note that SCR-WEB-010 had no manifest entry is now superseded — FEAT-011 minted it against UC-010; the inventory's UC-004 tag on that screen remains a source typo. FEAT-019 EXTENSION (delta spec: features/FEAT-019-realtime-sync/ui-design.md#scr-web-007--app-shell-this-features-extension): the shell mounts the sync island (<SyncProvider />, technical-design D7) — a client component that renders NOTHING and occupies no space; it is the product's only mount point that is authenticated-zone-only, which is why sync lives here and not in the root layout (no socket for a user who has no session). It consumes GET /realtime/token and never renders it: `{ enabled: false }` is the default configuration today (no Supabase project provisioned) and must not surface anywhere on the screen — it simply means the island runs the adaptive fallback schedule (technical-design D4). NO connection indicator, NO 'live' dot, NO last-updated timestamp (ui-design D1): design.md specifies no sync/connection/stale component, no FR or NFR asks for one, and D1 argues the product should not have one — so nothing was escalated either. A token-mint or socket failure is NOT a shell error state; the shell's `error` stays reserved for a failure to load the caller's lists.",
+      "notes": "Cumulative entry for the app shell, extended once per shell-touching feature; the `source` locator points at the newest and most complete spec, and the earlier ones remain valid for their own parts: FEAT-004 sign-out control (features/FEAT-004-sign-out/ui-design.md#scr-web-007--app-shell-sign-out-control), FEAT-006 Settings nav item (features/FEAT-006-change-password/ui-design.md, D2), FEAT-009 lists section (current spec). FEAT-009 makes the sidebar the product's primary navigation: one `sidebar-nav-item` per list in `position` order with an activeTaskCount `badge` (hidden at zero — ui-design D2), a per-row `dropdown-menu` (rename / move up / move down / delete, with Delete absent on the default list — D1), and a 'New list' action, all opening SCR-WEB-011. Reorder is menu-driven, not drag-and-drop (D5) — design.md specifies a drag handle only on task-row, and §5 requires the move-up/down keyboard path regardless. FEAT-009 also implements the shell's `< md` full drawer that design.md §3 specified and FEAT-006 §8 recorded as unbuilt (D3), so 'ready' now covers both the desktop sidebar and the mobile drawer. No `empty` state exists by design: FR-LIST-003 guarantees every account has an Inbox. FEAT-010 is the entry's fourth extension: sidebar rows become LINKS to /lists/{id} and gain design.md's `sidebar-nav-item` selected state (primary-subtle bg + primary text + left accent bar, aria-current=page) for the open list, the drawer closes when a row is followed, and the count badge finally moves on its own now that tasks can be created; the `/` placeholder is replaced by SCR-WEB-008 rendering the default list (FEAT-010 technical-design D2). Delta spec: features/FEAT-010-create-task/ui-design.md#scr-web-007--app-shell-this-features-extension. Lucide icons remain unwired — controls are text/glyph with aria-labels (carried deviation, not an escalation). SCR-WEB-010's UC-004 tag is a likely source typo — no entry created for it. FEAT-011 is the entry's FIFTH extension (delta spec: features/FEAT-011-task-detail/ui-design.md#scr-web-007--app-shell-this-features-extension): the shell gains the DETAIL HOST its inventory entry always described — the `--size-detail-panel-width` (420px) right region SCR-WEB-010 slides into at >=lg, an overlay at md, full-viewport below md, and NOT RENDERED AT ALL when no task is open (no empty gutter). Esc closes it from anywhere in the shell and focus returns to the task-row that opened it (design.md §5). The earlier note that SCR-WEB-010 had no manifest entry is now superseded — FEAT-011 minted it against UC-010; the inventory's UC-004 tag on that screen remains a source typo. FEAT-019 EXTENSION (delta spec: features/FEAT-019-realtime-sync/ui-design.md#scr-web-007--app-shell-this-features-extension): the shell mounts the sync island (<SyncProvider />, technical-design D7) — a client component that renders NOTHING and occupies no space; it is the product's only mount point that is authenticated-zone-only, which is why sync lives here and not in the root layout (no socket for a user who has no session). It consumes GET /realtime/token and never renders it: `{ enabled: false }` is the default configuration today (no Supabase project provisioned) and must not surface anywhere on the screen — it simply means the island runs the adaptive fallback schedule (technical-design D4). NO connection indicator, NO 'live' dot, NO last-updated timestamp (ui-design D1): design.md specifies no sync/connection/stale component, no FR or NFR asks for one, and D1 argues the product should not have one — so nothing was escalated either. A token-mint or socket failure is NOT a shell error state; the shell's `error` stays reserved for a failure to load the caller's lists. FEAT-008 EXTENSION (delta spec: features/FEAT-008-profile/ui-design.md#scr-web-007--app-shell-this-features-extension): two changes, neither visual. (1) The Settings nav item's target moves from /settings/security to /settings/profile (technical-design D5) — ux-foundations' IA puts Profile & Preferences and Security & Account as siblings under Settings, and the preferences screen is the routinely-visited one; Security stays one click away via the settings sub-nav (ui-design D3). (2) The frame becomes the PREFERENCES HOST: it renders PreferencesProvider (timezone + theme + display name, server-fetched alongside the lists in one Promise.all) and ThemeSync, and it is where the one-time browser-timezone adoption PATCH fires when the profile reports timezone: null (technical-design AC-7). Like SyncProvider before it, this is authenticated-zone-only and renders nothing. The DISPLAY NAME IS DELIBERATELY NOT SHOWN IN THE SIDEBAR (ui-design D8): no FR asks for it and the shell has no identity block, so adding one would be a shell redesign needing its own ux pass. Sidebar appearance is unchanged in both themes — the selected nav item measures 5.47:1 light / 6.69:1 dark.",
       "conformance": {
         "result": "pass",
         "corrections": [
-          "FEAT-019: no correction needed — the feature adds no component, token, state or pattern to this screen; its only design work is the negative ruling that sync stays invisible (ui-design D1) and the enumerated non-destructive-refresh contract (D2)."
+          "FEAT-019: no correction needed — the feature adds no component, token, state or pattern to this screen; its only design work is the negative ruling that sync stays invisible (ui-design D1) and the enumerated non-destructive-refresh contract (D2).",
+          "FEAT-008: no correction needed — the extension changes one href and mounts two non-rendering providers; no component, token, state or pattern is added to this screen."
         ],
         "escalations": []
       },
       "status": "designed",
-      "designed_at": "2026-07-29"
+      "designed_at": "2026-07-30"
     },
     "SCR-WEB-008": {
       "name": "List View",
@@ -361,6 +364,38 @@
       "status": "designed",
       "designed_at": "2026-07-27"
     },
+    "SCR-WEB-013": {
+      "name": "Settings — Profile & Preferences",
+      "surface": "WEB",
+      "feature": "FEAT-008",
+      "strategy": "code-native",
+      "source": {
+        "spec": "features/FEAT-008-profile/ui-design.md#scr-web-013--settings--profile--preferences"
+      },
+      "states": {
+        "covered": [
+          "default",
+          "saving",
+          "success",
+          "error",
+          "unauthenticated"
+        ],
+        "gaps": [],
+        "supplements": []
+      },
+      "contract_bindings": [
+        "GET /profile",
+        "PATCH /profile"
+      ],
+      "notes": "Authenticated settings zone (app shell), served at /settings/profile; the sidebar's Settings nav item now targets THIS screen and Security & Account (SCR-WEB-014) becomes its sibling, reached through the new settings sub-nav (ui-design D3) — technical-design D5. Four field blocks in one card: email as STATIC TEXT (not a disabled input — ui-design D4; FR-PROF-001 makes it read-only), display name (input + explicit Save), timezone (native select with optgroups, options from the BROWSER's Intl.supportedValuesOf — ui-design D6), theme (radio group: Light / Dark / Match system). Selects and radios save ON CHANGE, the text field on an explicit Save (ui-design D7); each control PATCHes only its own field, which is what the partial-patch contract (technical-design D6) exists for. TWO UI-SIDE READINGS OF CONTRACT STATES, recorded rather than left implicit: (1) a BLANK display-name field sends `null` (unset → derived default), never `\"\"` (which the contract rejects) — ui-design D5; UC-007 alt 3a's error path stays reachable via too-long input, and the `\"\"` rejection is enforced at the API. Same shape as FEAT-002's reinterpretation of SCR-WEB-002's rate-limited state. (2) The theme applies OPTIMISTICALLY to :root on change and reverts with the form-level error if the PATCH fails (ui-design D1) — it is not a preview widget. FIRST SCREEN IN THE PRODUCT TO RENDER THE DARK THEME: all nine pairings measured in both themes before writing (ui-design D2 carries the table), all ≥ 4.5:1; no correction, no amendment. Form-level errors use --color-danger-subtle + --color-danger-text, never --color-danger on that tint (the 3.95:1 DEF-003/DEF-006 pairing).",
+      "conformance": {
+        "result": "pass",
+        "corrections": [],
+        "escalations": []
+      },
+      "status": "designed",
+      "designed_at": "2026-07-30"
+    },
     "SCR-WEB-014": {
       "name": "Settings — Security & Account",
       "surface": "WEB",
@@ -377,14 +412,14 @@
         "supplements": []
       },
       "contract_bindings": [],
-      "notes": "Authenticated settings zone (app shell), served at /settings/security; reached from the new sidebar 'Settings' nav item (SCR-WEB-007 entry extended). Pure navigation hub — consumes no endpoint, so no loading/empty/error states apply (not gaps); an unresolved session redirects to /signin server-side (ui-design D4). Renders one list-row today (Change password → SCR-WEB-015); Export data (SCR-WEB-016, FEAT-017) and Delete account (SCR-WEB-017, FEAT-018) add rows to this same entry later.",
+      "notes": "Authenticated settings zone (app shell), served at /settings/security; reached from the new sidebar 'Settings' nav item (SCR-WEB-007 entry extended). Pure navigation hub — consumes no endpoint, so no loading/empty/error states apply (not gaps); an unresolved session redirects to /signin server-side (ui-design D4). Renders one list-row today (Change password → SCR-WEB-015); Export data (SCR-WEB-016, FEAT-017) and Delete account (SCR-WEB-017, FEAT-018) add rows to this same entry later. FEAT-008 EXTENSION (delta spec: features/FEAT-008-profile/ui-design.md#scr-web-014--settings--security--account-this-features-extension): gains the settings sub-nav above its h1, with 'Security & account' carrying aria-current=page. This is required rather than cosmetic — FEAT-008 moves the sidebar's Settings target to /settings/profile, so without the sub-nav this screen would become unreachable. The sub-nav is a semantic <nav><ul><li><a> styled with design.md's `tabs` treatment, NOT shadcn Tabs (whose semantics are same-page panels, and these are routes — ui-design D3): a composition of existing treatments, not a new component. The card, its rows and its copy are otherwise untouched.",
       "conformance": {
         "result": "pass",
         "corrections": [],
         "escalations": []
       },
       "status": "designed",
-      "designed_at": "2026-07-26"
+      "designed_at": "2026-07-30"
     },
     "SCR-WEB-015": {
       "name": "Change Password",
