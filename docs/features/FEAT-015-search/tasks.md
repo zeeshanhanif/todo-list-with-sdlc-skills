@@ -29,7 +29,7 @@
 > `--color-danger-text` on the danger tint, never `--color-danger`.
 > `apps/web/AGENTS.md`: read `node_modules/next/dist/docs/` before writing web code.
 
-- [ ] T1 — Shared contracts (`@todo/shared`, design §3): a FEAT-015 block adding
+- [x] T1 — Shared contracts (`@todo/shared`, design §3): a FEAT-015 block adding
       `SEARCH_PATH`, `SEARCH_STATUSES` / `SearchStatus`, `SEARCH_DUE_BUCKETS` /
       `SearchDueBucket`, `SEARCH_QUERY_MAX_LENGTH` (200), `SEARCH_PAGE_SIZE`
       (25), `SEARCH_PAGE_SIZE_MAX` (50), `SearchResult` (extends `TaskSummary`

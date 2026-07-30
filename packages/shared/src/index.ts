@@ -719,3 +719,83 @@ export const displayNameFor = (user: {
   displayName: string | null;
   email: string;
 }): string => user.displayName ?? user.email.split("@")[0];
+
+// --- Search & filters (FEAT-015) ---
+
+/** Path of the search endpoint — read-only, single-subject: the corpus searched
+ * is always the caller's own, so no id appears anywhere in the request
+ * (FR-AUTHZ-002; technical-design §3). */
+export const SEARCH_PATH = "/search";
+
+/** Status filter values (FR-SRCH-003). `overdue` is **the same predicate** as
+ * the `overdue` due-bucket below — one definition of overdue in this system,
+ * the one FEAT-011 D3 owns (technical-design D5). */
+export const SEARCH_STATUSES = ["active", "completed", "overdue"] as const;
+export type SearchStatus = (typeof SEARCH_STATUSES)[number];
+
+/** Due-date filter buckets (FR-SRCH-004).
+ *
+ * `today` and `upcoming` are **calendar-day** questions and are therefore
+ * computed in the user's stored timezone (FR-PROF-003). `overdue` is an
+ * **instant** question and is therefore the same in every zone. That asymmetry
+ * is deliberate and is why the two live side by side here rather than in one
+ * uniform rule (technical-design §5.2/D5). */
+export const SEARCH_DUE_BUCKETS = [
+  "today",
+  "upcoming",
+  "overdue",
+  "none",
+] as const;
+export type SearchDueBucket = (typeof SEARCH_DUE_BUCKETS)[number];
+
+/** Maximum length of a search term (FR-SRCH-001). Shared so the client bound
+ * cannot drift from the server rule — the convention FEAT-001 set with
+ * PASSWORD_MIN_LENGTH. The term is trimmed before validation. */
+export const SEARCH_QUERY_MAX_LENGTH = 200;
+
+/** Default page size (FR-SRCH-009). */
+export const SEARCH_PAGE_SIZE = 25;
+
+/** Hard ceiling on `limit`. A larger value is a `400`, never a silent clamp —
+ * a client that asked for 500 results and received 50 without being told would
+ * conclude there were only 50 (technical-design §3.1). */
+export const SEARCH_PAGE_SIZE_MAX = 50;
+
+/**
+ * One search hit: the full task, plus the name of the list holding it.
+ *
+ * Extends `TaskSummary` rather than redefining it, so a result carries the same
+ * `completedAt` / `dueAt` / `priority` / `isOverdue` the rest of the product
+ * reads — FR-SRCH-002's "with the list it belongs to and its status" is exactly
+ * these two halves. `listName` is denormalized onto each row deliberately: a
+ * page is at most 50 rows, and the alternative (a lookup map the client joins)
+ * buys nothing at that size.
+ */
+export interface SearchResult extends TaskSummary {
+  listName: string;
+}
+
+/**
+ * Success response (200) of `GET /search`.
+ *
+ * `results` is ordered newest-first by the server and rendered in that order —
+ * substring matching produces no relevance rank, so inventing one would be a
+ * number nobody could explain (technical-design D2).
+ *
+ * There is no total count: the contract carries what the screen needs, and the
+ * screen shows "N results so far" while paging (technical-design D7's
+ * neighbour).
+ */
+export interface SearchResponse {
+  results: SearchResult[];
+  /**
+   * Opaque cursor for the next page, or `null` when this page is the last.
+   *
+   * **Opaque by contract**: it encodes the last row's `(createdAt, id)` — the
+   * exact ORDER BY tuple — and clients pass it back untouched rather than
+   * constructing it. Keyset, not offset, so a task created between two page
+   * requests cannot make an already-read row reappear or push an unread one
+   * past the boundary (technical-design D4).
+   */
+  nextCursor: string | null;
+}
