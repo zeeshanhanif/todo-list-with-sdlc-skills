@@ -13,6 +13,7 @@ recycled.
 
 | DEF-005 | 2026-07-29 | NFR-USE-004 (design.md §5 control boundaries) / all web form controls, FEAT-001/002/003/005/006/009/010/011 | Every `input`/`textarea`/`select` in `apps/web` outlined in `--color-border-strong` — **1.48:1** light / **1.64:1** dark, below the 3:1 §5 requires for a boundary that is the control's only identifier. A web-tier accessibility pass, not per-feature work | `d27af38` (13 sites → `--color-text-muted`; 1.48→4.76 light, 1.64→6.64 dark) | 2026-07-29 — `control-contrast.spec.ts` sweep red before / green after across 8 screens; api 191, worker 20, e2e 21 |
 
+| DEF-007 | 2026-07-30 | NFR-MAINT-003 (externalized config) / walking skeleton — affects every env-driven setting in `apps/api` and `apps/worker` | **Open.** `loadConfig()` calls dotenv with no path, so it resolves `.env` against the **process CWD** — which is `apps/api` when started as a workspace script. The repo's only `.env` is at the root, so `npm run dev:api` / `npm run start -w @todo/api` silently run on **defaults**, ignoring every value an operator set. `.env.example` says "Copy to .env for local development", so the documented path does not work for the API | _open_ | _open_ |
 | DEF-006 | 2026-07-29 | NFR-USE-004 (design.md §5 contrast) / FEAT-001, FEAT-003, FEAT-005, FEAT-009 — the **inline-alert** instances DEF-003 and DEF-004 both missed | **Open.** Five shipped sites still put `--color-danger` on `--color-danger-subtle` at `small` — the **3.95:1** pairing DEF-003 measured and `--color-danger-text` (6.80:1) exists to replace: `app/signup/page.tsx:89`, `app/signin/page.tsx:128`, `app/reset-password/page.tsx:46`, `components/lists-nav.tsx:117`, `components/list-dialog.tsx:196`. A web-tier pass, not per-feature rework | _open_ | _open_ |
 
 ## DEF-006 — the inline-alert instances of the DEF-003 pairing
@@ -452,3 +453,52 @@ readable failures.
 **Impact and workaround.** The gate is trustworthy when run serially
 (`npm test -w @todo/api -- --runInBand`, ~9 s vs ~4 s). Feature verification
 should use serial execution until this is fixed, and the report should say so.
+
+
+## DEF-007 — the API ignores the root `.env` (open)
+
+**Reported:** 2026-07-30, during FEAT-019's AC-1b staging run.
+**Owning requirement:** NFR-MAINT-003 (configuration externalized to the
+environment). Not a feature defect — it predates every slice.
+
+**Symptom.** Starting the API the documented way and setting
+`REALTIME_PROVIDER=supabase` in the root `.env` had **no effect**:
+`GET /realtime/token` kept answering `{ enabled: false }`. Exporting the same
+values into the shell first made it work immediately.
+
+**Cause.** `apps/api/src/infra/config.ts` calls `loadDotenv()` with no
+arguments, so dotenv looks for `.env` relative to `process.cwd()`. npm workspace
+scripts run with the CWD set to the **workspace** directory, and there is no
+`apps/api/.env` — so nothing is loaded and every setting falls back to its
+default. Introduced by the walking skeleton (`7b8d6e9`), not by a feature.
+
+**Blast radius — wider than Realtime.** Every value in `.env.example` that the
+API or worker reads is affected the same way: `EMAIL_PROVIDER` / `SMTP_URL`
+(FEAT-007 would silently keep logging instead of sending), `SESSION_TTL_DAYS`,
+`AUTH_RATELIMIT_*`, `LOGIN_LOCKOUT_MINUTES`, the token TTLs. Nothing is *broken*
+by the defaults — they are deliberately safe — which is exactly why this has
+gone unnoticed for nineteen features: the system works, it just does not obey
+its own configuration file locally.
+
+**Not a production issue.** In Cloud Run these arrive as service env vars, which
+`process.env` reads directly with no dotenv involved (`deploy/*.yaml`). The
+defect is confined to local development — and to anyone following
+`.env.example`'s instructions.
+
+**Why it was found now.** FEAT-019 is the first feature whose behaviour changes
+*visibly* based on an env value an operator must set by hand
+(`REALTIME_PROVIDER`). Every earlier feature's env values were either already
+correct as defaults or exercised through explicitly-passed env (the E2E
+`webServer` blocks, jest's own `process.env` assignments).
+
+**Suggested fix** (one line, plus a decision): resolve the path explicitly —
+`loadDotenv({ path: resolve(__dirname, '../../../../.env') })` or, cleaner, walk
+up to the repo root; and do the same in `apps/worker/src/infra/`. Worth pairing
+with a startup log line naming which config file was loaded (or that none was),
+since the failure mode is silence. **Fix protocol applies** (maintenance route):
+a failing test first — a spec asserting the API loads a root-level `.env` when
+started from the workspace directory — then the fix, then re-verification of the
+features whose config it touches.
+
+**Workaround until fixed.** Export the values before starting the API:
+`set -a; . ./.env; set +a; npm run start -w @todo/api`.

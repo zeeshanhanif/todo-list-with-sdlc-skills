@@ -1,6 +1,9 @@
 # Acceptance Report: FEAT-019 — Realtime cross-device sync
 
 > Verdict: **Accepted, with AC-1b explicitly open** · Date: 2026-07-29
+> AC-1b run attempted 2026-07-30 against a staging hybrid — **partial, still
+> open**, deferred to first deploy by user decision. Verdict unchanged; see
+> "AC-1b run log" at the end of this report and `staging-checklist.md`.
 > Audited against: docs/features/FEAT-019-realtime-sync/technical-design.md §6
 > (AC-1..AC-12 + AC-1b), docs/srs.md (NFR-PERF-004 and the binding NFRs),
 > docs/use-cases.md (UC-009/010/011, sync aspect), ui-design.md and
@@ -159,3 +162,48 @@ topic-scoping policy refuses a stranger's subscription, and that delivery is
 sub-second. Those are AC-1b, and they are the user's provisioning step followed
 by a nine-step checklist. **This should be run before first deploy**, since
 ADR-006 is a deploy-time dependency regardless.
+
+
+## AC-1b run log — 2026-07-30 (verdict unchanged)
+
+AC-1b was attempted after the user provisioned a Supabase project. It is **still
+open**, and the verdict above is unchanged: FEAT-019 remains accepted with this
+one criterion outstanding.
+
+**What the attempt proved** (all new, all real, none of it previously verifiable):
+
+- Supabase **accepts a JWT our API minted**, with no Supabase Auth involved —
+  ADR-006's load-bearing assumption. Proven by contrast against invalid-token
+  baselines, not by absence of an error.
+- Our **publish path works against the real service**: the broadcast POST returns
+  `202`, with the query-parameter form T3 corrected the design to.
+- **Delivery works end to end and was timed** — 726 ms on a public topic, from a
+  laptop to the project's region over the public internet.
+
+**What it did not prove, and why:**
+
+- **Private-channel authorization.** Subscriptions are refused for *every* topic,
+  including the caller's own. Excluded as causes: the socket, the URL, the
+  publishable key, the JWT and its secret, and the `realtime.messages`
+  partitions. It is an RLS-predicate problem on the Supabase side — one line of
+  configuration, no application code implicated.
+- **Deployed latency.** 726 ms is the mechanism working, not a deployed number.
+
+**A correction to this report's own reasoning.** The run initially read "B's
+token is refused on A's topic" as proof the policy scoped correctly. It is not:
+a policy that denies everything yields the identical observation. The legitimate
+case failing the same way is what exposed it. Recorded because this report is
+where a later reader would otherwise inherit the wrong inference.
+
+**Topology caveat.** The attempt used local Postgres for data plus a separate
+Supabase project as a message bus — valid for a content-free signal, but not
+architecture §7's single-project topology. AC-1b should be closed at first
+deploy, against the real thing.
+
+**One defect filed, not FEAT-019's.** The run surfaced **DEF-007**: the API
+resolves `.env` against the process CWD, so a workspace-script start silently
+ignores the root `.env` and runs on defaults. Pre-existing since the walking
+skeleton, affects every env-driven setting in `apps/api`/`apps/worker`, invisible
+until now because the defaults were all deliberately safe and FEAT-019 is the
+first feature whose behaviour visibly depends on an operator-set value. Local
+development only — Cloud Run passes env vars directly. See `docs/defects.md`.
