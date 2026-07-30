@@ -170,6 +170,33 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
         onClose();
         return;
       }
+      // ↑/↓ move through the results from wherever focus is — which, while the
+      // user is typing, is the query field, not the list (ui-design D6). A
+      // handler bound to the list itself never fires from there; that is the
+      // bug this arrangement fixes. A `select` keeps its own arrow behaviour.
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        const target = e.target as HTMLElement;
+        if (target.tagName === "SELECT") return;
+        const links = Array.from(
+          node?.querySelectorAll<HTMLAnchorElement>(
+            '[data-testid="search-results"] a[href]',
+          ) ?? [],
+        );
+        if (links.length === 0) return;
+        e.preventDefault();
+        const at = links.indexOf(document.activeElement as HTMLAnchorElement);
+        if (at === -1) {
+          links[0].focus();
+          return;
+        }
+        const next =
+          e.key === "ArrowDown"
+            ? Math.min(at + 1, links.length - 1)
+            : Math.max(at - 1, 0);
+        links[next].focus();
+        return;
+      }
+
       if (e.key !== "Tab") return;
       const items = tabbables();
       if (items.length === 0) return;
@@ -191,22 +218,6 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
       if (opener && document.contains(opener)) opener.focus();
     };
   }, [onClose]);
-
-  /** ↑/↓ move through results, Enter opens the focused one (ui-design D6). */
-  const onResultsKeyDown = (e: React.KeyboardEvent<HTMLUListElement>) => {
-    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
-    e.preventDefault();
-    const links = Array.from(
-      e.currentTarget.querySelectorAll<HTMLAnchorElement>("a[href]"),
-    );
-    if (links.length === 0) return;
-    const at = links.indexOf(document.activeElement as HTMLAnchorElement);
-    const next =
-      e.key === "ArrowDown"
-        ? Math.min(at + 1, links.length - 1)
-        : Math.max(at - 1, 0);
-    links[at === -1 ? 0 : next].focus();
-  };
 
   const criteriaSummary = [
     q.trim() ? `keyword “${q.trim()}”` : null,
@@ -438,7 +449,6 @@ export function SearchOverlay({ onClose }: { onClose: () => void }) {
               </p>
               <ul
                 data-testid="search-results"
-                onKeyDown={onResultsKeyDown}
                 style={{ listStyle: "none", margin: 0, padding: 0 }}
               >
                 {results.map((r) => (

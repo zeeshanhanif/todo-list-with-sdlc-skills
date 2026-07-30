@@ -112,7 +112,7 @@
       empty** distinctly plus an error state, every control is keyboard-operable,
       and the empty state is reachable and distinguishable from idle (AC-6).
 
-- [ ] T9 — E2E: extend `e2e/tests/` with the path this feature completes — sign
+- [x] T9 — E2E: extend `e2e/tests/` with the path this feature completes — sign
       in → open search → type a keyword → see matches from more than one list
       with their list names → narrow by status and by due bucket → clear to an
       empty result and see the empty state → page through a result set larger
