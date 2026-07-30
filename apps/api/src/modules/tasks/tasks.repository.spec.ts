@@ -211,4 +211,415 @@ describe('TasksRepository (integration)', () => {
     expect(two.id).not.toBe(one.id);
     expect(await tasks.findByList(owner, inbox)).toHaveLength(2);
   });
+
+  // ---------------------------------------------------------------------------
+  // FEAT-011 T3 — due date, priority, by-id read, partial update.
+  // ---------------------------------------------------------------------------
+
+  /** Read the columns straight from the table, so assertions about what was
+   * STORED never route through the same mapper they are checking. */
+  const storedRow = async (id: string) => {
+    const r = await db.query<{
+      title: string;
+      due_at: Date | null;
+      priority: string;
+      updated_at: Date;
+      completed_at: Date | null;
+      deleted_at: Date | null;
+      list_id: string;
+      created_at: Date;
+    }>(
+      `SELECT title, due_at, priority, updated_at, completed_at, deleted_at,
+              list_id, created_at
+         FROM tasks WHERE id = $1`,
+      [id],
+    );
+    return r.rows[0];
+  };
+
+  it('AC-3: create stores a due date, and update sets then changes it', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const first = '2026-08-01T09:00:00.000Z';
+    const second = '2026-09-15T17:30:00.000Z';
+
+    const created = await tasks.create(owner, inbox, 'Dentist', {
+      dueAt: new Date(first),
+    });
+    expect(created.dueAt?.toISOString()).toBe(first);
+
+    const changed = await tasks.update(owner, created.id, {
+      dueAt: new Date(second),
+    });
+    expect(changed?.dueAt?.toISOString()).toBe(second);
+    expect((await storedRow(created.id)).due_at?.toISOString()).toBe(second);
+  });
+
+  it('AC-4: dueAt null clears the column; an ABSENT dueAt leaves it alone', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const due = new Date('2026-08-01T09:00:00.000Z');
+    const task = await tasks.create(owner, inbox, 'Dentist', { dueAt: due });
+
+    // A patch that does not mention dueAt must not disturb it — this is the
+    // absent-vs-null distinction the whole PATCH contract rests on (D4).
+    const afterTitleOnly = await tasks.update(owner, task.id, {
+      title: 'Dentist appointment',
+    });
+    expect(afterTitleOnly?.dueAt?.toISOString()).toBe(due.toISOString());
+    expect((await storedRow(task.id)).due_at).not.toBeNull();
+
+    // An explicit null clears it.
+    const afterClear = await tasks.update(owner, task.id, { dueAt: null });
+    expect(afterClear?.dueAt).toBeNull();
+    expect((await storedRow(task.id)).due_at).toBeNull();
+  });
+
+  it('AC-6: priority stores each of the four values, and defaults to none from the COLUMN', async () => {
+    const { id: owner, inbox } = await freshUser();
+
+    // The default is the column's, not the application's: created without a
+    // priority, the stored value is 'none'.
+    const plain = await tasks.create(owner, inbox, 'No priority given');
+    expect(plain.priority).toBe('none');
+    expect((await storedRow(plain.id)).priority).toBe('none');
+
+    for (const p of ['none', 'low', 'medium', 'high'] as const) {
+      const t = await tasks.create(owner, inbox, `p-${p}`, { priority: p });
+      expect(t.priority).toBe(p);
+      expect((await storedRow(t.id)).priority).toBe(p);
+
+      const flipped = await tasks.update(owner, t.id, { priority: 'high' });
+      expect(flipped?.priority).toBe('high');
+    }
+  });
+
+  it('AC-6: the CHECK constraint rejects a priority outside the four values', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const task = await tasks.create(owner, inbox, 'Guarded');
+
+    // The service validates first, but the column is the last line of defence —
+    // if the constraint ever went missing this test, not a user, finds out.
+    await expect(
+      db.query('UPDATE tasks SET priority = $2 WHERE id = $1', [
+        task.id,
+        'urgent',
+      ]),
+    ).rejects.toThrow(/tasks_priority_check/);
+  });
+
+  it('AC-7: a single-field patch leaves the other two byte-identical', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const due = new Date('2026-08-01T09:00:00.000Z');
+    const task = await tasks.create(owner, inbox, 'Original', {
+      dueAt: due,
+      priority: 'medium',
+    });
+
+    const afterTitle = await tasks.update(owner, task.id, { title: 'Renamed' });
+    expect(afterTitle).toMatchObject({
+      title: 'Renamed',
+      priority: 'medium',
+    });
+    expect(afterTitle?.dueAt?.toISOString()).toBe(due.toISOString());
+
+    const afterPriority = await tasks.update(owner, task.id, {
+      priority: 'low',
+    });
+    expect(afterPriority).toMatchObject({ title: 'Renamed', priority: 'low' });
+    expect(afterPriority?.dueAt?.toISOString()).toBe(due.toISOString());
+
+    const afterDue = await tasks.update(owner, task.id, { dueAt: null });
+    expect(afterDue).toMatchObject({ title: 'Renamed', priority: 'low' });
+    expect(afterDue?.dueAt).toBeNull();
+  });
+
+  it('AC-7: an empty patch is refused outright, so nothing — not even updated_at — moves', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const task = await tasks.create(owner, inbox, 'Untouched');
+    const before = await storedRow(task.id);
+
+    await expect(tasks.update(owner, task.id, {})).rejects.toThrow(
+      /empty patch/,
+    );
+
+    const after = await storedRow(task.id);
+    expect(after.updated_at.toISOString()).toBe(
+      before.updated_at.toISOString(),
+    );
+  });
+
+  it('AC-8: findById and update are owner-scoped, and soft-deleted rows are gone from both', async () => {
+    const { id: ownerA, inbox: inboxA } = await freshUser();
+    const { id: ownerB } = await freshUser();
+    const task = await tasks.create(ownerA, inboxA, "A's task", {
+      priority: 'high',
+    });
+
+    // Owner A can read it.
+    expect(await tasks.findById(ownerA, task.id)).toMatchObject({
+      title: "A's task",
+    });
+
+    // Owner B gets the same nothing as for an id that does not exist...
+    expect(await tasks.findById(ownerB, task.id)).toBeNull();
+    expect(await tasks.findById(ownerB, randomUUID())).toBeNull();
+
+    // ...and cannot write it either. The row must be untouched afterwards.
+    expect(
+      await tasks.update(ownerB, task.id, { title: 'hijacked' }),
+    ).toBeNull();
+    expect((await storedRow(task.id)).title).toBe("A's task");
+
+    // Soft-deleting it takes it out of both, for its own owner (FEAT-013 owns
+    // restore; until then a deleted task is simply not found).
+    await db.query('UPDATE tasks SET deleted_at = now() WHERE id = $1', [
+      task.id,
+    ]);
+    expect(await tasks.findById(ownerA, task.id)).toBeNull();
+    expect(await tasks.update(ownerA, task.id, { title: 'x' })).toBeNull();
+    expect((await storedRow(task.id)).title).toBe("A's task");
+  });
+
+  // --- FEAT-012 T2 — setCompletion (FR-TASK-009/010) ---
+
+  it('FEAT-012 AC-1: completing stores a completion instant inside the request window', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const task = await tasks.create(owner, inbox, 'Ship it');
+    expect(task.completedAt).toBeNull(); // fixture precondition, asserted
+
+    const before = Date.now();
+    const done = await tasks.setCompletion(owner, task.id, true);
+    const after = Date.now();
+
+    expect(done?.completedAt).toBeInstanceOf(Date);
+    const at = done!.completedAt!.getTime();
+    // No earlier than the request, no later than the response — the server's
+    // clock, never a client's (technical-design §3.1).
+    expect(at).toBeGreaterThanOrEqual(before - 1000);
+    expect(at).toBeLessThanOrEqual(after + 1000);
+    expect((await storedRow(task.id)).completed_at?.toISOString()).toBe(
+      done!.completedAt!.toISOString(),
+    );
+  });
+
+  it('FEAT-012 AC-2: reopening clears it, and neither transition disturbs any other column', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const due = new Date('2026-09-01T08:30:00.000Z');
+    const task = await tasks.create(owner, inbox, 'Round trip', {
+      dueAt: due,
+      priority: 'high',
+    });
+    const original = await storedRow(task.id);
+
+    const done = await tasks.setCompletion(owner, task.id, true);
+    expect(done?.completedAt).not.toBeNull();
+
+    const reopened = await tasks.setCompletion(owner, task.id, false);
+    expect(reopened?.completedAt).toBeNull();
+    expect((await storedRow(task.id)).completed_at).toBeNull();
+
+    // Byte-identical everywhere else, across BOTH transitions.
+    expect(reopened).toMatchObject({
+      id: task.id,
+      listId: task.listId,
+      title: original.title,
+      priority: original.priority,
+    });
+    expect(reopened?.dueAt?.toISOString()).toBe(due.toISOString());
+    expect(reopened?.createdAt.toISOString()).toBe(
+      task.createdAt.toISOString(),
+    );
+  });
+
+  it('FEAT-012 AC-5: a repeat complete keeps the ORIGINAL instant; a repeat reopen is a no-op', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const task = await tasks.create(owner, inbox, 'Idempotent');
+
+    const first = await tasks.setCompletion(owner, task.id, true);
+    await new Promise((r) => setTimeout(r, 25)); // ensure now() would differ
+    const second = await tasks.setCompletion(owner, task.id, true);
+
+    // COALESCE(completed_at, now()) — not a re-stamp. Asserted at the ROW, so
+    // this cannot pass on a response the service happened to echo back.
+    expect(second?.completedAt?.toISOString()).toBe(
+      first!.completedAt!.toISOString(),
+    );
+    expect((await storedRow(task.id)).completed_at?.toISOString()).toBe(
+      first!.completedAt!.toISOString(),
+    );
+
+    await tasks.setCompletion(owner, task.id, false);
+    const reopenedTwice = await tasks.setCompletion(owner, task.id, false);
+    expect(reopenedTwice?.completedAt).toBeNull();
+    expect((await storedRow(task.id)).completed_at).toBeNull();
+  });
+
+  it("FEAT-012 AC-7: another owner's, an unknown and a soft-deleted id are all null, and write nothing", async () => {
+    const { id: ownerA, inbox } = await freshUser();
+    const { id: ownerB } = await freshUser();
+    const task = await tasks.create(ownerA, inbox, "A's task");
+    const untouched = await storedRow(task.id);
+
+    // Not owned, and unknown — the same null, and the row is unmodified.
+    expect(await tasks.setCompletion(ownerB, task.id, true)).toBeNull();
+    expect(await tasks.setCompletion(ownerA, randomUUID(), true)).toBeNull();
+    let now = await storedRow(task.id);
+    expect(now.completed_at).toBeNull();
+    expect(now.updated_at.toISOString()).toBe(
+      untouched.updated_at.toISOString(),
+    );
+
+    // Soft-deleted — not found even for its own owner (FEAT-013 owns restore).
+    await db.query('UPDATE tasks SET deleted_at = now() WHERE id = $1', [
+      task.id,
+    ]);
+    const beforeDeletedAttempt = await storedRow(task.id);
+    expect(await tasks.setCompletion(ownerA, task.id, true)).toBeNull();
+    expect(await tasks.setCompletion(ownerA, task.id, false)).toBeNull();
+    now = await storedRow(task.id);
+    expect(now.completed_at).toBeNull();
+    expect(now.updated_at.toISOString()).toBe(
+      beforeDeletedAttempt.updated_at.toISOString(),
+    );
+  });
+
+  // --- FEAT-013 T2 — setDeletion (FR-TASK-013/014) ---
+
+  it('FEAT-013 AC-1: deleting stores an instant inside the request window and disturbs no other column', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const task = await tasks.create(owner, inbox, 'Buy milk', {
+      dueAt: new Date('2026-08-01T09:00:00.000Z'),
+      priority: 'high',
+    });
+    const before = await storedRow(task.id);
+    expect(before.deleted_at).toBeNull(); // fixture precondition, asserted
+
+    const at0 = Date.now();
+    const gone = await tasks.setDeletion(owner, task.id, true);
+    const at1 = Date.now();
+
+    expect(gone?.deletedAt).toBeInstanceOf(Date);
+    const at = gone!.deletedAt!.getTime();
+    expect(at).toBeGreaterThanOrEqual(at0 - 1000);
+    expect(at).toBeLessThanOrEqual(at1 + 1000);
+
+    const after = await storedRow(task.id);
+    expect(after.deleted_at?.toISOString()).toBe(
+      gone!.deletedAt!.toISOString(),
+    );
+    // A delete moves deleted_at and updated_at, and NOTHING else — which is
+    // what makes FR-TASK-014's "original list and status" free (§3.1).
+    expect(after.title).toBe(before.title);
+    expect(after.list_id).toBe(before.list_id);
+    expect(after.priority).toBe(before.priority);
+    expect(after.completed_at).toBeNull();
+    expect(after.due_at?.toISOString()).toBe(before.due_at?.toISOString());
+    expect(after.created_at.toISOString()).toBe(
+      before.created_at.toISOString(),
+    );
+  });
+
+  it('FEAT-013 AC-2/AC-3: a soft-deleted row is invisible to every other statement, and restore reaches it anyway', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const task = await tasks.create(owner, inbox, 'Recoverable');
+    expect(await tasks.setDeletion(owner, task.id, true)).not.toBeNull();
+
+    // The five statements that filter `deleted_at IS NULL` — asserted rather
+    // than assumed, because FEAT-013 changed the shared projection they use.
+    expect(await tasks.findById(owner, task.id)).toBeNull();
+    expect(await tasks.findByList(owner, inbox)).toHaveLength(0);
+    expect(await tasks.update(owner, task.id, { title: 'x' })).toBeNull();
+    expect(await tasks.setCompletion(owner, task.id, true)).toBeNull();
+
+    // setDeletion is the ONE statement that can see it (D5).
+    const back = await tasks.setDeletion(owner, task.id, false);
+    expect(back?.deletedAt).toBeNull();
+    expect((await storedRow(task.id)).deleted_at).toBeNull();
+    expect(await tasks.findById(owner, task.id)).toMatchObject({
+      title: 'Recoverable',
+    });
+  });
+
+  it('FEAT-013 AC-3: restore returns a completed task to the completed side, timestamp intact', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const task = await tasks.create(owner, inbox, 'Finished then deleted');
+    const done = await tasks.setCompletion(owner, task.id, true);
+    const completedAt = done!.completedAt!.toISOString();
+
+    await tasks.setDeletion(owner, task.id, true);
+    const back = await tasks.setDeletion(owner, task.id, false);
+
+    // Original STATUS, not just original list: completed_at was never touched.
+    expect(back?.completedAt?.toISOString()).toBe(completedAt);
+    expect(back?.listId).toBe(inbox);
+    const rows = await tasks.findByList(owner, inbox);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].completedAt?.toISOString()).toBe(completedAt);
+  });
+
+  it('FEAT-013 AC-4: a repeat delete keeps the ORIGINAL instant, and restore is idempotent on a live task', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const task = await tasks.create(owner, inbox, 'Double tapped');
+
+    const first = await tasks.setDeletion(owner, task.id, true);
+    const firstAt = first!.deletedAt!.toISOString();
+    await new Promise((r) => setTimeout(r, 15)); // now() would differ if re-stamped
+    const second = await tasks.setDeletion(owner, task.id, true);
+
+    // Not re-stamped: the retention clock FR-TASK-015 runs off must not move
+    // because a user clicked twice (D3). Asserted at the row, not just the
+    // return value.
+    expect(second!.deletedAt!.toISOString()).toBe(firstAt);
+    expect((await storedRow(task.id)).deleted_at?.toISOString()).toBe(firstAt);
+
+    // Restore on a task that was never deleted is a no-op, not an error.
+    const live = await tasks.create(owner, inbox, 'Never deleted');
+    const restored = await tasks.setDeletion(owner, live.id, false);
+    expect(restored?.deletedAt).toBeNull();
+    expect((await storedRow(live.id)).deleted_at).toBeNull();
+  });
+
+  it('FEAT-013 AC-6: setDeletion is owner-scoped — including for rows that are already deleted', async () => {
+    const { id: ownerA, inbox: inboxA } = await freshUser();
+    const { id: ownerB } = await freshUser();
+    const live = await tasks.create(ownerA, inboxA, "A's live task");
+    const deleted = await tasks.create(ownerA, inboxA, "A's deleted task");
+    await tasks.setDeletion(ownerA, deleted.id, true);
+
+    const liveBefore = await storedRow(live.id);
+    const deletedBefore = await storedRow(deleted.id);
+
+    // B cannot delete A's live task, cannot restore A's deleted one, and an
+    // unknown id is the same nothing — the uniform null the 404 is built on.
+    expect(await tasks.setDeletion(ownerB, live.id, true)).toBeNull();
+    expect(await tasks.setDeletion(ownerB, deleted.id, false)).toBeNull();
+    expect(await tasks.setDeletion(ownerB, randomUUID(), true)).toBeNull();
+
+    // Neither of A's rows moved — deleted_at AND updated_at.
+    const liveAfter = await storedRow(live.id);
+    expect(liveAfter.deleted_at).toBeNull();
+    expect(liveAfter.updated_at.toISOString()).toBe(
+      liveBefore.updated_at.toISOString(),
+    );
+    const deletedAfter = await storedRow(deleted.id);
+    expect(deletedAfter.deleted_at?.toISOString()).toBe(
+      deletedBefore.deleted_at?.toISOString(),
+    );
+    expect(deletedAfter.updated_at.toISOString()).toBe(
+      deletedBefore.updated_at.toISOString(),
+    );
+  });
+
+  it('AC-11: a non-UTC offset is stored as the same instant and read back in UTC', async () => {
+    const { id: owner, inbox } = await freshUser();
+    // 09:00+05:00 is 04:00Z — the same moment, written a different way.
+    const task = await tasks.create(owner, inbox, 'Offset', {
+      dueAt: new Date('2026-08-01T09:00:00.000+05:00'),
+    });
+
+    expect(task.dueAt).toBeInstanceOf(Date);
+    expect(task.dueAt?.toISOString()).toBe('2026-08-01T04:00:00.000Z');
+    expect((await storedRow(task.id)).due_at?.toISOString()).toBe(
+      '2026-08-01T04:00:00.000Z',
+    );
+  });
 });

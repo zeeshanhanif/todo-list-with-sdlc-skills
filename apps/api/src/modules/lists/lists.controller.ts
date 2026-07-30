@@ -11,6 +11,7 @@ import {
   Patch,
   Post,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   LIST_ERROR_CODES,
@@ -22,6 +23,7 @@ import {
   type SessionUser,
 } from '@todo/shared';
 import { SessionGuard } from '../../common/authz/session.guard';
+import { ChangeSignalInterceptor } from '../../common/realtime/change-signal.interceptor';
 import { CurrentUser } from '../../common/authz/current-user.decorator';
 import { ListsService } from './lists.service';
 import { CreateListDto } from './dto/create-list.dto';
@@ -44,6 +46,7 @@ import {
 // (technical-design §8).
 @Controller('lists')
 @UseGuards(SessionGuard)
+@UseInterceptors(ChangeSignalInterceptor)
 export class ListsController {
   constructor(private readonly lists: ListsService) {}
 

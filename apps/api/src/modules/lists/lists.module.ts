@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { RealtimeModule } from '../../common/realtime/realtime.module';
 import { ListsController } from './lists.controller';
 import { ListsService } from './lists.service';
 import { ListsRepository } from './lists.repository';
@@ -12,6 +13,7 @@ import { SessionsRepository } from '../../common/authz/sessions.repository';
 // ListsRepository, where every statement is owner-scoped (technical-design D3).
 // DbService comes from the global InfraModule.
 @Module({
+  imports: [RealtimeModule],
   controllers: [ListsController],
   providers: [
     ListsService,

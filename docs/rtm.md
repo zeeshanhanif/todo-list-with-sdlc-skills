@@ -55,18 +55,18 @@
 | FR-LIST-009 | Task belongs to exactly one list | Must | Active | SI | UC-008, UC-009 | ADR-003; features/FEAT-009-lists/technical-design.md; features/FEAT-010-create-task/technical-design.md | FEAT-009, FEAT-010 | features/FEAT-009-lists/acceptance-report.md (partial); features/FEAT-010-create-task/acceptance-report.md (partial) |
 | FR-TASK-001 | Create task with title in a list | Must | Active | SI | UC-009 | ADR-003; features/FEAT-010-create-task/technical-design.md; features/FEAT-010-create-task/ui-design.md | FEAT-010 | features/FEAT-010-create-task/acceptance-report.md |
 | FR-TASK-002 | Validate task title | Must | Active | SI | UC-009 | features/FEAT-010-create-task/technical-design.md; features/FEAT-010-create-task/ui-design.md | FEAT-010 | features/FEAT-010-create-task/acceptance-report.md |
-| FR-TASK-003 | View tasks (active vs completed) | Must | Active | SI | UC-011, UC-013 | ADR-003; features/FEAT-010-create-task/technical-design.md; features/FEAT-010-create-task/ui-design.md | FEAT-010, FEAT-012 | features/FEAT-010-create-task/acceptance-report.md (partial) |
-| FR-TASK-004 | View task details | Must | Active | SI | UC-010 | ADR-003 | FEAT-011 | _TBD_ |
-| FR-TASK-005 | Edit task title | Must | Active | SI | UC-010 | ADR-003 | FEAT-011 | _TBD_ |
-| FR-TASK-006 | Set/change/clear due date+time | Must | Active | SI | UC-009, UC-010 | ADR-003 | FEAT-011 | _TBD_ |
-| FR-TASK-007 | Indicate overdue (user timezone) | Must | Active | SI | UC-010 | arch §8 | FEAT-011 | _TBD_ |
-| FR-TASK-008 | Set priority (None/Low/Med/High) | Must | Active | SI | UC-009, UC-010 | ADR-003 | FEAT-011 | _TBD_ |
-| FR-TASK-009 | Mark task complete (timestamp) | Must | Active | SI | UC-011 | ADR-003 | FEAT-012 | _TBD_ |
-| FR-TASK-010 | Reopen completed task | Must | Active | SI | UC-011 | ADR-003 | FEAT-012 | _TBD_ |
-| FR-TASK-011 | Completed tasks in collapsed section | Should | Active | SI | UC-011 | _TBD_ | FEAT-012 | _TBD_ |
+| FR-TASK-003 | View tasks (active vs completed) | Must | Active | SI | UC-011, UC-013 | ADR-003; features/FEAT-010-create-task/technical-design.md; features/FEAT-010-create-task/ui-design.md; features/FEAT-012-complete-reopen/technical-design.md; features/FEAT-012-complete-reopen/ui-design.md | FEAT-010, FEAT-012 | features/FEAT-010-create-task/acceptance-report.md (partial); features/FEAT-012-complete-reopen/acceptance-report.md (partial) |
+| FR-TASK-004 | View task details | Must | Active | SI | UC-010 | ADR-003; features/FEAT-011-task-detail/technical-design.md; features/FEAT-011-task-detail/ui-design.md | FEAT-011 | features/FEAT-011-task-detail/acceptance-report.md |
+| FR-TASK-005 | Edit task title | Must | Active | SI | UC-010 | ADR-003; features/FEAT-011-task-detail/technical-design.md; features/FEAT-011-task-detail/ui-design.md | FEAT-011 | features/FEAT-011-task-detail/acceptance-report.md |
+| FR-TASK-006 | Set/change/clear due date+time | Must | Active | SI | UC-009, UC-010 | ADR-003; features/FEAT-011-task-detail/technical-design.md; features/FEAT-011-task-detail/ui-design.md | FEAT-011 | features/FEAT-011-task-detail/acceptance-report.md |
+| FR-TASK-007 | Indicate overdue (user timezone) | Must | Active | SI | UC-010 | arch §8; features/FEAT-011-task-detail/technical-design.md; features/FEAT-011-task-detail/ui-design.md | FEAT-011 | features/FEAT-011-task-detail/acceptance-report.md |
+| FR-TASK-008 | Set priority (None/Low/Med/High) | Must | Active | SI | UC-009, UC-010 | ADR-003; features/FEAT-011-task-detail/technical-design.md; features/FEAT-011-task-detail/ui-design.md | FEAT-011 | features/FEAT-011-task-detail/acceptance-report.md |
+| FR-TASK-009 | Mark task complete (timestamp) | Must | Active | SI | UC-011 | ADR-003; features/FEAT-012-complete-reopen/technical-design.md; features/FEAT-012-complete-reopen/ui-design.md | FEAT-012 | features/FEAT-012-complete-reopen/acceptance-report.md |
+| FR-TASK-010 | Reopen completed task | Must | Active | SI | UC-011 | ADR-003; features/FEAT-012-complete-reopen/technical-design.md; features/FEAT-012-complete-reopen/ui-design.md | FEAT-012 | features/FEAT-012-complete-reopen/acceptance-report.md |
+| FR-TASK-011 | Completed tasks in collapsed section | Should | Active | SI | UC-011 | features/FEAT-012-complete-reopen/technical-design.md; features/FEAT-012-complete-reopen/ui-design.md | FEAT-012 | features/FEAT-012-complete-reopen/acceptance-report.md |
 | FR-TASK-012 | Manually reorder active tasks | Should | Active | SI | UC-010 | ADR-003 | FEAT-014 | _TBD_ |
-| FR-TASK-013 | Soft-delete task (recoverable) | Must | Active | SI | UC-012 | ADR-003; arch §8 | FEAT-013 | _TBD_ |
-| FR-TASK-014 | Restore (undo) soft-deleted task | Must | Active | SI | UC-012 | ADR-003 | FEAT-013 | _TBD_ |
+| FR-TASK-013 | Soft-delete task (recoverable) | Must | Active | SI | UC-012 | ADR-003; arch §8; features/FEAT-013-delete-restore/technical-design.md; features/FEAT-013-delete-restore/ui-design.md | FEAT-013 | features/FEAT-013-delete-restore/acceptance-report.md |
+| FR-TASK-014 | Restore (undo) soft-deleted task | Must | Active | SI | UC-012 | ADR-003; features/FEAT-013-delete-restore/technical-design.md; features/FEAT-013-delete-restore/ui-design.md | FEAT-013 | features/FEAT-013-delete-restore/acceptance-report.md |
 | FR-TASK-015 | Purge soft-deleted after retention | Should | Active | PRIV | UC-012 | ADR-007; arch §8 | FEAT-020 | _TBD_ |
 | FR-SRCH-001 | Keyword search across all lists | Must | Active | SI | UC-013 | arch §8 | FEAT-015 | _TBD_ |
 | FR-SRCH-002 | Results show list + status | Must | Active | SI | UC-013 | _TBD_ | FEAT-015 | _TBD_ |
@@ -91,7 +91,7 @@
 | NFR-PERF-001 | p95 core ops < 300 ms | Must | Active | GOAL (G4) | — | arch §8, §10 | Foundations | features/FEAT-010-create-task/acceptance-report.md (partial) |
 | NFR-PERF-002 | FCP < 2.5 s, interactive < 3.5 s | Should | Active | GOAL (G4) | — | ADR-002; arch §8 | Foundations | _TBD_ |
 | NFR-PERF-003 | p95 search < 500 ms @ 5k tasks | Should | Active | GOAL (G4) | UC-013 | ADR-003 | FEAT-015 | _TBD_ |
-| NFR-PERF-004 | Cross-device sync < 5 s | Should | Active | GOAL (G3) | — | ADR-006 | FEAT-019 | _TBD_ |
+| NFR-PERF-004 | Cross-device sync < 5 s | Should | Active | GOAL (G3) | — | ADR-006; features/FEAT-019-realtime-sync/technical-design.md; features/FEAT-019-realtime-sync/ui-design.md | FEAT-019 | features/FEAT-019-realtime-sync/acceptance-report.md (verified via the adaptive fallback; the Realtime transport is AC-1b, open pending a provisioned Supabase project) |
 | NFR-SCAL-001 | 10k users / 1k concurrent | Must | Active | GOAL | — | ADR-001; ADR-004 | Foundations | _TBD_ |
 | NFR-SCAL-002 | 100 lists / 5k tasks per user | Should | Active | GOAL | — | ADR-003 | Foundations | _TBD_ |
 | NFR-SCAL-003 | Horizontally scalable app tier | Should | Active | GOAL | — | ADR-004 | Foundations | _TBD_ |

@@ -3,9 +3,15 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import {
+  completeTaskPath,
   listTasksPath,
+  reopenTaskPath,
+  restoreTaskPath,
+  taskPath,
   type CreateListResponse,
+  type CreateTaskResponse,
   type DeleteListResponse,
+  type ListTasksResponse,
   type ListsResponse,
 } from '@todo/shared';
 import { AppModule } from '../../app.module';
@@ -69,6 +75,55 @@ describe('tasks × lists (cross-feature)', () => {
   const getLists = async (cookie: string): Promise<ListsResponse> => {
     const res = await request(server()).get('/lists').set('Cookie', cookie);
     return res.body as ListsResponse;
+  };
+
+  // --- FEAT-012 helpers ---
+
+  const addTask = async (
+    cookie: string,
+    listId: string,
+    title: string,
+  ): Promise<CreateTaskResponse['task']> => {
+    const res = await request(server())
+      .post(listTasksPath(listId))
+      .set('Cookie', cookie)
+      .send({ title });
+    expect(res.status).toBe(201); // fixture precondition, asserted
+    return (res.body as CreateTaskResponse).task;
+  };
+
+  const getView = async (
+    cookie: string,
+    listId: string,
+  ): Promise<ListTasksResponse> => {
+    const res = await request(server())
+      .get(listTasksPath(listId))
+      .set('Cookie', cookie);
+    expect(res.status).toBe(200);
+    return res.body as ListTasksResponse;
+  };
+
+  // --- FEAT-013 helpers ---
+
+  const remove = async (cookie: string, id: string): Promise<void> => {
+    const res = await request(server())
+      .delete(taskPath(id))
+      .set('Cookie', cookie);
+    expect(res.status).toBe(200); // fixture precondition, asserted
+  };
+
+  const restore = async (cookie: string, id: string): Promise<void> => {
+    const res = await request(server())
+      .post(restoreTaskPath(id))
+      .set('Cookie', cookie);
+    expect(res.status).toBe(200);
+  };
+
+  const complete = async (cookie: string, id: string): Promise<void> => {
+    const res = await request(server())
+      .post(completeTaskPath(id))
+      .set('Cookie', cookie);
+    expect(res.status).toBe(200);
   };
 
   beforeAll(async () => {
@@ -159,5 +214,166 @@ describe('tasks × lists (cross-feature)', () => {
 
     const lists = (await getLists(cookie)).lists;
     expect(lists[0]).toMatchObject({ activeTaskCount: 2, taskCount: 2 });
+  });
+
+  // --- FEAT-012 T5 — what a completion transition does to everything else ---
+
+  it('FEAT-012 AC-3: completing moves a task between the server-split sections, and reopening reverses it', async () => {
+    const { cookie, inbox } = await signedInUser();
+    const first = await addTask(cookie, inbox, 'First');
+    const second = await addTask(cookie, inbox, 'Second');
+    const third = await addTask(cookie, inbox, 'Third');
+
+    const view0 = await getView(cookie, inbox);
+    expect(view0.active.map((t) => t.title)).toEqual([
+      'First',
+      'Second',
+      'Third',
+    ]);
+    expect(view0.completed).toEqual([]);
+
+    // Complete two, in a known order, with a gap so `completed_at DESC` has
+    // something real to sort by.
+    await complete(cookie, first.id);
+    await new Promise((r) => setTimeout(r, 25));
+    await complete(cookie, third.id);
+
+    const view1 = await getView(cookie, inbox);
+    expect(view1.active.map((t) => t.title)).toEqual(['Second']);
+    // Most recently completed first — the order findByList has always
+    // specified and nothing could previously exercise.
+    expect(view1.completed.map((t) => t.title)).toEqual(['Third', 'First']);
+    expect(view1.completed.every((t) => t.completedAt !== null)).toBe(true);
+
+    await request(server())
+      .post(reopenTaskPath(first.id))
+      .set('Cookie', cookie)
+      .expect(200);
+
+    const view2 = await getView(cookie, inbox);
+    // Back among the active, in the oldest-first append order it never left.
+    expect(view2.active.map((t) => t.title)).toEqual(['First', 'Second']);
+    expect(view2.completed.map((t) => t.title)).toEqual(['Third']);
+    expect(second.id).toBeDefined(); // 'Second' was never touched by any of it
+  });
+
+  it("FEAT-012 AC-6: a transition moves the list's activeTaskCount and leaves taskCount alone", async () => {
+    const { cookie, inbox } = await signedInUser();
+    const a = await addTask(cookie, inbox, 'a');
+    await addTask(cookie, inbox, 'b');
+
+    expect((await getLists(cookie)).lists[0]).toMatchObject({
+      activeTaskCount: 2,
+      taskCount: 2,
+    });
+
+    await complete(cookie, a.id);
+
+    // Both surfaces that report counts must agree — the sidebar's GET /lists
+    // and the list view's own `list` payload. This is the first feature that
+    // can move a row across the aggregate's predicate, so it is asserted.
+    expect((await getLists(cookie)).lists[0]).toMatchObject({
+      activeTaskCount: 1,
+      taskCount: 2, // completed is not deleted
+    });
+    expect((await getView(cookie, inbox)).list).toMatchObject({
+      activeTaskCount: 1,
+      taskCount: 2,
+    });
+
+    await request(server())
+      .post(reopenTaskPath(a.id))
+      .set('Cookie', cookie)
+      .expect(200);
+
+    expect((await getLists(cookie)).lists[0]).toMatchObject({
+      activeTaskCount: 2,
+      taskCount: 2,
+    });
+    expect((await getView(cookie, inbox)).list).toMatchObject({
+      activeTaskCount: 2,
+      taskCount: 2,
+    });
+  });
+  // --- FEAT-013 T5 — what a deletion does to the list view and the counts ---
+
+  it('FEAT-013 AC-2/AC-3: a deleted task leaves BOTH sections and comes back to the one it left', async () => {
+    const { cookie, inbox } = await signedInUser();
+    await addTask(cookie, inbox, 'first'); // stays put — the control row
+    const second = await addTask(cookie, inbox, 'second');
+    const third = await addTask(cookie, inbox, 'third');
+    await complete(cookie, third.id);
+
+    const before = await getView(cookie, inbox);
+    expect(before.active.map((t) => t.title)).toEqual(['first', 'second']);
+    expect(before.completed.map((t) => t.title)).toEqual(['third']);
+
+    await remove(cookie, second.id);
+    await remove(cookie, third.id);
+
+    const during = await getView(cookie, inbox);
+    expect(during.active.map((t) => t.title)).toEqual(['first']);
+    expect(during.completed).toHaveLength(0);
+
+    // The rows are still there — soft, not destroyed (FR-TASK-013 vs -015).
+    const rows = await db.query<{ id: string }>(
+      'SELECT id FROM tasks WHERE id = ANY($1) AND deleted_at IS NOT NULL',
+      [[second.id, third.id]],
+    );
+    expect(rows.rows).toHaveLength(2);
+
+    await restore(cookie, second.id);
+    await restore(cookie, third.id);
+
+    const after = await getView(cookie, inbox);
+    // Original SECTION and original ORDER: the active one returns to its
+    // created_at position rather than to the end (FR-TASK-014).
+    expect(after.active.map((t) => t.title)).toEqual(['first', 'second']);
+    expect(after.completed.map((t) => t.title)).toEqual(['third']);
+  });
+
+  it('FEAT-013 AC-5: deleting an active task moves activeTaskCount and leaves taskCount alone', async () => {
+    const { cookie, inbox } = await signedInUser();
+    const a = await addTask(cookie, inbox, 'a');
+    const b = await addTask(cookie, inbox, 'b');
+    await complete(cookie, b.id);
+
+    expect((await getLists(cookie)).lists[0]).toMatchObject({
+      activeTaskCount: 1,
+      taskCount: 2,
+    });
+
+    await remove(cookie, a.id);
+
+    // Both surfaces that report counts must agree — the sidebar's GET /lists
+    // and the list view's own `list` payload. taskCount holds at 2 because it
+    // counts soft-deleted rows too: FEAT-009's deliberate contract, since all
+    // of them go when the list does (FR-LIST-007). Pinned, not assumed.
+    expect((await getLists(cookie)).lists[0]).toMatchObject({
+      activeTaskCount: 0,
+      taskCount: 2,
+    });
+    expect((await getView(cookie, inbox)).list).toMatchObject({
+      activeTaskCount: 0,
+      taskCount: 2,
+    });
+
+    await restore(cookie, a.id);
+    expect((await getLists(cookie)).lists[0]).toMatchObject({
+      activeTaskCount: 1,
+      taskCount: 2,
+    });
+
+    // Deleting a COMPLETED task moves neither count — it was already outside
+    // the active predicate, and taskCount never excluded it.
+    await remove(cookie, b.id);
+    expect((await getLists(cookie)).lists[0]).toMatchObject({
+      activeTaskCount: 1,
+      taskCount: 2,
+    });
+    expect((await getView(cookie, inbox)).list).toMatchObject({
+      activeTaskCount: 1,
+      taskCount: 2,
+    });
   });
 });

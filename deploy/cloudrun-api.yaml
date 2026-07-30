@@ -32,6 +32,22 @@ spec:
             # Cloud Run viewer access. Never committed to source (NFR-MAINT-003).
             - name: DATABASE_URL
               value: REPLACE_AT_DEPLOY
+            # Cross-device sync (FEAT-019, ADR-006). Leave REALTIME_PROVIDER at
+            # "none" until a Supabase project exists and
+            # deploy/supabase/realtime-authorization.sql has been applied to it;
+            # the web client falls back to its adaptive refetch schedule and
+            # still meets NFR-PERF-004. The last two carry SECRETS — set at
+            # deploy time, never committed (NFR-MAINT-003).
+            - name: REALTIME_PROVIDER
+              value: "none"
+            - name: SUPABASE_URL
+              value: REPLACE_AT_DEPLOY
+            - name: SUPABASE_PUBLISHABLE_KEY
+              value: REPLACE_AT_DEPLOY
+            - name: SUPABASE_SERVICE_ROLE_KEY
+              value: REPLACE_AT_DEPLOY
+            - name: SUPABASE_JWT_SECRET
+              value: REPLACE_AT_DEPLOY
           resources:
             limits:
               cpu: "1"

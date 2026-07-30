@@ -311,6 +311,80 @@ export const listTasksPath = (listId: string): string =>
  * legal. */
 export const TASK_TITLE_MAX_LENGTH = 500;
 
+// --- Tasks: task detail — title, due date, priority, overdue (FEAT-011) ---
+
+/**
+ * The four priority values (FR-TASK-008). **The single source** the DTO
+ * validator, the `tasks_priority_check` CHECK constraint (migration 009) and
+ * the `priority-selector` all read, so they cannot drift apart
+ * (FEAT-011 technical-design D6).
+ *
+ * Deliberately unordered: nothing sorts by priority today, and no FR asks it
+ * to. If one ever does, that is an ordinal decision made there, with a
+ * requirement behind it.
+ */
+export const TASK_PRIORITIES = ["none", "low", "medium", "high"] as const;
+
+/** FR-TASK-008 — None / Low / Medium / High, lowercase on the wire. */
+export type TaskPriority = (typeof TASK_PRIORITIES)[number];
+
+/** Path of a single task: GET (details) and PATCH (edit). Task ids are globally
+ * unique and ownership is checked on `tasks.owner_id` directly, so the list is
+ * not in the path — unlike the collection above. FEAT-012's complete/reopen and
+ * FEAT-013's delete/restore extend this same resource. */
+export const taskPath = (id: string): string => `/tasks/${id}`;
+
+/** Success response (200) of GET /tasks/{id} — FR-TASK-004 names five details:
+ * title, list, due date/time, priority and status. `task` carries four; `list`
+ * carries the fifth as the same `ListSummary` every list endpoint returns, so
+ * the detail surface renders "in Inbox" without a second round trip
+ * (FEAT-011 technical-design D5). */
+export interface TaskDetailResponse {
+  task: TaskSummary;
+  list: ListSummary;
+}
+
+/**
+ * Request body of PATCH /tasks/{id} — **partial, and absent is not null**
+ * (FEAT-011 technical-design D4).
+ *
+ * - field **absent** → leave it unchanged. A detail panel saving one field must
+ *   not blank the other two.
+ * - `dueAt: null` → **clear** the due date. FR-TASK-006 requires "set, change,
+ *   **or clear**", so null must be a transmittable value, not a sentinel.
+ *
+ * A body with no recognized field is a `400 validation_failed`, not a silent
+ * `200`: the API's global ValidationPipe runs `whitelist: true`, which *strips*
+ * unknown properties, so a misspelled `dueDate` would otherwise look like a
+ * successful no-op — the worst available outcome.
+ */
+export interface UpdateTaskRequest {
+  /** Trimmed, then non-empty and ≤ TASK_TITLE_MAX_LENGTH — the same rule
+   * creation applies (FR-TASK-005 is "subject to FR-TASK-002 validation"). */
+  title?: string;
+  /** ISO-8601 instant to set, or null to clear. Past instants are legal — and
+   * necessary: FR-TASK-007's overdue state would be unreachable otherwise
+   * (technical-design D2). */
+  dueAt?: string | null;
+  priority?: TaskPriority;
+}
+
+/** Success response (200) of PATCH /tasks/{id} — the task as stored, with
+ * `isOverdue` recomputed (UC-010 main 3: "persists the changes and updates
+ * overdue indication as needed"). */
+export interface UpdateTaskResponse {
+  task: TaskSummary;
+}
+
+/** Error `code` values the single-task endpoints add to the ApiError envelope.
+ * `task_not_found` is the uniform answer for unknown, not-owned, non-uuid and
+ * soft-deleted ids alike — the response never discloses which (FR-AUTHZ-002/003,
+ * the convention FEAT-009 D3 set). Minted here rather than in FEAT-010, which
+ * had no by-id lookup and said so (FEAT-010 technical-design D7). */
+export const TASK_ERROR_CODES = {
+  taskNotFound: "task_not_found",
+} as const;
+
 /**
  * A task as the task endpoints return it (FEAT-010 technical-design §3).
  *
@@ -329,6 +403,31 @@ export interface TaskSummary {
   completedAt: string | null;
   /** ISO-8601 UTC. Also the active section's sort key (technical-design D4). */
   createdAt: string;
+  /**
+   * Due date/time as an ISO-8601 UTC **instant**, or null for no due date
+   * (FR-TASK-006 — "the due date/time is optional" is exactly null). Added by
+   * FEAT-011.
+   *
+   * The user's timezone interprets what they typed and formats what they see;
+   * it does not change the instant, which is why overdue below is
+   * timezone-invariant (FEAT-011 technical-design D1).
+   */
+  dueAt: string | null;
+  /** FR-TASK-008. Defaults to 'none' at creation — the column default is the
+   * source of that default, not the application. Added by FEAT-011. */
+  priority: TaskPriority;
+  /**
+   * FR-TASK-007 — derived by the **server**, in one place, so the list view,
+   * the detail surface and FEAT-016's Overdue view cannot drift into three
+   * definitions (FEAT-011 technical-design D3). True exactly when the task is
+   * **active** and `dueAt` is strictly in the past; a completed task is never
+   * overdue, per the FR's own note.
+   *
+   * A snapshot at response time: a page held open past the due instant keeps a
+   * stale `false`. Clients may re-derive from `dueAt` against a fresher clock —
+   * that is the same rule, not a second one.
+   */
+  isOverdue: boolean;
 }
 
 /**
@@ -346,9 +445,22 @@ export interface ListTasksResponse {
   completed: TaskSummary[];
 }
 
-/** Request body of POST /lists/{listId}/tasks. */
+/**
+ * Request body of POST /lists/{listId}/tasks.
+ *
+ * `dueAt` and `priority` were added by FEAT-011, closing UC-009 step 2 which
+ * FEAT-010 D6 deferred. Both are **optional with behaviour-preserving
+ * defaults**, so a `{ title }` body behaves exactly as it did before
+ * (FEAT-011 technical-design D8) — that additivity is asserted by AC-10, and a
+ * FEAT-010 test needing an edit to stay green would mean the change was not
+ * additive.
+ */
 export interface CreateTaskRequest {
   title: string;
+  /** ISO-8601 instant, or null/omitted for no due date (FR-TASK-006). */
+  dueAt?: string | null;
+  /** Omitted = 'none', the FR-TASK-008 default. */
+  priority?: TaskPriority;
 }
 
 /** Success response (201) of POST /lists/{listId}/tasks — created active
@@ -357,3 +469,166 @@ export interface CreateTaskRequest {
 export interface CreateTaskResponse {
   task: TaskSummary;
 }
+
+// --- Tasks: complete / reopen (FEAT-012) ---
+
+/**
+ * Path of the complete transition: `POST /tasks/{id}/complete` (FR-TASK-009).
+ *
+ * A **verb route**, not a field on PATCH: the completion instant is the
+ * server's fact, never the client's, and FEAT-011's PATCH contract refuses
+ * `completedAt` in the body outright (FEAT-012 technical-design D1).
+ *
+ * **Idempotent** — completing an already-completed task returns 200 with the
+ * ORIGINAL `completedAt`, not a re-stamp and not a 409. A checkbox over a
+ * network gets double-tapped and retried after a timeout, and FR-TASK-009's
+ * "recording the completion timestamp" means the moment it was finished, not
+ * the moment of the last click (D2).
+ */
+export const completeTaskPath = (id: string): string =>
+  `${taskPath(id)}/complete`;
+
+/** Path of the reopen transition: `POST /tasks/{id}/reopen` (FR-TASK-010).
+ * Clears the completion timestamp; idempotent on an already-active task (D2). */
+export const reopenTaskPath = (id: string): string => `${taskPath(id)}/reopen`;
+
+/**
+ * Success response (200) of **both** transitions — the task as stored, with
+ * `isOverdue` recomputed.
+ *
+ * That recomputation is why this carries the task rather than being an empty
+ * 204: completing a late task is the same call that clears its overdue
+ * indication (FR-TASK-009's own note), and the client renders the server's
+ * answer rather than deriving a second one (FEAT-011 technical-design D3).
+ *
+ * Neither route takes a request body — method, path and session fully specify
+ * both operations (D8).
+ */
+export interface TaskStatusResponse {
+  task: TaskSummary;
+}
+
+// --- Tasks: delete / restore (FEAT-013) ---
+
+/**
+ * Path of the restore transition: `POST /tasks/{id}/restore` (FR-TASK-014).
+ *
+ * The delete side needs no helper — `taskPath(id)` with the DELETE method is
+ * the whole contract (FEAT-013 technical-design D1): HTTP already has a verb
+ * for "remove this resource", and whether removal is *soft* is a storage fact
+ * the client has no business encoding. Restore has no such verb, so it takes a
+ * route beside `complete` and `reopen`.
+ *
+ * **Idempotent** — restoring a task that is not deleted returns 200 with
+ * `deleted_at` already NULL, the same shape as reopening an active task (D3).
+ */
+export const restoreTaskPath = (id: string): string =>
+  `${taskPath(id)}/restore`;
+
+/**
+ * Success response (200) of `DELETE /tasks/{id}` — the task as stored, plus
+ * the instant its retention clock started (FR-TASK-013 → FR-TASK-015).
+ *
+ * **The task is not destroyed**: `deleted_at` is set, the row stays, and
+ * `POST /tasks/{id}/restore` brings it back until FEAT-020's purge removes it
+ * 30 days later. Nothing else about the row moves — which is exactly what
+ * makes FR-TASK-014's "returning it to its original list and status" free.
+ *
+ * **`deletedAt` is here and NOT on `TaskSummary`** (D4): every read in the
+ * system filters soft-deleted rows out, so the field would be `null` in 100%
+ * of every other response. On the wire once, where it is the operation's own
+ * result — and where it makes the idempotency of a repeat DELETE observable
+ * without reading the database.
+ *
+ * **Idempotent, and it does not re-stamp** (D3): deleting an already-deleted
+ * task returns the ORIGINAL `deletedAt`. A re-stamp would silently extend the
+ * retention window on a double-tapped click, letting a client influence a
+ * privacy-relevant schedule.
+ */
+export interface DeleteTaskResponse {
+  task: TaskSummary;
+  /** ISO-8601 UTC (NFR-LOC-001). The server's instant, never client-supplied
+   * (FR-AUTHZ-004) — neither route takes a request body. */
+  deletedAt: string;
+}
+
+/**
+ * Success response (200) of `POST /tasks/{id}/restore` — the task, back in its
+ * original list and status (FR-TASK-014).
+ *
+ * `listId` and `completedAt` were never touched by the delete, so a task
+ * deleted while completed restores into the completed section with its
+ * timestamp intact, and `isOverdue` re-derives on the way out: one whose due
+ * date passed while it sat deleted comes back overdue, which is FR-TASK-007's
+ * rule applied to a now-visible task rather than a second rule.
+ */
+export interface RestoreTaskResponse {
+  task: TaskSummary;
+}
+
+// --- Realtime cross-device sync (FEAT-019) ---
+
+/**
+ * Path of the Realtime token endpoint: `GET /realtime/token` (NFR-PERF-004,
+ * ADR-006).
+ *
+ * The caller sends **nothing** — no body, no query, no user id. The subject is
+ * always the session user, so there is no request shape that makes the API mint
+ * another user's channel (FEAT-019 technical-design §3.1, FR-AUTHZ-002/003).
+ */
+export const REALTIME_TOKEN_PATH = "/realtime/token";
+
+/**
+ * The per-user Broadcast topic (ADR-006). Derived server-side from the session
+ * and re-derived client-side only to subscribe — exported so the two sides
+ * cannot drift on the string.
+ */
+export const userChannel = (userId: string): string => `user:${userId}`;
+
+/** The Broadcast event name. One event, because the signal says only *that*
+ * something changed, never what (technical-design §3.2). */
+export const REALTIME_CHANGED_EVENT = "changed";
+
+/**
+ * The signal's entire payload — a change cursor and nothing else.
+ *
+ * No task id, no list id, no title, no change type. That emptiness is what lets
+ * Realtime be used without Supabase Auth or RLS over our data (ADR-005/ADR-006):
+ * even a mis-scoped channel leaks nothing, and every actual read still goes
+ * through the authenticated API, which stays the sole enforcer of ownership.
+ *
+ * The client does **not** use `cursor` to suppress refreshes — a duplicate
+ * refresh costs one refetch, a dropped one leaves a stale screen (D6). It is
+ * here for ADR fidelity, log correlation, and a future `since`-style refetch.
+ */
+export interface RealtimeChangedPayload {
+  /** ISO-8601 UTC instant assigned by the API at publish time. */
+  cursor: string;
+}
+
+/**
+ * Success response (200) of `GET /realtime/token`.
+ *
+ * `enabled: false` is the honest answer when no Realtime provider is configured
+ * — **not** an error, and the default configuration today. The client does not
+ * retry it; it falls back to the adaptive refetch schedule, which is what keeps
+ * NFR-PERF-004 satisfied without a socket (technical-design D4).
+ */
+export type RealtimeTokenResponse =
+  | { enabled: false }
+  | {
+      enabled: true;
+      /** Supabase project URL the client opens the socket against. */
+      url: string;
+      /** The project's publishable (anon) key — public by design. **Never** the
+       * service-role key, which signs broadcasts and stays server-side (D5). */
+      publishableKey: string;
+      /** Short-lived HS256 JWT: `sub` = the session user, `role` =
+       * "authenticated". Accepted by Supabase Realtime and by nothing else —
+       * presenting it to this API authenticates nothing (AC-6). */
+      token: string;
+      /** Always `user:{session user id}` — server-derived, never requested. */
+      channel: string;
+      /** ISO-8601 UTC expiry; the client re-mints at 80% of the lifetime. */
+      expiresAt: string;
+    };

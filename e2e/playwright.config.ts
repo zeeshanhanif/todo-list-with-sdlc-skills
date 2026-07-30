@@ -38,6 +38,10 @@ export default defineConfig({
       env: {
         API_URL: "http://localhost:3001",
         PORT: "3000",
+        // FEAT-019: exposes window.__todoSync so the sync spec can deliver a
+        // signal deterministically without a Realtime socket (technical-design
+        // §5). Test-only — absent from production builds.
+        NEXT_PUBLIC_SYNC_TEST_HOOK: "1",
       },
     },
   ],

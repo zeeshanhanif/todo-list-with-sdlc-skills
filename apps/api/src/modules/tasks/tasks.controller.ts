@@ -8,6 +8,7 @@ import {
   Param,
   Post,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   LIST_ERROR_CODES,
@@ -16,10 +17,15 @@ import {
   type SessionUser,
 } from '@todo/shared';
 import { SessionGuard } from '../../common/authz/session.guard';
+import { ChangeSignalInterceptor } from '../../common/realtime/change-signal.interceptor';
 import { CurrentUser } from '../../common/authz/current-user.decorator';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
-import { ListNotFoundError, TaskTitleInvalidError } from './tasks.errors';
+import {
+  ListNotFoundError,
+  TaskFieldInvalidError,
+  TaskTitleInvalidError,
+} from './tasks.errors';
 
 // Task endpoints (FR-TASK-*) — the list view and the quick-add composer's target
 // (FEAT-010). Every route is authenticated (FR-AUTHZ-001) and scoped to the
@@ -31,6 +37,7 @@ import { ListNotFoundError, TaskTitleInvalidError } from './tasks.errors';
 // Not rate-limited: FR-AUTH-018 / NFR-SEC-006 scope throttling to auth endpoints.
 @Controller('lists/:listId/tasks')
 @UseGuards(SessionGuard)
+@UseInterceptors(ChangeSignalInterceptor)
 export class TasksController {
   constructor(private readonly tasks: TasksService) {}
 
@@ -50,6 +57,8 @@ export class TasksController {
   }
 
   // POST /lists/{listId}/tasks (FR-TASK-001/002, FR-LIST-009; UC-009 main 1/3).
+  // FEAT-011 adds the optional dueAt/priority, closing UC-009 step 2 that
+  // FEAT-010 D6 deferred. Additive: a { title } body behaves exactly as before.
   @Post()
   @HttpCode(201)
   async create(
@@ -58,7 +67,12 @@ export class TasksController {
     @CurrentUser() user: SessionUser,
   ): Promise<CreateTaskResponse> {
     try {
-      return { task: await this.tasks.create(user.id, listId, dto.title) };
+      return {
+        task: await this.tasks.create(user.id, listId, dto.title, {
+          dueAt: dto.dueAt,
+          priority: dto.priority,
+        }),
+      };
     } catch (err) {
       throw toHttp(err);
     }
@@ -80,6 +94,15 @@ function toHttp(err: unknown): unknown {
       code: 'validation_failed',
       message: 'Validation failed.',
       fields: [{ field: 'title', message: err.requirement }],
+    });
+  }
+  // dueAt / priority failures at creation (FEAT-011) — the same envelope, with
+  // the offending field named by the error rather than hard-coded.
+  if (err instanceof TaskFieldInvalidError) {
+    return new BadRequestException({
+      code: 'validation_failed',
+      message: 'Validation failed.',
+      fields: [{ field: err.field, message: err.requirement }],
     });
   }
   return err;

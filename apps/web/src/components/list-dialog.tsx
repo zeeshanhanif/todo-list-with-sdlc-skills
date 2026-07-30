@@ -253,7 +253,7 @@ export function ListDialog({
                   border: `var(--border-width-hairline) solid ${
                     fieldError
                       ? "var(--color-danger)"
-                      : "var(--color-border-strong)"
+                      : "var(--color-text-muted)"
                   }`,
                 }}
               />

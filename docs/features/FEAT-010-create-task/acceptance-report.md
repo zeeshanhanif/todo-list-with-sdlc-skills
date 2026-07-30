@@ -196,3 +196,42 @@ Test ref appended (`features/FEAT-010-create-task/acceptance-report.md`):
   the 300 ms bound on both named operations, and UTC timestamps on the wire), and
   FR-AUTHZ-001/002/003/004/005 (Plan ref "Foundations"; the ownership convention
   is now verified on its **second** data module).
+
+---
+
+## Re-verification — 2026-07-28 · Verdict: **Accepted** (unchanged)
+
+Triggered by the maintenance route: **DEF-003** fixed a presentation defect in
+this feature's `list-view-failure.tsx` (SCR-WEB-008's `error` and `not-found`
+states). Re-verified per the maintenance protocol — a defect fix on verified
+behaviour re-opens its owning feature's report.
+
+**What changed:** four token references, no behaviour. Text on the danger tint
+moved from `--color-danger` (3.95:1) to `--color-danger-text` (6.80:1), and the
+alert's action from `--color-primary` (4.48:1 — a second failure found by
+measuring rather than by the original report) to `--color-primary-hover`
+(6.21:1). Both now satisfy design.md §5's 4.5:1 rule. See `docs/defects.md`
+DEF-003 for the measurements and why `--color-primary-hover` needed no
+design-system amendment.
+
+**Why the verdict is unchanged:** none of FEAT-010's acceptance criteria are
+touched. AC-10 requires the list view to render its `error` state with a retry
+affordance — it still does, in the same layout, with the same `data-testid`s
+(`list-error`, `list-not-found`, `list-retry`, `back-home`); only the colour
+tokens differ. No contract, schema, endpoint or behaviour changed.
+
+**Observed in this run** (repo at `bd200ec`): api **176 passed / 31 suites**
+(serial), worker **20 passed**, e2e **15 passed** — including
+`tasks.spec.ts` "AC-5/AC-10: an unknown or unowned list renders one uniform
+not-found", which drives the changed component directly — boundaries clean
+(122 modules), lint clean, build clean. The rendered markup was checked to carry
+`var(--color-danger-text)` and `var(--color-primary-hover)`, not raw hex.
+
+**Coverage note, unchanged and honest:** the e2e proves the alert *appears*; it
+asserts nothing about its colour, because `apps/web` has no unit-test runner and
+these states render from server components Playwright cannot fault-inject. That
+gap is recorded in FEAT-011's report (minor #1) and in DEF-003, which is now its
+second concrete motivating case.
+
+**RTM:** no change — FR-TASK-001/002/003's Test refs already point at this report,
+and this section extends it rather than superseding it.

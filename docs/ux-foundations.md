@@ -200,7 +200,7 @@ renumbered. States listed are the ones each screen must design for.
 | SCR-WEB-007 | App Shell | Sidebar + content + detail host | loading, ready | (frame for all app UCs) |
 | SCR-WEB-008 | List View | Tasks within a selected list + quick-add | loading, empty, populated, error | UC-009/010/011/012 |
 | SCR-WEB-009 | Smart View | Today / Upcoming / Overdue / All aggregate | loading, empty, populated | UC-014 |
-| SCR-WEB-010 | Task Detail | View/edit a task (panel / full-screen) | loading, viewing, editing, error | UC-004/010/011 |
+| SCR-WEB-010 | Task Detail | View/edit a task (panel / full-screen) | loading, viewing, editing, error | UC-010/011/012 |
 | SCR-WEB-011 | Create/Edit List | Create, rename, delete a list (dialog) | default, validation-error, delete-confirm | UC-008 |
 | SCR-WEB-012 | Search | Keyword search + filters overlay | idle, loading, results, empty | UC-013 |
 | SCR-WEB-013 | Settings — Profile & Preferences | Display name, timezone, theme | default, saving, error | UC-007 |

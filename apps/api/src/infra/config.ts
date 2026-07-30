@@ -29,6 +29,27 @@ export interface AppConfig {
   /** Max auth-endpoint hits per IP per window before 429 (FR-AUTH-018,
    * NFR-SEC-006; default 30). */
   authRateLimitMax: number;
+  /** Cross-device sync provider (FEAT-019; ADR-006). `none` (the default) mints
+   * no token and publishes no signal — the web client falls back to its adaptive
+   * refetch schedule, which is what keeps NFR-PERF-004 satisfied without a
+   * socket. `supabase` turns on the Broadcast path. */
+  realtimeProvider: 'none' | 'supabase';
+  /** Supabase project URL, e.g. `https://<ref>.supabase.co` (ADR-006). */
+  supabaseUrl: string;
+  /** **Secret.** Service-role key — authenticates the API's broadcast POSTs.
+   * Server-side only; it never reaches a response body or the browser. */
+  supabaseServiceRoleKey: string;
+  /** Publishable (anon) key — public by design; handed to the client with its
+   * minted token so it can open the socket. */
+  supabasePublishableKey: string;
+  /** **Secret.** Signs the short-lived Realtime tokens the API mints (D5). */
+  supabaseJwtSecret: string;
+  /** Minted Realtime-token lifetime in minutes (D5; default 30). Short by
+   * design: it bounds a leaked token far below the 30-day session. */
+  realtimeTokenTtlMinutes: number;
+  /** Hard cap on a single broadcast publish, in ms (D3; default 250). The write
+   * is already committed — sync must degrade latency, never the operation. */
+  realtimePublishTimeoutMs: number;
 }
 
 /**
@@ -60,5 +81,17 @@ export function loadConfig(): AppConfig {
       process.env.AUTH_RATELIMIT_WINDOW_SECONDS ?? 900,
     ),
     authRateLimitMax: Number(process.env.AUTH_RATELIMIT_MAX ?? 30),
+    realtimeProvider:
+      process.env.REALTIME_PROVIDER === 'supabase' ? 'supabase' : 'none',
+    supabaseUrl: process.env.SUPABASE_URL ?? '',
+    supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? '',
+    supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY ?? '',
+    supabaseJwtSecret: process.env.SUPABASE_JWT_SECRET ?? '',
+    realtimeTokenTtlMinutes: Number(
+      process.env.REALTIME_TOKEN_TTL_MINUTES ?? 30,
+    ),
+    realtimePublishTimeoutMs: Number(
+      process.env.REALTIME_PUBLISH_TIMEOUT_MS ?? 250,
+    ),
   };
 }

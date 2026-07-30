@@ -62,7 +62,7 @@ export default function SignUpPage() {
 
   const border = (field: string) =>
     `var(--border-width-hairline) solid ${
-      fieldErrors[field] ? "var(--color-danger)" : "var(--color-border-strong)"
+      fieldErrors[field] ? "var(--color-danger)" : "var(--color-text-muted)"
     }`;
 
   return (

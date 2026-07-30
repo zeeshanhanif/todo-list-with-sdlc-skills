@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
+import { RealtimeModule } from '../../common/realtime/realtime.module';
 import { TasksController } from './tasks.controller';
+import { TaskItemController } from './task-item.controller';
 import { TasksService } from './tasks.service';
 import { TasksRepository } from './tasks.repository';
 import { SessionGuard } from '../../common/authz/session.guard';
@@ -11,8 +13,12 @@ import { SessionsRepository } from '../../common/authz/sessions.repository';
 // authenticated (FR-AUTHZ-001); ownership is enforced inside TasksRepository,
 // where every statement is owner-scoped (FEAT-009 D3, the convention
 // modules/lists demonstrates). DbService comes from the global InfraModule.
+// Two controllers, one module: the list-scoped collection
+// (`/lists/{listId}/tasks`, FEAT-010) and the single-task item
+// (`/tasks/{id}`, FEAT-011 — extended by FEAT-012/013).
 @Module({
-  controllers: [TasksController],
+  imports: [RealtimeModule],
+  controllers: [TasksController, TaskItemController],
   providers: [
     TasksService,
     TasksRepository,

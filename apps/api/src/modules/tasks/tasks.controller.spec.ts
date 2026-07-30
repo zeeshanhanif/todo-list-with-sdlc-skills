@@ -314,4 +314,99 @@ describe('task endpoints (contract)', () => {
     expect(elapsed).toBeLessThan(300);
     querySpy.mockRestore();
   });
+
+  // -------------------------------------------------------------------------
+  // FEAT-011 T6 — due date and priority at creation (UC-009 step 2, which
+  // FEAT-010 D6 deferred to this feature). Additive by design (D8): every test
+  // ABOVE this line is FEAT-010's, unmodified — if any had needed an edit to
+  // stay green, the change would not have been additive.
+  // -------------------------------------------------------------------------
+
+  it('AC-10: create accepts dueAt and priority together', async () => {
+    const { cookie, inbox } = await signedInUser();
+
+    const res = await request(server())
+      .post(listTasksPath(inbox))
+      .set('Cookie', cookie)
+      .send({
+        title: 'Renew passport',
+        dueAt: '2099-01-01T00:00:00.000Z',
+        priority: 'high',
+      });
+
+    expect(res.status).toBe(201);
+    expect((res.body as CreateTaskResponse).task).toMatchObject({
+      title: 'Renew passport',
+      dueAt: '2099-01-01T00:00:00.000Z',
+      priority: 'high',
+      completedAt: null,
+      isOverdue: false,
+    });
+  });
+
+  it('AC-10: a title-only body still creates dueAt null / priority none', async () => {
+    const { cookie, inbox } = await signedInUser();
+
+    const res = await request(server())
+      .post(listTasksPath(inbox))
+      .set('Cookie', cookie)
+      .send({ title: 'Just a title' });
+
+    expect(res.status).toBe(201);
+    expect((res.body as CreateTaskResponse).task).toMatchObject({
+      title: 'Just a title',
+      dueAt: null,
+      priority: 'none',
+      isOverdue: false,
+    });
+  });
+
+  it('AC-10/AC-5: a past due date at creation is legal and immediately overdue', async () => {
+    const { cookie, inbox } = await signedInUser();
+
+    // FR-TASK-007 would be unreachable if past dates were rejected (D2).
+    const res = await request(server())
+      .post(listTasksPath(inbox))
+      .set('Cookie', cookie)
+      .send({ title: 'Was due last year', dueAt: '2020-01-01T00:00:00.000Z' });
+
+    expect(res.status).toBe(201);
+    expect((res.body as CreateTaskResponse).task).toMatchObject({
+      dueAt: '2020-01-01T00:00:00.000Z',
+      isOverdue: true,
+    });
+  });
+
+  it('AC-10: an invalid dueAt or priority at creation is 400, and creates nothing', async () => {
+    const { cookie, id, inbox } = await signedInUser();
+
+    for (const [body, field] of [
+      [{ title: 'x', dueAt: 'not-a-date' }, 'dueAt'],
+      [{ title: 'x', priority: 'urgent' }, 'priority'],
+    ] as Array<[Record<string, unknown>, string]>) {
+      const res = await request(server())
+        .post(listTasksPath(inbox))
+        .set('Cookie', cookie)
+        .send(body);
+
+      expect(res.status).toBe(400);
+      const err = res.body as ApiError;
+      expect(err.code).toBe('validation_failed');
+      expect(err.fields?.[0]?.field).toBe(field);
+    }
+
+    expect(await countTasks(id)).toBe(0);
+  });
+
+  it('AC-10: dueAt null at creation is the same as omitting it', async () => {
+    const { cookie, inbox } = await signedInUser();
+
+    const res = await request(server())
+      .post(listTasksPath(inbox))
+      .set('Cookie', cookie)
+      .send({ title: 'No date', dueAt: null });
+
+    expect(res.status).toBe(201);
+    expect((res.body as CreateTaskResponse).task.dueAt).toBeNull();
+  });
 });

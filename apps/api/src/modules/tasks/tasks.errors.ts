@@ -27,3 +27,30 @@ export class TaskTitleInvalidError extends Error {
     this.name = 'TaskTitleInvalidError';
   }
 }
+
+/** The task named in the path is unknown, owned by another user, not a uuid, or
+ * soft-deleted. One error for all four, so the response can never disclose that
+ * an id exists elsewhere (FR-AUTHZ-002/003/005 → 404 task_not_found) — the same
+ * uniformity rule ListNotFoundError applies to lists (FEAT-009 D3). Added by
+ * FEAT-011, the first feature to look a task up by id. */
+export class TaskNotFoundError extends Error {
+  constructor() {
+    super('That task no longer exists.');
+    this.name = 'TaskNotFoundError';
+  }
+}
+
+/** A submitted field other than the title fails its rule — `dueAt` is not a
+ * valid ISO-8601 instant, `priority` is outside the four values, or the patch
+ * carries no recognized field at all (FEAT-011 D4). Generalizes
+ * TaskTitleInvalidError's shape to a named field so the controller can render
+ * the same `validation_failed` + `fields[]` envelope for any of them. */
+export class TaskFieldInvalidError extends Error {
+  constructor(
+    public readonly field: string,
+    public readonly requirement: string,
+  ) {
+    super(requirement);
+    this.name = 'TaskFieldInvalidError';
+  }
+}
