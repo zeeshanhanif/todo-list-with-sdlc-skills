@@ -207,3 +207,36 @@ skeleton, affects every env-driven setting in `apps/api`/`apps/worker`, invisibl
 until now because the defaults were all deliberately safe and FEAT-019 is the
 first feature whose behaviour visibly depends on an operator-set value. Local
 development only — Cloud Run passes env vars directly. See `docs/defects.md`.
+
+
+# Re-verification — 2026-07-30 · Verdict: Accepted (unchanged) · after the DEF-007 fix
+
+**Verdict unchanged: Accepted, with AC-1b still open.** No FEAT-019 code changed;
+suites re-run after the fix: api **247** (serial), worker **24**, web **23**,
+e2e **30**; lint, boundaries, build clean.
+
+Two things about this feature are worth recording, because DEF-007 and FEAT-019
+are entangled in both directions:
+
+1. **This feature is why the defect was found.** FEAT-019 is the first slice whose
+   behaviour visibly depends on an operator-set value (`REALTIME_PROVIDER`).
+   Every earlier feature's settings were either correct as defaults or passed
+   explicitly by a harness, so nineteen features ran on a config file nobody had
+   noticed was being ignored.
+2. **A naive fix would have made this feature's own suite machine-dependent.**
+   `realtime.controller.spec.ts` asserts that an unconfigured provider answers
+   `{ enabled: false }` — it deletes `REALTIME_PROVIDER` and calls `loadConfig()`.
+   Had the path bug been fixed while leaving dotenv inside `loadConfig()`, that
+   deletion would have been re-injected from the developer's own `.env`, and the
+   spec would have passed or failed depending on whose machine ran it. The fix
+   keeps loading at the entrypoint precisely so config reads stay pure.
+
+**One harness change protects this feature's central claim.** AC-2 verifies
+convergence *with no socket* — the unconfigured path. The E2E `webServer` runs
+the API with the CWD at the repo root, so after the fix it loads the repo `.env`;
+a developer with `REALTIME_PROVIDER=supabase` in theirs would have had AC-2
+silently testing the *configured* path instead, and publishing to a real external
+service on every write in the suite. `e2e/playwright.config.ts` now pins
+`REALTIME_PROVIDER: "none"`, so what AC-2 claims is what AC-2 runs.
+
+AC-1b is unaffected and remains open, deferred to first deploy.
