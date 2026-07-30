@@ -79,7 +79,7 @@
       60 ids distinct and complete) and AC-12 (every task returned by
       `status=overdue` carries `isOverdue: true` in its own payload).
 
-- [ ] T6 — Contract: `SearchController` + `dto/search-query.dto.ts` +
+- [x] T6 — Contract: `SearchController` + `dto/search-query.dto.ts` +
       `search.module.ts`, registered in `app.module.ts` (design §3, §5.1).
       Class-level `@UseGuards(SessionGuard)`; **no `ChangeSignalInterceptor`**
       (nothing is written); `@Type(() => Number)` on `limit` because query
