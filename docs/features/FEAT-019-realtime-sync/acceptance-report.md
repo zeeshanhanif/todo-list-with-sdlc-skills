@@ -40,7 +40,7 @@ behaviour, measured end to end in a real browser with two devices.
 | AC | Source | Evidence (re-run in this audit) | Verdict |
 | :- | :--- | :--- | :--- |
 | AC-1 | NFR-PERF-004; UC-009/010/011 | `e2e/tests/realtime-sync.spec.ts` "AC-1" — two contexts, one account; a create and a completion cross inside 5 s with no interaction and no navigation (URL asserted unchanged) | pass |
-| **AC-1b** | ADR-006 transport | **Not run** — needs a provisioned Supabase project; `staging-checklist.md` written and unexecuted | **open (pending environment)** |
+| **AC-1b** | ADR-006 transport | **Partially run 2026-07-30** against a staging hybrid (see run log at the end): token acceptance, publish `202` and timed delivery all proven; private-channel authorization refused for every topic, cause isolated to an RLS predicate on the Supabase side | **open (deferred to first deploy)** |
 | AC-2 | NFR-PERF-004, NFR-REL-004 | e2e "AC-2" on the **unconfigured** stack: convergence < 5 s with no socket, no seam, nothing clicked; focus converges < 2 s. Back-off asserted directly at the scheduler (`sync-schedule.spec.ts`) and through the island (`sync-provider.spec.tsx`) | pass |
 | AC-3 | ADR-006; FR-AUTHZ-002 | `change-signal.interceptor.spec.ts` — all **ten** mutating routes enumerated, each exactly one signal to the session user; 400/401/404 and every GET signal none; a stranger's 404 signals nothing | pass |
 | AC-4 | NFR-PERF-001, NFR-REL-004 | `supabase-realtime.publisher.spec.ts` — 500 / refused / hang all resolve without throwing and within the cap; breaker opens after 3 and probes after the window; **p95 measured** (corrected, below). Interceptor spec: a rejecting or slow publisher leaves status and body untouched | pass |
