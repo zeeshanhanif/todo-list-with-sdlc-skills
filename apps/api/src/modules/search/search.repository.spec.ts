@@ -444,7 +444,9 @@ describe('SearchRepository (integration)', () => {
   describe('due-ordered pages (FEAT-016 AC-10, AC-11)', () => {
     /** Criteria the smart views build directly — not through the parser, which
      * only ever produces `sort: 'newest'`. */
-    const dueCriteria = (over: Partial<SearchCriteria> = {}): SearchCriteria => ({
+    const dueCriteria = (
+      over: Partial<SearchCriteria> = {},
+    ): SearchCriteria => ({
       term: null,
       status: 'active',
       due: 'upcoming',

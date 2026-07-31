@@ -85,7 +85,10 @@ describe('ViewsService (integration)', () => {
     (await views.view(userId, view, {})).results.map((r) => r.title);
 
   const setTimezone = async (userId: string, tz: string): Promise<void> => {
-    await db.query('UPDATE users SET timezone = $2 WHERE id = $1', [userId, tz]);
+    await db.query('UPDATE users SET timezone = $2 WHERE id = $1', [
+      userId,
+      tz,
+    ]);
   };
 
   beforeAll(async () => {
@@ -106,8 +109,10 @@ describe('ViewsService (integration)', () => {
     await db.onModuleDestroy();
   });
 
-  const hours = (n: number) => new Date(Date.now() + n * 3_600_000).toISOString();
-  const days = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString();
+  const hours = (n: number) =>
+    new Date(Date.now() + n * 3_600_000).toISOString();
+  const days = (n: number) =>
+    new Date(Date.now() + n * 86_400_000).toISOString();
 
   describe('Today (FR-SRCH-008)', () => {
     it('AC-2: the same task is Today in one zone and Upcoming in another', async () => {

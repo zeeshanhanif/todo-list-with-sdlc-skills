@@ -65,7 +65,7 @@
       and a soft-deleted task appear in **no** view) and AC-7 (a task due earlier
       today is in **both** `today` and `overdue`).
 
-- [ ] T5 — Contract: `views.controller.ts` + `dto/smart-view-query.dto.ts`,
+- [x] T5 — Contract: `views.controller.ts` + `dto/smart-view-query.dto.ts`,
       registered in `search.module.ts` (design §3, §5.1). `@Get(':view')` with
       class-level `@UseGuards(SessionGuard)`; **no `ChangeSignalInterceptor`**
       (nothing is written); `@Type(() => Number)` on `limit`.

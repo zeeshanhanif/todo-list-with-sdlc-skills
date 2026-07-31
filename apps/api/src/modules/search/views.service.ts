@@ -56,7 +56,11 @@ export class ViewsService {
     const resolved = parseView(view);
     const criteria = criteriaFor(resolved, raw);
     const timeZone = await this.zones.effectiveFor(userId);
-    const { rows, hasMore } = await this.repo.search(userId, criteria, timeZone);
+    const { rows, hasMore } = await this.repo.search(
+      userId,
+      criteria,
+      timeZone,
+    );
 
     const last = rows[rows.length - 1];
     return {
