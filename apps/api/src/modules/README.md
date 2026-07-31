@@ -6,6 +6,12 @@ far: `auth`, `profile`, `lists`, `tasks`, `search` (plus `infra` + `health`
 from the walking skeleton, and the cross-cutting `common/realtime` and
 `common/preferences`).
 
+`search` serves **two** controllers: `GET /search` (FEAT-015) and
+`GET /views/{view}` (FEAT-016). The smart views are the same query with fixed
+criteria rather than a second query builder, which is why they live here and not
+in a module of their own — see FEAT-016 technical-design D1 for the reasoning,
+including why a `views` module would have cost a copy of the SQL.
+
 Boundary rule (enforced by `npm run boundaries`, `.dependency-cruiser.cjs`):
 a module must **not** import another module's internals. Cross-module needs go
 through shared contracts (`@todo/shared`) or explicit domain interfaces added
@@ -17,7 +23,7 @@ per-slice.
 | `profile` | FR-PROF-* | FEAT-008 ✅ built |
 | `lists` | FR-LIST-* | FEAT-009 ✅ built |
 | `tasks` | FR-TASK-* | FEAT-010..014 (010..013 built) |
-| `search` | FR-SRCH-* | FEAT-015 ✅ built, FEAT-016 (smart views) |
+| `search` | FR-SRCH-* | FEAT-015, FEAT-016 ✅ built (search + smart views) |
 | `account-data` | FR-DATA-* | FEAT-017, FEAT-018 |
 
 Cross-cutting concerns live under `src/common/` (`authz` ownership guard →

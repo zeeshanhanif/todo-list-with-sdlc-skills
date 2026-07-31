@@ -1,7 +1,7 @@
 # Tasks: FEAT-016 — Smart views (Today / Upcoming / Overdue / All)
 
 > Executes: docs/features/FEAT-016-smart-views/technical-design.md
-> Status: pending · Last updated: 2026-07-31
+> Status: all tasks done · Last updated: 2026-07-31
 > Notes: **This feature completes the `search` module** — smart views land inside
 > `apps/api/src/modules/search/`, not in a module of their own (design D1). The
 > existing `search.repository.ts` already contains every predicate the four views
@@ -109,7 +109,7 @@
       Done when: `npm run test:e2e` passes against the local stack, with the
       FEAT-008..013, FEAT-015 and FEAT-019 specs still green.
 
-- [ ] T9 — Verify: acceptance criteria AC-1..AC-16 (design §6) demonstrably pass;
+- [x] T9 — Verify: acceptance criteria AC-1..AC-16 (design §6) demonstrably pass;
       `src/modules/README.md` updated to show `search` fully built (FEAT-015 +
       FEAT-016); `npm run boundaries`, `npm run lint`, `npm run build`, and the
       api + shared + web + e2e suites green — the api suite **serially** while

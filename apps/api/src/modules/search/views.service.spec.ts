@@ -229,6 +229,26 @@ describe('ViewsService (integration)', () => {
         }
       }
     });
+
+    it('AC-10: All is ordered newest-created first, not by due date', async () => {
+      const { id, inbox } = await freshUser('UTC');
+      // Created oldest to newest, with due dates in the OPPOSITE order — so an
+      // implementation that sorted All by due_at (the other three views' key)
+      // would return the exact reverse and be caught here.
+      await db.query(
+        `INSERT INTO tasks (owner_id, list_id, title, due_at, created_at) VALUES
+           ($1, $2, 'created first',  now() + interval '9 day', now() - interval '3 hour'),
+           ($1, $2, 'created second', now() + interval '5 day', now() - interval '2 hour'),
+           ($1, $2, 'created third',  now() + interval '1 day', now() - interval '1 hour')`,
+        [id, inbox],
+      );
+
+      await expect(titles(id, 'all')).resolves.toEqual([
+        'created third',
+        'created second',
+        'created first',
+      ]);
+    });
   });
 
   describe('exclusions and overlap (FR-SRCH-008)', () => {
