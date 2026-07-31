@@ -1,29 +1,28 @@
 import { createHmac } from 'crypto';
-import { loadConfig } from '../../infra/config';
+import { readConfig, type AppConfig } from '../../infra/config';
 import {
   RealtimeTokenService,
   type RealtimeTokenClaims,
 } from './realtime-token.service';
 
 // FEAT-019 T2 / AC-5, AC-8 — what the mint puts in the token, and what it does
-// NOT put anywhere. `loadConfig()` reads process.env on every call (the module's
-// convention), so these tests set the environment rather than injecting a fake.
+// NOT put anywhere. Config is injected (DEF-008), so these tests hand the service
+// the settings they need instead of mutating process.env and restoring it — no
+// global state, and nothing here can be perturbed by a developer's own .env.
 
 const SECRET = 'test-jwt-secret-value';
 const USER = '11111111-1111-4111-8111-111111111111';
 
+/** A config with this spec's realtime settings; everything else is the default. */
+const cfg = (over: Partial<AppConfig> = {}): AppConfig => ({
+  ...readConfig(),
+  supabaseJwtSecret: SECRET,
+  realtimeTokenTtlMinutes: 30,
+  ...over,
+});
+
 describe('RealtimeTokenService', () => {
-  const service = new RealtimeTokenService();
-  const env = { ...process.env };
-
-  beforeEach(() => {
-    process.env.SUPABASE_JWT_SECRET = SECRET;
-    process.env.REALTIME_TOKEN_TTL_MINUTES = '30';
-  });
-
-  afterEach(() => {
-    process.env = { ...env };
-  });
+  const service = new RealtimeTokenService(cfg());
 
   it('signs the claims Supabase Realtime needs, and only those', () => {
     const { token } = service.mint(USER);
@@ -47,8 +46,10 @@ describe('RealtimeTokenService', () => {
     const { token } = service.mint(USER);
     expect(service.verify(token)?.sub).toBe(USER);
 
-    process.env.SUPABASE_JWT_SECRET = 'a-different-secret';
-    expect(service.verify(token)).toBeNull();
+    const otherSecret = new RealtimeTokenService(
+      cfg({ supabaseJwtSecret: 'a-different-secret' }),
+    );
+    expect(otherSecret.verify(token)).toBeNull();
   });
 
   it('rejects a tampered subject — the signature covers the claims', () => {
@@ -67,17 +68,21 @@ describe('RealtimeTokenService', () => {
   });
 
   it('gives exp - iat exactly the configured TTL, and expiresAt agrees', () => {
-    process.env.REALTIME_TOKEN_TTL_MINUTES = '15';
-    const { token, expiresAt } = service.mint(USER);
-    const claims = service.verify(token)!;
+    const fifteen = new RealtimeTokenService(
+      cfg({ realtimeTokenTtlMinutes: 15 }),
+    );
+    const { token, expiresAt } = fifteen.mint(USER);
+    const claims = fifteen.verify(token)!;
 
     expect(claims.exp - claims.iat).toBe(15 * 60);
     expect(expiresAt.getTime()).toBe(claims.exp * 1000);
   });
 
   it('treats an expired token as invalid even with a good signature', () => {
-    process.env.REALTIME_TOKEN_TTL_MINUTES = '-1';
-    const { token } = service.mint(USER);
+    const expired = new RealtimeTokenService(
+      cfg({ realtimeTokenTtlMinutes: -1 }),
+    );
+    const { token } = expired.mint(USER);
 
     // The signature is genuine — expiry alone is the reason it fails.
     const [header, payload, signature] = token.split('.');
@@ -86,7 +91,7 @@ describe('RealtimeTokenService', () => {
         .update(`${header}.${payload}`)
         .digest('base64url'),
     );
-    expect(service.verify(token)).toBeNull();
+    expect(expired.verify(token)).toBeNull();
   });
 
   it('encodes base64url without padding', () => {
@@ -116,7 +121,7 @@ describe('realtime config defaults', () => {
     delete process.env.SUPABASE_PUBLISHABLE_KEY;
     delete process.env.SUPABASE_JWT_SECRET;
 
-    const config = loadConfig();
+    const config = readConfig();
     // `none` is the default because no Supabase project is provisioned yet —
     // the client falls back to its adaptive refetch schedule (D4).
     expect(config.realtimeProvider).toBe('none');
@@ -132,9 +137,9 @@ describe('realtime config defaults', () => {
 
   it('only ever recognizes the one provider it implements', () => {
     process.env.REALTIME_PROVIDER = 'pusher';
-    expect(loadConfig().realtimeProvider).toBe('none');
+    expect(readConfig().realtimeProvider).toBe('none');
 
     process.env.REALTIME_PROVIDER = 'supabase';
-    expect(loadConfig().realtimeProvider).toBe('supabase');
+    expect(readConfig().realtimeProvider).toBe('supabase');
   });
 });

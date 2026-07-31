@@ -632,3 +632,253 @@ export type RealtimeTokenResponse =
       /** ISO-8601 UTC expiry; the client re-mints at 80% of the lifetime. */
       expiresAt: string;
     };
+
+// --- Profile & settings (FEAT-008) ---
+
+/** Path of the profile resource — `GET` to read, `PATCH` to edit. Single-subject:
+ * the caller is always the session user, so no id appears in the path, the query
+ * or the body (FR-AUTHZ-004; technical-design §3). */
+export const PROFILE_PATH = "/profile";
+
+/** The three theme preferences (FR-PROF-004). `system` means "match the OS",
+ * which is a stored *preference*, not a resolved value — the client resolves it
+ * per device via `matchMedia` (technical-design D3). */
+export const THEME_PREFERENCES = ["light", "dark", "system"] as const;
+
+/** A stored theme preference. */
+export type ThemePreference = (typeof THEME_PREFERENCES)[number];
+
+/** Maximum display-name length (FR-PROF-002). Shared so the client bound can
+ * never drift from the server rule — the constant-sharing convention FEAT-001
+ * set with PASSWORD_MIN_LENGTH. Names are trimmed before validation. */
+export const DISPLAY_NAME_MAX_LENGTH = 80;
+
+/**
+ * The profile as `GET /profile` returns it (FR-PROF-001).
+ *
+ * Two fields are nullable, and each null means something specific:
+ * - `displayName: null` — never set. The default is **derived at read time**,
+ *   never stored (technical-design D1); render it with `displayNameFor`.
+ * - `timezone: null` — not yet established. The effective zone is `UTC` until
+ *   the client adopts the browser-detected one, which is FR-PROF-003's own
+ *   two-stage default (technical-design D2).
+ */
+export interface UserProfile {
+  /** The account email. Read-only in the MVP (FR-PROF-001). */
+  email: string;
+  displayName: string | null;
+  /** An IANA zone id **exactly as the user chose it** — the server validates it
+   * but deliberately does not re-canonicalize (technical-design D2). */
+  timezone: string | null;
+  theme: ThemePreference;
+}
+
+/** Success response (200) of `GET /profile`. */
+export interface ProfileResponse {
+  profile: UserProfile;
+}
+
+/**
+ * Request body of `PATCH /profile` — **partial**, and *absent ≠ null*
+ * (technical-design D6, the semantics FEAT-011 D4 established for this API).
+ *
+ * Omit a field to leave it alone. `displayName: null` **unsets** it back to the
+ * derived default; `""` is a validation error, not a way to clear it. `timezone`
+ * takes no null — a zone that has been established cannot be un-established.
+ * A body with no recognized field is a `400`, never a silent no-op.
+ */
+export interface UpdateProfileRequest {
+  displayName?: string | null;
+  timezone?: string;
+  theme?: ThemePreference;
+}
+
+/** Success response (200) of `PATCH /profile` — the profile **as stored**. */
+export interface UpdateProfileResponse {
+  profile: UserProfile;
+}
+
+/** Error `code` values the profile endpoints add to the ApiError envelope
+ * (FEAT-008 technical-design §3). Field-level failures reuse the existing
+ * `validation_failed` + `fields[]` convention; the empty patch reports on the
+ * synthetic field `_`, which names the body itself rather than any one field. */
+export const PROFILE_ERROR_CODES = {
+  emptyPatchField: "_",
+} as const;
+
+/**
+ * The display name to show for a user — the single rule both tiers render the
+ * fallback with (technical-design D1).
+ *
+ * A stored name wins; otherwise the email's local part stands in
+ * (`ada@example.com` → `ada`). Derived here rather than backfilled into the
+ * column so that "did the user choose this?" stays answerable, and so the
+ * fallback follows the email instead of drifting from it.
+ */
+export const displayNameFor = (user: {
+  displayName: string | null;
+  email: string;
+}): string => user.displayName ?? user.email.split("@")[0];
+
+// --- Search & filters (FEAT-015) ---
+
+/** Path of the search endpoint — read-only, single-subject: the corpus searched
+ * is always the caller's own, so no id appears anywhere in the request
+ * (FR-AUTHZ-002; technical-design §3). */
+export const SEARCH_PATH = "/search";
+
+/** Status filter values (FR-SRCH-003). `overdue` is **the same predicate** as
+ * the `overdue` due-bucket below — one definition of overdue in this system,
+ * the one FEAT-011 D3 owns (technical-design D5). */
+export const SEARCH_STATUSES = ["active", "completed", "overdue"] as const;
+export type SearchStatus = (typeof SEARCH_STATUSES)[number];
+
+/** Due-date filter buckets (FR-SRCH-004).
+ *
+ * `today` and `upcoming` are **calendar-day** questions and are therefore
+ * computed in the user's stored timezone (FR-PROF-003). `overdue` is an
+ * **instant** question and is therefore the same in every zone. That asymmetry
+ * is deliberate and is why the two live side by side here rather than in one
+ * uniform rule (technical-design §5.2/D5). */
+export const SEARCH_DUE_BUCKETS = [
+  "today",
+  "upcoming",
+  "overdue",
+  "none",
+] as const;
+export type SearchDueBucket = (typeof SEARCH_DUE_BUCKETS)[number];
+
+/** Maximum length of a search term (FR-SRCH-001). Shared so the client bound
+ * cannot drift from the server rule — the convention FEAT-001 set with
+ * PASSWORD_MIN_LENGTH. The term is trimmed before validation. */
+export const SEARCH_QUERY_MAX_LENGTH = 200;
+
+/** Default page size (FR-SRCH-009). */
+export const SEARCH_PAGE_SIZE = 25;
+
+/** Hard ceiling on `limit`. A larger value is a `400`, never a silent clamp —
+ * a client that asked for 500 results and received 50 without being told would
+ * conclude there were only 50 (technical-design §3.1). */
+export const SEARCH_PAGE_SIZE_MAX = 50;
+
+/**
+ * One search hit: the full task, plus the name of the list holding it.
+ *
+ * Extends `TaskSummary` rather than redefining it, so a result carries the same
+ * `completedAt` / `dueAt` / `priority` / `isOverdue` the rest of the product
+ * reads — FR-SRCH-002's "with the list it belongs to and its status" is exactly
+ * these two halves. `listName` is denormalized onto each row deliberately: a
+ * page is at most 50 rows, and the alternative (a lookup map the client joins)
+ * buys nothing at that size.
+ */
+export interface SearchResult extends TaskSummary {
+  listName: string;
+}
+
+/**
+ * Success response (200) of `GET /search`.
+ *
+ * `results` is ordered newest-first by the server and rendered in that order —
+ * substring matching produces no relevance rank, so inventing one would be a
+ * number nobody could explain (technical-design D2).
+ *
+ * There is no total count: the contract carries what the screen needs, and the
+ * screen shows "N results so far" while paging (technical-design D7's
+ * neighbour).
+ */
+export interface SearchResponse {
+  results: SearchResult[];
+  /**
+   * Opaque cursor for the next page, or `null` when this page is the last.
+   *
+   * **Opaque by contract**: it encodes the last row's `(createdAt, id)` — the
+   * exact ORDER BY tuple — and clients pass it back untouched rather than
+   * constructing it. Keyset, not offset, so a task created between two page
+   * requests cannot make an already-read row reappear or push an unread one
+   * past the boundary (technical-design D4).
+   */
+  nextCursor: string | null;
+}
+
+/**
+ * FR-TASK-007's overdue rule, in **one** place for the whole system.
+ *
+ * A task is overdue exactly when it is **active**, has a due date, and that
+ * instant has passed. The `completedAt === null` clause is the FR's own note —
+ * "only active (incomplete) tasks can be overdue" — not an optimization.
+ *
+ * **No timezone enters this comparison, and that is correct rather than an
+ * oversight**: `dueAt` is an absolute instant, so "has it passed?" has the same
+ * answer in every zone (FEAT-011 technical-design D1, FEAT-008 D4). Timezone
+ * governs how a due date is typed and displayed, which is the client's business.
+ *
+ * It lives here, not in a module, because two API modules now derive it —
+ * `tasks` (the list view and detail) and `search` (FR-SRCH-003's `overdue`
+ * status and FR-SRCH-004's `overdue` bucket, which are the same predicate by
+ * FEAT-015 D5) — and module boundaries forbid one importing the other. FEAT-011
+ * anticipated exactly this: "derived by the server, in one place, so the list
+ * view, the detail surface and FEAT-016's Overdue view cannot drift into three
+ * definitions."
+ */
+export const isTaskOverdue = (task: {
+  completedAt: Date | string | null;
+  dueAt: Date | string | null;
+}): boolean => {
+  if (task.completedAt !== null || task.dueAt === null) return false;
+  const due =
+    task.dueAt instanceof Date ? task.dueAt.getTime() : Date.parse(task.dueAt);
+  return due < Date.now();
+};
+
+// --- Smart views (FEAT-016) ---
+
+/**
+ * The four cross-list views, in the order FR-SRCH-008 defines them — which is
+ * also the order the sidebar renders (ui-design D6's neighbour: fixed, not
+ * sorted and not user-arrangeable).
+ *
+ * Membership, all four excluding completed and soft-deleted tasks: **today** =
+ * due within the current day, **upcoming** = due after it — both calendar-day
+ * questions and therefore computed in the caller's stored timezone
+ * (FR-PROF-003) — **overdue** = the due instant has passed, which is the same
+ * zone-invariant rule `isTaskOverdue` spells above, and **all** = every active
+ * task, due date or not.
+ */
+export const SMART_VIEWS = ["today", "upcoming", "overdue", "all"] as const;
+export type SmartView = (typeof SMART_VIEWS)[number];
+
+/** Path of one view. The segment is a **resource name**, not a filter value, so
+ * a name outside the four is a `404 view_not_found` rather than a validation
+ * error (technical-design D6). */
+export const smartViewPath = (view: string): string => `/views/${view}`;
+
+/** Error `code` values the smart-view endpoint adds to the ApiError envelope
+ * (technical-design §3.1). Field-level failures — `limit`, `cursor` — reuse the
+ * existing `validation_failed` + `fields[]` convention unchanged. */
+export const SMART_VIEW_ERROR_CODES = {
+  viewNotFound: "view_not_found",
+} as const;
+
+/**
+ * Success response (200) of `GET /views/{view}`.
+ *
+ * `results` reuses `SearchResult` — the same task payload plus the originating
+ * list's name — because a cross-list view and a cross-list search answer the
+ * same question about a row: what is it, and where does it live (UC-014 step 3).
+ * A second shape would be a second thing to keep in step.
+ *
+ * `view` is **echoed** so a client that fired two view requests cannot render
+ * the slower one's answer under the other one's heading.
+ *
+ * Ordering is the server's and the client does not re-sort: due-date ascending
+ * for `today`/`upcoming`/`overdue`, newest-created first for `all`, which is the
+ * only view whose members can lack a due date (technical-design D2). `nextCursor`
+ * is FEAT-015's opaque keyset cursor, unchanged in format — only the meaning of
+ * its timestamp half follows the sort.
+ */
+export interface SmartViewResponse {
+  view: SmartView;
+  results: SearchResult[];
+  /** Opaque cursor for the next page, or `null` when this page is the last. */
+  nextCursor: string | null;
+}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { clearThemeCookie } from "@/components/theme-sync";
 
 // SCR-WEB-007 sign-out control (ui-design.md). A sidebar-footer button-tertiary
 // (ghost) that POSTs to the BFF /api/auth/logout and routes to /signin. Logout
@@ -21,6 +22,10 @@ export function SignOutButton() {
     } catch {
       // Idempotent: end on /signin regardless — the local session is abandoned.
     } finally {
+      // The theme mirror belongs to the ACCOUNT, not the device (FEAT-008
+      // technical-design D3): leaving it behind would dress the next person's
+      // sign-in screen in this account's preference on a shared browser.
+      clearThemeCookie();
       router.push("/signin");
     }
   }

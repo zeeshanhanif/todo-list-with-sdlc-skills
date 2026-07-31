@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { loadConfig } from '../../infra/config';
+import { APP_CONFIG, type AppConfig } from '../../infra/config';
 import { RealtimePublisher } from './realtime.publisher';
 import { NoopRealtimePublisher } from './noop-realtime.publisher';
 import { SupabaseRealtimePublisher } from './supabase-realtime.publisher';
@@ -35,12 +35,13 @@ import { SessionsRepository } from '../authz/sessions.repository';
     SupabaseRealtimePublisher,
     {
       provide: RealtimePublisher,
-      inject: [NoopRealtimePublisher, SupabaseRealtimePublisher],
+      inject: [NoopRealtimePublisher, SupabaseRealtimePublisher, APP_CONFIG],
       useFactory: (
         noop: NoopRealtimePublisher,
         supabase: SupabaseRealtimePublisher,
+        config: AppConfig,
       ): RealtimePublisher =>
-        loadConfig().realtimeProvider === 'supabase' ? supabase : noop,
+        config.realtimeProvider === 'supabase' ? supabase : noop,
     },
   ],
   exports: [RealtimePublisher, RealtimeTokenService, ChangeSignalInterceptor],

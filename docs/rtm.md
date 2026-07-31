@@ -39,11 +39,11 @@
 | FR-AUTHZ-003 | Reject others' resources w/o disclosure | Must | Active | SEC | All authenticated UCs | arch §8; features/FEAT-009-lists/technical-design.md (ownership scoping — first data module) | Foundations | features/FEAT-009-lists/acceptance-report.md (partial); features/FEAT-010-create-task/acceptance-report.md (partial) |
 | FR-AUTHZ-004 | Assign ownership at creation; no transfer | Must | Active | SI | UC-008, UC-009 | ADR-003; features/FEAT-009-lists/technical-design.md (ownership scoping — first data module) | Foundations | features/FEAT-009-lists/acceptance-report.md (partial); features/FEAT-010-create-task/acceptance-report.md (partial) |
 | FR-AUTHZ-005 | Server-authoritative authorization | Must | Active | SEC | All authenticated UCs | arch §8; features/FEAT-009-lists/technical-design.md (ownership scoping — first data module) | Foundations | features/FEAT-009-lists/acceptance-report.md (partial); features/FEAT-010-create-task/acceptance-report.md (partial) |
-| FR-PROF-001 | View profile (email, display name) | Must | Active | SI | UC-007 | _TBD_ | FEAT-008 | _TBD_ |
-| FR-PROF-002 | Set/edit display name | Should | Active | SI | UC-007 | _TBD_ | FEAT-008 | _TBD_ |
-| FR-PROF-003 | Set timezone (due/overdue calc) | Must | Active | SI | UC-007 | _TBD_ | FEAT-008 | _TBD_ |
-| FR-PROF-004 | Select UI theme, persisted | Should | Active | SI | UC-007 | _TBD_ | FEAT-008 | _TBD_ |
-| FR-PROF-005 | Persist settings across devices | Must | Active | SI | UC-007 | ADR-003 | FEAT-008 | _TBD_ |
+| FR-PROF-001 | View profile (email, display name) | Must | Active | SI | UC-007 | features/FEAT-008-profile/technical-design.md; features/FEAT-008-profile/ui-design.md | FEAT-008 | features/FEAT-008-profile/acceptance-report.md |
+| FR-PROF-002 | Set/edit display name | Should | Active | SI | UC-007 | features/FEAT-008-profile/technical-design.md; features/FEAT-008-profile/ui-design.md | FEAT-008 | features/FEAT-008-profile/acceptance-report.md |
+| FR-PROF-003 | Set timezone (due/overdue calc) | Must | Active | SI | UC-007 | features/FEAT-008-profile/technical-design.md; features/FEAT-008-profile/ui-design.md | FEAT-008 | features/FEAT-008-profile/acceptance-report.md |
+| FR-PROF-004 | Select UI theme, persisted | Should | Active | SI | UC-007 | features/FEAT-008-profile/technical-design.md; features/FEAT-008-profile/ui-design.md | FEAT-008 | features/FEAT-008-profile/acceptance-report.md |
+| FR-PROF-005 | Persist settings across devices | Must | Active | SI | UC-007 | ADR-003; features/FEAT-008-profile/technical-design.md; features/FEAT-008-profile/ui-design.md | FEAT-008 | features/FEAT-008-profile/acceptance-report.md |
 | FR-LIST-001 | Create list with name | Must | Active | SI | UC-008 | ADR-003; features/FEAT-009-lists/technical-design.md; features/FEAT-009-lists/ui-design.md | FEAT-009 | features/FEAT-009-lists/acceptance-report.md |
 | FR-LIST-002 | Validate list name | Must | Active | SI | UC-008 | features/FEAT-009-lists/technical-design.md; features/FEAT-009-lists/ui-design.md | FEAT-009 | features/FEAT-009-lists/acceptance-report.md |
 | FR-LIST-003 | Auto-create default Inbox on registration | Must | Active | SI | UC-001 | ADR-003; features/FEAT-001-register/technical-design.md | FEAT-001 | features/FEAT-001-register/acceptance-report.md |
@@ -68,15 +68,15 @@
 | FR-TASK-013 | Soft-delete task (recoverable) | Must | Active | SI | UC-012 | ADR-003; arch §8; features/FEAT-013-delete-restore/technical-design.md; features/FEAT-013-delete-restore/ui-design.md | FEAT-013 | features/FEAT-013-delete-restore/acceptance-report.md |
 | FR-TASK-014 | Restore (undo) soft-deleted task | Must | Active | SI | UC-012 | ADR-003; features/FEAT-013-delete-restore/technical-design.md; features/FEAT-013-delete-restore/ui-design.md | FEAT-013 | features/FEAT-013-delete-restore/acceptance-report.md |
 | FR-TASK-015 | Purge soft-deleted after retention | Should | Active | PRIV | UC-012 | ADR-007; arch §8 | FEAT-020 | _TBD_ |
-| FR-SRCH-001 | Keyword search across all lists | Must | Active | SI | UC-013 | arch §8 | FEAT-015 | _TBD_ |
-| FR-SRCH-002 | Results show list + status | Must | Active | SI | UC-013 | _TBD_ | FEAT-015 | _TBD_ |
-| FR-SRCH-003 | Filter by status | Must | Active | SI | UC-013 | _TBD_ | FEAT-015 | _TBD_ |
-| FR-SRCH-004 | Filter by due date | Must | Active | SI | UC-013 | _TBD_ | FEAT-015 | _TBD_ |
-| FR-SRCH-005 | Combine search + filters (conjunctive) | Should | Active | SI | UC-013 | _TBD_ | FEAT-015 | _TBD_ |
-| FR-SRCH-006 | Empty-state message | Must | Active | SI | UC-013, UC-014 | _TBD_ | FEAT-015, FEAT-016 | _TBD_ |
-| FR-SRCH-007 | Smart views (Today/Upcoming/Overdue/All) | Should | Active | SI | UC-014 | _TBD_ | FEAT-016 | _TBD_ |
-| FR-SRCH-008 | Smart-view membership semantics | Should | Active | SI | UC-014 | _TBD_ | FEAT-016 | _TBD_ |
-| FR-SRCH-009 | Paginate/lazy-load large views | Should | Active | SI | UC-013 | arch §8 | FEAT-015 | _TBD_ |
+| FR-SRCH-001 | Keyword search across all lists | Must | Active | SI | UC-013 | arch §8; features/FEAT-015-search/technical-design.md; features/FEAT-015-search/ui-design.md | FEAT-015 | features/FEAT-015-search/acceptance-report.md |
+| FR-SRCH-002 | Results show list + status | Must | Active | SI | UC-013 | features/FEAT-015-search/technical-design.md; features/FEAT-015-search/ui-design.md | FEAT-015 | features/FEAT-015-search/acceptance-report.md |
+| FR-SRCH-003 | Filter by status | Must | Active | SI | UC-013 | features/FEAT-015-search/technical-design.md; features/FEAT-015-search/ui-design.md | FEAT-015 | features/FEAT-015-search/acceptance-report.md |
+| FR-SRCH-004 | Filter by due date | Must | Active | SI | UC-013 | features/FEAT-015-search/technical-design.md; features/FEAT-015-search/ui-design.md | FEAT-015 | features/FEAT-015-search/acceptance-report.md |
+| FR-SRCH-005 | Combine search + filters (conjunctive) | Should | Active | SI | UC-013 | features/FEAT-015-search/technical-design.md; features/FEAT-015-search/ui-design.md | FEAT-015 | features/FEAT-015-search/acceptance-report.md |
+| FR-SRCH-006 | Empty-state message | Must | Active | SI | UC-013, UC-014 | features/FEAT-015-search/technical-design.md; features/FEAT-015-search/ui-design.md; features/FEAT-016-smart-views/technical-design.md; features/FEAT-016-smart-views/ui-design.md | FEAT-015, FEAT-016 | features/FEAT-015-search/acceptance-report.md (partial); features/FEAT-016-smart-views/acceptance-report.md (partial) |
+| FR-SRCH-007 | Smart views (Today/Upcoming/Overdue/All) | Should | Active | SI | UC-014 | features/FEAT-016-smart-views/technical-design.md; features/FEAT-016-smart-views/ui-design.md | FEAT-016 | features/FEAT-016-smart-views/acceptance-report.md |
+| FR-SRCH-008 | Smart-view membership semantics | Should | Active | SI | UC-014 | features/FEAT-016-smart-views/technical-design.md; features/FEAT-016-smart-views/ui-design.md | FEAT-016 | features/FEAT-016-smart-views/acceptance-report.md |
+| FR-SRCH-009 | Paginate/lazy-load large views | Should | Active | SI | UC-013 | arch §8; features/FEAT-015-search/technical-design.md; features/FEAT-015-search/ui-design.md; features/FEAT-016-smart-views/technical-design.md; features/FEAT-016-smart-views/ui-design.md | FEAT-015 | features/FEAT-015-search/acceptance-report.md; features/FEAT-016-smart-views/acceptance-report.md (partial) |
 | FR-DATA-001 | Export all data as JSON | Must | Active | PRIV | UC-015 | _TBD_ | FEAT-017 | _TBD_ |
 | FR-DATA-002 | Export includes lists + active/completed tasks | Must | Active | PRIV | UC-015 | _TBD_ | FEAT-017 | _TBD_ |
 | FR-DATA-003 | Permanently delete account + data | Must | Active | PRIV | UC-016 | ADR-003 | FEAT-018 | _TBD_ |
@@ -124,7 +124,7 @@
 | NFR-OBS-001 | Structured centralized logging | Should | Active | SI | — | arch §8 | Foundations | _TBD_ |
 | NFR-OBS-002 | Health-check endpoint | Should | Active | SI | — | arch §8 | Foundations | _TBD_ |
 | NFR-OBS-003 | Latency/error metrics + alerting | Should | Active | SI | — | arch §8 | Foundations | _TBD_ |
-| NFR-LOC-001 | Store UTC, display user timezone | Must | Active | SI | UC-007 | arch §8 | Foundations, FEAT-008 | features/FEAT-010-create-task/acceptance-report.md (partial) |
+| NFR-LOC-001 | Store UTC, display user timezone | Must | Active | SI | UC-007 | arch §8; features/FEAT-008-profile/technical-design.md | Foundations, FEAT-008 | features/FEAT-010-create-task/acceptance-report.md (partial); features/FEAT-008-profile/acceptance-report.md (partial) |
 | NFR-LOC-002 | English-only, strings externalized | Should | Active | SI | — | _TBD_ | Foundations | _TBD_ |
 | NFR-COMP-001 | Privacy good practice; export/delete supported | Should | Active | PRIV | UC-015, UC-016 | _TBD_ | FEAT-017, FEAT-018 | _TBD_ |
 

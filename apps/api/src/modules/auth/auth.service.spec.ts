@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'crypto';
 import { Test } from '@nestjs/testing';
+import { APP_CONFIG, readConfig } from '../../infra/config';
 import { DbService } from '../../infra/db.service';
 import { AuthService } from './auth.service';
 import { PasswordPolicyService } from './password-policy.service';
@@ -32,6 +33,7 @@ const providers = [
   AuditService,
   AuditRepository,
   DbService,
+  { provide: APP_CONFIG, useFactory: readConfig },
 ];
 const VALID_PW = '9x!vQ2mLp0zR';
 

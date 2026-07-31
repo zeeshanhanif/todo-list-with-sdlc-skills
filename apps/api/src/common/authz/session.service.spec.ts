@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'crypto';
 import { Test } from '@nestjs/testing';
+import { APP_CONFIG, readConfig } from '../../infra/config';
 import { DbService } from '../../infra/db.service';
 import { SessionService } from './session.service';
 import { SessionsRepository } from './sessions.repository';
@@ -8,7 +9,12 @@ import { SessionsRepository } from './sessions.repository';
 // Cover the session store (FEAT-003 T3): issue persists only the token hash
 // with the configured expiry (AC-4); resolve returns the user for a live token
 // and touches last_used_at; resolve is null for unknown/expired tokens.
-const providers = [SessionService, SessionsRepository, DbService];
+const providers = [
+  SessionService,
+  SessionsRepository,
+  DbService,
+  { provide: APP_CONFIG, useFactory: readConfig },
+];
 
 describe('SessionService (integration)', () => {
   let db: DbService;

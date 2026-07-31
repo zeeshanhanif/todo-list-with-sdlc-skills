@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { Test } from '@nestjs/testing';
+import { APP_CONFIG, readConfig } from '../../infra/config';
 import { DbService } from '../../infra/db.service';
 import { TasksRepository } from './tasks.repository';
 
@@ -11,7 +12,11 @@ import { TasksRepository } from './tasks.repository';
 // belongs to that list only and goes with it), AC-9 (timestamptz round-trip).
 // AC-2's title validation lives in TasksService and is asserted in T3, per that
 // task's own done-when.
-const providers = [TasksRepository, DbService];
+const providers = [
+  TasksRepository,
+  DbService,
+  { provide: APP_CONFIG, useFactory: readConfig },
+];
 
 describe('TasksRepository (integration)', () => {
   let db: DbService;

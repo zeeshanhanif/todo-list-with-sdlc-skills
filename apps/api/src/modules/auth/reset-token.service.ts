@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'crypto';
-import { Injectable } from '@nestjs/common';
-import { loadConfig } from '../../infra/config';
+import { Inject, Injectable } from '@nestjs/common';
+import { APP_CONFIG, type AppConfig } from '../../infra/config';
 
 export interface IssuedResetToken {
   /** The raw token — goes in the reset email link only, never stored. */
@@ -19,6 +19,8 @@ export interface IssuedResetToken {
  */
 @Injectable()
 export class ResetTokenService {
+  constructor(@Inject(APP_CONFIG) private readonly config: AppConfig) {}
+
   /** SHA-256 hex of a raw token — shared by issue() and the reset lookup. */
   hashToken(raw: string): string {
     return createHash('sha256').update(raw).digest('hex');
@@ -26,7 +28,7 @@ export class ResetTokenService {
 
   issue(): IssuedResetToken {
     const raw = randomBytes(32).toString('base64url');
-    const ttlHours = loadConfig().resetTokenTtlHours;
+    const ttlHours = this.config.resetTokenTtlHours;
     const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000);
     return { raw, hash: this.hashToken(raw), expiresAt };
   }

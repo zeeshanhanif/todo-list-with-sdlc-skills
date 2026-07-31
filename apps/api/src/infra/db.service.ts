@@ -1,11 +1,12 @@
 import {
+  Inject,
   Injectable,
   Logger,
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
 import { Pool, type QueryResult, type QueryResultRow } from 'pg';
-import { loadConfig } from './config';
+import { APP_CONFIG, type AppConfig } from './config';
 
 /**
  * Thin Postgres access wrapper (ADR-003). In cloud environments the connection
@@ -27,8 +28,8 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DbService.name);
   private readonly pool: Pool;
 
-  constructor() {
-    this.pool = new Pool({ connectionString: loadConfig().databaseUrl });
+  constructor(@Inject(APP_CONFIG) config: AppConfig) {
+    this.pool = new Pool({ connectionString: config.databaseUrl });
   }
 
   async onModuleInit(): Promise<void> {

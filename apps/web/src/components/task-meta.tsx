@@ -2,6 +2,7 @@
 
 import { TASK_PRIORITIES, type TaskPriority } from "@todo/shared";
 import { formatDueDate } from "@/lib/due-date";
+import { useTimeZone } from "@/components/preferences-provider";
 
 // The two design.md indicators FEAT-011 adds, in one place because SCR-WEB-008's
 // task-row and SCR-WEB-010's detail both render them (ui-design D4).
@@ -22,6 +23,9 @@ export function DueChip({
   dueAt: string;
   isOverdue: boolean;
 }) {
+  // The account's zone, so a due date reads the same on every device the
+  // user owns (FEAT-008 §5.3, FR-PROF-003).
+  const timeZone = useTimeZone();
   return (
     <span
       data-testid="due-chip"
@@ -49,7 +53,7 @@ export function DueChip({
       }}
     >
       {isOverdue && <strong>Overdue</strong>}
-      {formatDueDate(dueAt)}
+      {formatDueDate(dueAt, timeZone)}
     </span>
   );
 }

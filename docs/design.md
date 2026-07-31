@@ -369,7 +369,11 @@ active / disabled** (plus **loading / error** where noted).
   priority colors (`--priority-*`). In the detail view each option shows its dot
   **and** its text label (§5 — never colour alone).
 - **`list-picker`** — dropdown of the user's lists (for task's list at create).
-- **`command-search`** — search field opening an overlay of results grouped by list.
+- **`command-search`** — search field opening an overlay of results, **each
+  labelled with the list it belongs to** (a `badge` carrying the list name).
+  Results are ordered by the server and rendered in that order; the overlay does
+  not regroup or re-sort them. *(Reworded by the 2026-07-31 amendment — the
+  original "grouped by list" could not survive pagination; see §9.)*
 
 ## 5. Accessibility Rules
 
@@ -459,6 +463,27 @@ actions (never joke in a delete confirmation or an error).
 ## 9. Provenance & Known Gaps
 
 **Amendments.**
+- **2026-07-31 — FEAT-015 (search overlay).** **Documentation-only — no token
+  value changed, so `tokens.json` and `tokens.generated.css` are untouched.** §4's
+  `command-search` said the overlay shows "results **grouped by list**". The first
+  feature to build it found that unbuildable against the requirements it must
+  serve, in three independent ways:
+  1. **Pagination fragments groups.** FR-SRCH-009 paginates results (keyset, 25 at
+     a time), so one list's matching tasks can span pages — a group would appear
+     on page 1 and again on page 3, and no group is known to be complete until the
+     final page loads.
+  2. **Grouping contradicts the result order.** Search returns results newest-first
+     across all lists; a list-major grouping makes "newest first" true only
+     *within* a group.
+  3. **The requirement asks for attribution, not grouping.** FR-SRCH-002 says the
+     system shall present each result "with the list it belongs to" — a per-row
+     property, which a `badge` carrying the list name delivers exactly.
+
+  The line now specifies per-result labelling and states that the overlay renders
+  the server's order without regrouping. Filed by
+  `docs/features/FEAT-015-search/ui-design.md` §Escalations; **no component was
+  forked, no token changed, and no other section referenced grouping** — the
+  correction is contained to this one component's description.
 - **2026-07-29 — FEAT-012 (complete checkbox).** **Documentation-only — no token
   value changed, so `tokens.json` and `tokens.generated.css` are untouched.** The
   first screen to render the `checkbox` measured its specified pairings and found

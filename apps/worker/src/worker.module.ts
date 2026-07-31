@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
 import { Pool } from "pg";
-import { loadConfig, type WorkerConfig } from "./config";
+import { readConfig, type WorkerConfig } from "./config";
 import { getPool } from "./infra/db";
 import { EMAIL_PORT } from "./email/email.port";
 import { createEmailPort } from "./email/email.provider";
@@ -14,7 +14,7 @@ export const WORKER_CONFIG = "WORKER_CONFIG";
 // standalone Cloud Run Job; main.ts resolves OutboxDrainService and runs it once.
 @Module({
   providers: [
-    { provide: WORKER_CONFIG, useFactory: () => loadConfig() },
+    { provide: WORKER_CONFIG, useFactory: () => readConfig() },
     { provide: Pool, useFactory: () => getPool() },
     {
       provide: EMAIL_PORT,

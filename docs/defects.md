@@ -7,13 +7,14 @@ recycled.
 | DEF | Reported | FR / Feature | Symptom (one line) | Fixed by | Re-verified |
 | :-- | :------- | :----------- | :----------------- | :------- | :---------- |
 | DEF-001 | 2026-07-27 | *(no FR — test infrastructure)* / FEAT-003, FEAT-005, FEAT-006 suites | Specs sharing an IP range delete each other's `auth_rate_buckets` rows mid-test, breaking `429` assertions | `24ae0d3` (disjoint ranges + `rate-limit-isolation.spec.ts` guard) | 2026-07-27 — guard red before / green after; flake rate ~25% → ~8% |
-| DEF-002 | 2026-07-27 | *(no FR — test infrastructure)* / api suite | **Open.** Residual ~7% parallel-run flakiness after DEF-001: a *different* test fails each run, always "a row that should exist doesn't". Cross-worker DB interference **ruled out** — per-worker databases were tried and reverted | _open_ | _open_ |
+| DEF-002 | 2026-07-27 | *(no FR — test infrastructure)* / api suite | **Open.** Residual ~7% flakiness after DEF-001: a *different* test fails each run, always "a row that should exist doesn't". Cross-worker DB interference **ruled out** — per-worker databases were tried and reverted. **Updated 2026-07-31 (FEAT-015 implementation): it is NOT parallel-only.** A full `--runInBand` run failed with the same signature (`expected 201, got 404` on a list the fixture had just created); the test passed in isolation and the next serial run was clean. The row previously said "parallel-run flakiness", which would send a fixer looking for cross-worker causes that are already ruled out — the trigger is order- or timing-dependent *within* a worker | _open_ | _open_ |
 | DEF-003 | 2026-07-28 | NFR-USE-004 (design.md §5 contrast) / FEAT-010, SCR-WEB-008 | `list-view-failure.tsx`'s alert put `--color-danger` text on `--color-danger-subtle` — **3.95:1**, below the 4.5:1 design.md §5 requires. Fixing it surfaced a **second** failure the report had missed: the action inside the tint at **4.48:1** | `bd200ec` (partner tokens; 3.95→6.80 and 4.48→6.21) | 2026-07-28 — measured, rendered output checked, e2e 15 green |
 | DEF-004 | 2026-07-29 | NFR-USE-004 (design.md §5 contrast) / FEAT-011, SCR-WEB-008 + SCR-WEB-010; **also FEAT-009**'s sidebar badge (2nd instance) | `task-meta.tsx`'s **non-overdue** `DueChip` put `--color-text-muted` on `--color-surface-sunken` — **4.34:1** at `caption` (12px), below the 4.5:1 design.md §5 requires. The *overdue* variant was fine (6.80:1, the pairing DEF-003 fixed); it was the ordinary due-date chip that failed — and `lists-nav.tsx`'s count badge, found by grepping the pairing | `1294811` (text on the sunken tint takes `--color-text`; 4.34→16.30 light, 7.05→15.49 dark) | 2026-07-29 — failing contrast test red before / green after; FEAT-011 report re-verified **Accepted (unchanged)**; api 191, e2e 19 |
-
 | DEF-005 | 2026-07-29 | NFR-USE-004 (design.md §5 control boundaries) / all web form controls, FEAT-001/002/003/005/006/009/010/011 | Every `input`/`textarea`/`select` in `apps/web` outlined in `--color-border-strong` — **1.48:1** light / **1.64:1** dark, below the 3:1 §5 requires for a boundary that is the control's only identifier. A web-tier accessibility pass, not per-feature work | `d27af38` (13 sites → `--color-text-muted`; 1.48→4.76 light, 1.64→6.64 dark) | 2026-07-29 — `control-contrast.spec.ts` sweep red before / green after across 8 screens; api 191, worker 20, e2e 21 |
-
+| DEF-008 | 2026-07-30 | NFR-MAINT-003 / walking skeleton — `apps/api` config layer | `loadConfig()` re-read `process.env` and re-ran its coercions on **every call**, and it was called per-request from 21 sites (session guard, rate-limit guard, db, auth, realtime). Config is ambient rather than declared, and values that cannot change during a process's life were rebuilt thousands of times a minute. Raised by the user reviewing the DEF-007 fix | `16f580c` (built once at boot, injected as `APP_CONFIG`; `loadConfig` → `readConfig`) | 2026-07-30 — api 247 serial, worker 24, web 23, e2e 30 ×2 consecutive; lint/boundaries/build clean |
+| DEF-007 | 2026-07-30 | NFR-MAINT-003 (externalized config) / walking skeleton — affects every env-driven setting in `apps/api` and `apps/worker` | `loadConfig()` called dotenv with no path, so it resolved `.env` against the **process CWD** — which is `apps/api` when started as a workspace script. The repo's only `.env` is at the root, so `npm run dev:api` / `npm run start -w @todo/api` silently ran on **defaults**, ignoring every value an operator set. `.env.example` says "Copy to .env for local development", so the documented path did not work | `8cafe7e` (env loading moved to the entrypoint, resolved by walking up; `loadConfig()` is now a pure read) | 2026-07-30 — guard red before / green after; the reported symptom reproduced and gone (`npm run start -w @todo/api` now logs `envFile` + honours `REALTIME_PROVIDER`); api 247, worker 24, web 23, e2e 30 |
 | DEF-006 | 2026-07-29 | NFR-USE-004 (design.md §5 contrast) / FEAT-001, FEAT-003, FEAT-005, FEAT-009 — the **inline-alert** instances DEF-003 and DEF-004 both missed | **Open.** Five shipped sites still put `--color-danger` on `--color-danger-subtle` at `small` — the **3.95:1** pairing DEF-003 measured and `--color-danger-text` (6.80:1) exists to replace: `app/signup/page.tsx:89`, `app/signin/page.tsx:128`, `app/reset-password/page.tsx:46`, `components/lists-nav.tsx:117`, `components/list-dialog.tsx:196`. A web-tier pass, not per-feature rework | _open_ | _open_ |
+| DEF-009 | 2026-07-30 | NFR-USE-004 (design.md §5 focus) / product-wide — every screen since FEAT-001 | **Open.** design.md §5 requires "a visible 2px `--color-focus-ring` ring with 2px offset on `:focus-visible`" and the token exists in both themes, but **no CSS in `apps/web` ever sets it** — every screen has relied on the browser default since the first slice. Found by FEAT-008 acceptance while verifying AC-16's keyboard clause; the default indicator is visible, so this is a design-system conformance gap, not an accessibility blocker. A web-tier pass like DEF-005/DEF-006, not per-feature rework | _open_ | _open_ |
 
 ## DEF-006 — the inline-alert instances of the DEF-003 pairing
 
@@ -452,3 +453,174 @@ readable failures.
 **Impact and workaround.** The gate is trustworthy when run serially
 (`npm test -w @todo/api -- --runInBand`, ~9 s vs ~4 s). Feature verification
 should use serial execution until this is fixed, and the report should say so.
+
+
+## DEF-007 — the API ignores the root `.env` (open)
+
+**Reported:** 2026-07-30, during FEAT-019's AC-1b staging run.
+**Owning requirement:** NFR-MAINT-003 (configuration externalized to the
+environment). Not a feature defect — it predates every slice.
+
+**Symptom.** Starting the API the documented way and setting
+`REALTIME_PROVIDER=supabase` in the root `.env` had **no effect**:
+`GET /realtime/token` kept answering `{ enabled: false }`. Exporting the same
+values into the shell first made it work immediately.
+
+**Cause.** `apps/api/src/infra/config.ts` calls `loadDotenv()` with no
+arguments, so dotenv looks for `.env` relative to `process.cwd()`. npm workspace
+scripts run with the CWD set to the **workspace** directory, and there is no
+`apps/api/.env` — so nothing is loaded and every setting falls back to its
+default. Introduced by the walking skeleton (`7b8d6e9`), not by a feature.
+
+**Blast radius — wider than Realtime.** Every value in `.env.example` that the
+API or worker reads is affected the same way: `EMAIL_PROVIDER` / `SMTP_URL`
+(FEAT-007 would silently keep logging instead of sending), `SESSION_TTL_DAYS`,
+`AUTH_RATELIMIT_*`, `LOGIN_LOCKOUT_MINUTES`, the token TTLs. Nothing is *broken*
+by the defaults — they are deliberately safe — which is exactly why this has
+gone unnoticed for nineteen features: the system works, it just does not obey
+its own configuration file locally.
+
+**Not a production issue.** In Cloud Run these arrive as service env vars, which
+`process.env` reads directly with no dotenv involved (`deploy/*.yaml`). The
+defect is confined to local development — and to anyone following
+`.env.example`'s instructions.
+
+**Why it was found now.** FEAT-019 is the first feature whose behaviour changes
+*visibly* based on an env value an operator must set by hand
+(`REALTIME_PROVIDER`). Every earlier feature's env values were either already
+correct as defaults or exercised through explicitly-passed env (the E2E
+`webServer` blocks, jest's own `process.env` assignments).
+
+**Suggested fix** (one line, plus a decision): resolve the path explicitly —
+`loadDotenv({ path: resolve(__dirname, '../../../../.env') })` or, cleaner, walk
+up to the repo root; and do the same in `apps/worker/src/infra/`. Worth pairing
+with a startup log line naming which config file was loaded (or that none was),
+since the failure mode is silence. **Fix protocol applies** (maintenance route):
+a failing test first — a spec asserting the API loads a root-level `.env` when
+started from the workspace directory — then the fix, then re-verification of the
+features whose config it touches.
+
+**Workaround until fixed.** Export the values before starting the API:
+`set -a; . ./.env; set +a; npm run start -w @todo/api`.
+
+
+## DEF-007 — fix (2026-07-30)
+
+**Failing test first.** `apps/api/src/infra/load-env.spec.ts` (6 cases) and
+`apps/worker/src/infra/load-env.spec.ts` (4) were written before the fix and run
+red — `Cannot find module './load-env'`, the loader did not exist. They build a
+throwaway tree shaped like the monorepo (root `.env` + nested `apps/<unit>`) and
+assert the file is found from the nested directory, from the root, and from
+deeper still.
+
+**The fix, and why it is shaped this way.** Env loading moved **out of
+`loadConfig()` and into the process entrypoint** (`main.ts` in both apps), with
+the file resolved by **walking up** from the start directory rather than trusting
+the CWD. `loadConfig()` is now a pure read of `process.env`.
+
+That split does three things, only the first of which was the reported bug:
+
+1. A workspace-script start finds the same `.env` the root scripts and
+   `node-pg-migrate` use.
+2. **Unit tests are hermetic by construction.** Previously any spec that deleted
+   an env var and called `loadConfig()` would have had dotenv re-inject the
+   developer's own `.env` — so a suite's result could depend on whose machine it
+   ran on. FEAT-019's `realtime.controller.spec` ("unconfigured answers
+   `{ enabled: false }`") is exactly such a spec, and would have become
+   machine-dependent the moment the path bug was fixed naively.
+3. **dotenv stops running per request.** `loadConfig()` is called from
+   `session.service`, `rate-limit.guard`, `auth.service`, `db.service` and the
+   realtime block — on essentially every request. Each call was hitting the
+   filesystem. (It is also what produced the `injected env (0) from .env` spam
+   through every test run.)
+
+**Precedence is deliberate and asserted: the real environment wins over the
+file.** In Cloud Run these arrive as service env vars with no file present, so a
+stray `.env` baked into an image can never override deployed config.
+
+**Startup now names the file** — `{"msg":"api listening", …, "envFile":"…/.env",
+"realtime":"supabase"}` — or says `none (using defaults + process env)`. The
+defect's failure mode was silence: configuration that looked applied and was not.
+
+**One harness change came with it, and it is not incidental.** The E2E
+`webServer` runs the API with the CWD at the repo root, so it *does* load the
+repo `.env` — meaning a developer with `REALTIME_PROVIDER=supabase` in theirs
+would have had the whole Playwright suite publishing to a real external service
+on every write, while a colleague's identical run did not. `e2e/playwright.config.ts`
+now pins `REALTIME_PROVIDER: "none"` explicitly. FEAT-019 AC-2 tests the fallback
+path on purpose; that must not depend on whose machine it runs on.
+
+**Verification.** Guard specs red before / green after. The reported symptom was
+reproduced and is gone: `npm run start -w @todo/api` with nothing exported now
+logs the root `.env` and `realtime: supabase`, where it previously ran on
+defaults. Full suites after the fix: **api 247** (serial), **worker 24**,
+**web 23**, **e2e 30**; lint, boundaries and build clean. No feature's behaviour
+changes on default configuration — the defaults were always the values these apps
+were actually running on.
+
+
+## DEF-008 — config read per request instead of built once (2026-07-30)
+
+**Not a behaviour defect** — nothing was wrong on screen. It is a design defect in
+the config layer, recorded here because the ledger is where this project keeps
+findings against already-verified code, and because the fix touches nine
+features' files.
+
+**Reported by the user**, reviewing the DEF-007 fix: *"why even call loadConfig
+again and again… if we load them at server start the config object can remain in
+memory."* Correct. There was no decision behind the old shape — it was the
+skeleton's convenience, inherited unexamined through nineteen features. My first
+answer defended it on "purity and cheapness"; that was rationalisation, and the
+count settled it: **21 production call sites**, most of them per-request.
+
+**The fix.** `AppConfig` is built **once**, at boot, by `InfraModule`'s
+`APP_CONFIG` factory, and injected wherever it is needed. `loadConfig` is renamed
+`readConfig` — it never loaded anything after DEF-007, and the name was what made
+the split confusing.
+
+`useFactory`, never `useValue`: a `useValue` would evaluate when the module is
+*imported*, before `main.ts` calls `loadEnv()`, silently handing the whole app a
+defaults-only config and undoing DEF-007. That trap is commented at the
+definition.
+
+**The worker already had it right** (`WORKER_CONFIG` via `useFactory`, FEAT-007).
+The API was the outlier; the worker only needed the rename and one leftover
+`loadDotenv()` inside `getPool()` — the same DEF-007 shape in miniature, reading
+the filesystem on first use from a runtime path.
+
+**What it actually bought, beyond the wasted work:**
+
+- **Config is a declared dependency**, not an ambient global a service reaches
+  for. A constructor now states that it needs config.
+- **Tests stopped mutating global state.** Specs used to set `process.env`,
+  restore it in `afterEach`, and hope nothing else in the worker process
+  interleaved. The realtime specs now pass config objects; the rate-limit ones
+  own the object the app was built with and turn limits up and down on it.
+- **The DEF-007 hazard is closed structurally**: there is exactly one place
+  config is constructed, immediately after env is loaded, and startup logs which
+  file that was.
+
+**Cost, honestly — I underestimated this when proposing it.** I said "most specs
+need no change". Ten needed changes: seven that provide `DbService` directly and
+now must supply its new dependency, and three that toggled `AUTH_RATELIMIT_MAX`
+*inside a test* and relied on the per-request re-read. That last group is the
+interesting one: the guard's comment said *"thresholds are read fresh from config
+each request"*, which I read as description and was in fact a contract three
+specs depended on. It is now stated the other way round — thresholds are fixed
+for the process's life, which is what env vars always were — and those specs
+mutate their own injected object instead.
+
+**One harness fix rode along, and it resolves a carried item.** The E2E
+`webServer` now pins `AUTH_RATELIMIT_MAX`. The suite's own fixtures register
+~25–30 users per run against a production-shaped limit of 30 per 15 minutes, so a
+full run sat one run away from red and two runs inside a window failed outright —
+the FEAT-009 acceptance minor that has been carried since, and that cost this
+session two false alarms (23 specs "failing" that were nothing of the kind).
+**No test was weakened**: no E2E asserts rate limiting, and the limiter's real
+coverage lives in the api specs with their own IP ranges. Proof it worked: two
+consecutive full E2E runs green **without clearing `auth_rate_buckets`**, which
+had never been true before.
+
+**Verification.** api **247** (serial), worker **24**, web **23**, e2e **30**
+twice consecutively; lint, boundaries and build clean. No behaviour change — the
+values the apps run on are identical, they are simply computed once.

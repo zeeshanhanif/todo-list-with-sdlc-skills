@@ -1,4 +1,5 @@
 import {
+  Inject,
   BadRequestException,
   Body,
   ConflictException,
@@ -28,7 +29,7 @@ import {
   type SignOutResponse,
   type VerifyResponse,
 } from '@todo/shared';
-import { loadConfig } from '../../infra/config';
+import { APP_CONFIG, type AppConfig } from '../../infra/config';
 import { clearSessionCookieOptions } from '../../common/authz/session.constants';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -58,7 +59,10 @@ import { CurrentUser } from '../../common/authz/current-user.decorator';
 // global filter renders the ApiError envelope.
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
+  ) {}
 
   @Post('register')
   @UseGuards(RateLimitGuard)
@@ -152,7 +156,7 @@ export class AuthController {
     await this.auth.signOut(cookies[SESSION_COOKIE] ?? '');
     res.clearCookie(
       SESSION_COOKIE,
-      clearSessionCookieOptions(loadConfig().cookieSecure),
+      clearSessionCookieOptions(this.config.cookieSecure),
     );
     return { status: 'signed_out' };
   }

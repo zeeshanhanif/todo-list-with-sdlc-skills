@@ -9,6 +9,7 @@ import {
   type ApiError,
   type ChangePasswordResponse,
 } from '@todo/shared';
+import { APP_CONFIG, readConfig, type AppConfig } from '../../infra/config';
 import { AppModule } from '../../app.module';
 import { configureApp } from '../../app-setup';
 import { DbService } from '../../infra/db.service';
@@ -32,7 +33,13 @@ describe('POST /auth/change-password (contract)', () => {
   let app: INestApplication;
   let db: DbService;
   const emails: string[] = [];
-  const prevRl = process.env.AUTH_RATELIMIT_MAX;
+  // Thresholds come from injected config (DEF-008): this spec owns the object
+  // the app is built with and turns limits up or down on it, instead of mutating
+  // process.env and hoping the guard re-reads it.
+  const config: AppConfig = {
+    ...readConfig(),
+    authRateLimitMax: 1000, // effectively off except where a case lowers it
+  };
   let ipCounter = 0;
   const nextIp = (): string => `${IP_PREFIX}${(ipCounter++ % 250) + 1}`;
   const server = () => app.getHttpServer() as Parameters<typeof request>[0];
@@ -87,10 +94,10 @@ describe('POST /auth/change-password (contract)', () => {
       .send(body);
 
   beforeAll(async () => {
-    process.env.AUTH_RATELIMIT_MAX = '1000';
-    const mod = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
+    const mod = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(APP_CONFIG)
+      .useValue(config)
+      .compile();
     app = mod.createNestApplication();
     configureApp(app);
     await app.init();
@@ -109,8 +116,6 @@ describe('POST /auth/change-password (contract)', () => {
   });
 
   afterAll(async () => {
-    if (prevRl === undefined) delete process.env.AUTH_RATELIMIT_MAX;
-    else process.env.AUTH_RATELIMIT_MAX = prevRl;
     await app.close();
   });
 
@@ -306,7 +311,7 @@ describe('POST /auth/change-password (contract)', () => {
 
   it("AC-8: per-IP rate-limited (429) in its own bucket — login's allowance is unaffected", async () => {
     const { email, cookies } = await signedIn();
-    process.env.AUTH_RATELIMIT_MAX = '2';
+    config.authRateLimitMax = 2;
     try {
       const ip = `${IP_PREFIX}251`;
       let last: { status: number; body: unknown } = { status: 0, body: null };
@@ -350,7 +355,6 @@ describe('POST /auth/change-password (contract)', () => {
         .send({ currentPassword: 'wrong', newPassword: NEW_PW });
       expect(changeAfter.status).toBe(400); // reached the handler, not throttled
     } finally {
-      process.env.AUTH_RATELIMIT_MAX = '1000';
       await db.query('DELETE FROM auth_rate_buckets WHERE ip LIKE $1', [
         `${IP_PREFIX}25%`,
       ]);

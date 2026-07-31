@@ -1,6 +1,9 @@
 # Acceptance Report: FEAT-019 — Realtime cross-device sync
 
 > Verdict: **Accepted, with AC-1b explicitly open** · Date: 2026-07-29
+> AC-1b run attempted 2026-07-30 against a staging hybrid — **partial, still
+> open**, deferred to first deploy by user decision. Verdict unchanged; see
+> "AC-1b run log" at the end of this report and `staging-checklist.md`.
 > Audited against: docs/features/FEAT-019-realtime-sync/technical-design.md §6
 > (AC-1..AC-12 + AC-1b), docs/srs.md (NFR-PERF-004 and the binding NFRs),
 > docs/use-cases.md (UC-009/010/011, sync aspect), ui-design.md and
@@ -37,7 +40,7 @@ behaviour, measured end to end in a real browser with two devices.
 | AC | Source | Evidence (re-run in this audit) | Verdict |
 | :- | :--- | :--- | :--- |
 | AC-1 | NFR-PERF-004; UC-009/010/011 | `e2e/tests/realtime-sync.spec.ts` "AC-1" — two contexts, one account; a create and a completion cross inside 5 s with no interaction and no navigation (URL asserted unchanged) | pass |
-| **AC-1b** | ADR-006 transport | **Not run** — needs a provisioned Supabase project; `staging-checklist.md` written and unexecuted | **open (pending environment)** |
+| **AC-1b** | ADR-006 transport | **Partially run 2026-07-30** against a staging hybrid (see run log at the end): token acceptance, publish `202` and timed delivery all proven; private-channel authorization refused for every topic, cause isolated to an RLS predicate on the Supabase side | **open (deferred to first deploy)** |
 | AC-2 | NFR-PERF-004, NFR-REL-004 | e2e "AC-2" on the **unconfigured** stack: convergence < 5 s with no socket, no seam, nothing clicked; focus converges < 2 s. Back-off asserted directly at the scheduler (`sync-schedule.spec.ts`) and through the island (`sync-provider.spec.tsx`) | pass |
 | AC-3 | ADR-006; FR-AUTHZ-002 | `change-signal.interceptor.spec.ts` — all **ten** mutating routes enumerated, each exactly one signal to the session user; 400/401/404 and every GET signal none; a stranger's 404 signals nothing | pass |
 | AC-4 | NFR-PERF-001, NFR-REL-004 | `supabase-realtime.publisher.spec.ts` — 500 / refused / hang all resolve without throwing and within the cap; breaker opens after 3 and probes after the window; **p95 measured** (corrected, below). Interceptor spec: a rejecting or slow publisher leaves status and body untouched | pass |
@@ -159,3 +162,81 @@ topic-scoping policy refuses a stranger's subscription, and that delivery is
 sub-second. Those are AC-1b, and they are the user's provisioning step followed
 by a nine-step checklist. **This should be run before first deploy**, since
 ADR-006 is a deploy-time dependency regardless.
+
+
+## AC-1b run log — 2026-07-30 (verdict unchanged)
+
+AC-1b was attempted after the user provisioned a Supabase project. It is **still
+open**, and the verdict above is unchanged: FEAT-019 remains accepted with this
+one criterion outstanding.
+
+**What the attempt proved** (all new, all real, none of it previously verifiable):
+
+- Supabase **accepts a JWT our API minted**, with no Supabase Auth involved —
+  ADR-006's load-bearing assumption. Proven by contrast against invalid-token
+  baselines, not by absence of an error.
+- Our **publish path works against the real service**: the broadcast POST returns
+  `202`, with the query-parameter form T3 corrected the design to.
+- **Delivery works end to end and was timed** — 726 ms on a public topic, from a
+  laptop to the project's region over the public internet.
+
+**What it did not prove, and why:**
+
+- **Private-channel authorization.** Subscriptions are refused for *every* topic,
+  including the caller's own. Excluded as causes: the socket, the URL, the
+  publishable key, the JWT and its secret, and the `realtime.messages`
+  partitions. It is an RLS-predicate problem on the Supabase side — one line of
+  configuration, no application code implicated.
+- **Deployed latency.** 726 ms is the mechanism working, not a deployed number.
+
+**A correction to this report's own reasoning.** The run initially read "B's
+token is refused on A's topic" as proof the policy scoped correctly. It is not:
+a policy that denies everything yields the identical observation. The legitimate
+case failing the same way is what exposed it. Recorded because this report is
+where a later reader would otherwise inherit the wrong inference.
+
+**Topology caveat.** The attempt used local Postgres for data plus a separate
+Supabase project as a message bus — valid for a content-free signal, but not
+architecture §7's single-project topology. AC-1b should be closed at first
+deploy, against the real thing.
+
+**One defect filed, not FEAT-019's.** The run surfaced **DEF-007**: the API
+resolves `.env` against the process CWD, so a workspace-script start silently
+ignores the root `.env` and runs on defaults. Pre-existing since the walking
+skeleton, affects every env-driven setting in `apps/api`/`apps/worker`, invisible
+until now because the defaults were all deliberately safe and FEAT-019 is the
+first feature whose behaviour visibly depends on an operator-set value. Local
+development only — Cloud Run passes env vars directly. See `docs/defects.md`.
+
+
+# Re-verification — 2026-07-30 · Verdict: Accepted (unchanged) · after the DEF-007 fix
+
+**Verdict unchanged: Accepted, with AC-1b still open.** No FEAT-019 code changed;
+suites re-run after the fix: api **247** (serial), worker **24**, web **23**,
+e2e **30**; lint, boundaries, build clean.
+
+Two things about this feature are worth recording, because DEF-007 and FEAT-019
+are entangled in both directions:
+
+1. **This feature is why the defect was found.** FEAT-019 is the first slice whose
+   behaviour visibly depends on an operator-set value (`REALTIME_PROVIDER`).
+   Every earlier feature's settings were either correct as defaults or passed
+   explicitly by a harness, so nineteen features ran on a config file nobody had
+   noticed was being ignored.
+2. **A naive fix would have made this feature's own suite machine-dependent.**
+   `realtime.controller.spec.ts` asserts that an unconfigured provider answers
+   `{ enabled: false }` — it deletes `REALTIME_PROVIDER` and calls `loadConfig()`.
+   Had the path bug been fixed while leaving dotenv inside `loadConfig()`, that
+   deletion would have been re-injected from the developer's own `.env`, and the
+   spec would have passed or failed depending on whose machine ran it. The fix
+   keeps loading at the entrypoint precisely so config reads stay pure.
+
+**One harness change protects this feature's central claim.** AC-2 verifies
+convergence *with no socket* — the unconfigured path. The E2E `webServer` runs
+the API with the CWD at the repo root, so after the fix it loads the repo `.env`;
+a developer with `REALTIME_PROVIDER=supabase` in theirs would have had AC-2
+silently testing the *configured* path instead, and publishing to a real external
+service on every write in the suite. `e2e/playwright.config.ts` now pins
+`REALTIME_PROVIDER: "none"`, so what AC-2 claims is what AC-2 runs.
+
+AC-1b is unaffected and remains open, deferred to first deploy.

@@ -7,6 +7,7 @@ import {
   type ForgotPasswordResponse,
   type ResetPasswordResponse,
 } from '@todo/shared';
+import { APP_CONFIG, readConfig, type AppConfig } from '../../infra/config';
 import { AppModule } from '../../app.module';
 import { configureApp } from '../../app-setup';
 import { DbService } from '../../infra/db.service';
@@ -27,7 +28,13 @@ describe('POST /auth/forgot + /auth/reset (contract)', () => {
   let app: INestApplication;
   let db: DbService;
   const emails: string[] = [];
-  const prevRl = process.env.AUTH_RATELIMIT_MAX;
+  // Thresholds come from injected config (DEF-008): this spec owns the object
+  // the app is built with and turns limits up or down on it, instead of mutating
+  // process.env and hoping the guard re-reads it.
+  const config: AppConfig = {
+    ...readConfig(),
+    authRateLimitMax: 1000, // effectively off except where a case lowers it
+  };
   let ipCounter = 0;
   const nextIp = (): string => `${IP_PREFIX}${(ipCounter++ % 250) + 1}`;
   const server = () => app.getHttpServer() as Parameters<typeof request>[0];
@@ -70,10 +77,10 @@ describe('POST /auth/forgot + /auth/reset (contract)', () => {
   };
 
   beforeAll(async () => {
-    process.env.AUTH_RATELIMIT_MAX = '1000';
-    const mod = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
+    const mod = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(APP_CONFIG)
+      .useValue(config)
+      .compile();
     app = mod.createNestApplication();
     configureApp(app);
     await app.init();
@@ -92,8 +99,6 @@ describe('POST /auth/forgot + /auth/reset (contract)', () => {
   });
 
   afterAll(async () => {
-    if (prevRl === undefined) delete process.env.AUTH_RATELIMIT_MAX;
-    else process.env.AUTH_RATELIMIT_MAX = prevRl;
     await app.close();
   });
 
@@ -172,7 +177,7 @@ describe('POST /auth/forgot + /auth/reset (contract)', () => {
   });
 
   it('AC-7: forgot and reset are per-IP rate-limited (429)', async () => {
-    process.env.AUTH_RATELIMIT_MAX = '2';
+    config.authRateLimitMax = 2;
     try {
       const forgotIp = nextIp();
       let forgotStatus = 0;
@@ -196,7 +201,8 @@ describe('POST /auth/forgot + /auth/reset (contract)', () => {
       }
       expect(resetStatus).toBe(429);
     } finally {
-      process.env.AUTH_RATELIMIT_MAX = '1000';
+      // Back to effectively-off, so later cases in this file are not throttled.
+      config.authRateLimitMax = 1000;
     }
   });
 

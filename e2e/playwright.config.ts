@@ -27,6 +27,22 @@ export default defineConfig({
         DATABASE_URL,
         PORT: "3001",
         WEB_ORIGIN: "http://localhost:3000",
+        // Pinned, not inherited (DEF-007). The API's CWD here is the repo root,
+        // so it loads the repo `.env` — and a developer with REALTIME_PROVIDER=
+        // supabase in theirs would otherwise have this suite publishing to a
+        // real external service on every write. The suite tests the fallback
+        // path deliberately (FEAT-019 AC-2); that must not depend on whose
+        // machine it runs on.
+        REALTIME_PROVIDER: "none",
+        // The suite's own fixtures register ~25-30 users per run against a
+        // production-shaped limit of 30 per 15 minutes, so a full run sat one
+        // run away from red and two runs in a window failed outright — the
+        // carried FEAT-009 acceptance minor, which cost this session two
+        // false alarms. Raised here, in the harness, NOT by weakening a test:
+        // no E2E test asserts rate limiting, and the limiter's own coverage
+        // lives in the api specs (sign-in / reset / change-password AC cases)
+        // with their own IP ranges and their own config.
+        AUTH_RATELIMIT_MAX: "100000",
       },
     },
     {

@@ -6,57 +6,133 @@ import {
 
 // The first web-tier unit spec. It exists to prove the runner works against real
 // shipped code — resolving the `@/` alias, running TS through next/jest — and it
-// pays for itself: this module's local-time rules (FEAT-011 ui-design D4) were
-// until now only reachable through Playwright, where the browser's timezone is
-// whatever the machine says. Dates are built from local parts on purpose, so the
-// assertions hold in any TZ.
-const localDate = (y: number, m: number, d: number, h = 0, min = 0) =>
-  new Date(y, m - 1, d, h, min);
-const iso = (...args: Parameters<typeof localDate>) =>
-  localDate(...args).toISOString();
+// pays for itself: this module's date rules (FEAT-011 ui-design D4) were until
+// now only reachable through Playwright, where the browser's timezone is
+// whatever the machine says.
+//
+// FEAT-008 T9 rewrote these functions to take the zone EXPLICITLY (AC-8,
+// FR-PROF-003, NFR-LOC-001), so every assertion below now names the zone it is
+// asserting in and holds on any machine regardless of its TZ.
+const KOLKATA = "Asia/Kolkata"; // +05:30, no DST — the half-hour case
+const NEW_YORK = "America/New_York"; // DST, the transition case
+const KATHMANDU = "Asia/Kathmandu"; // +05:45, the 45-minute case
 
 describe("formatDueDate", () => {
-  const now = localDate(2026, 7, 29, 9, 0);
+  // 2026-07-29T09:00Z = 14:30 in Kolkata, 05:00 in New York.
+  const now = new Date("2026-07-29T09:00:00.000Z");
 
-  it("names the day for today, tomorrow and yesterday", () => {
-    expect(formatDueDate(iso(2026, 7, 29), now)).toBe("Today");
-    expect(formatDueDate(iso(2026, 7, 30), now)).toBe("Tomorrow");
-    expect(formatDueDate(iso(2026, 7, 28), now)).toBe("Yesterday");
+  it("names the day for today, tomorrow and yesterday, in the given zone", () => {
+    expect(formatDueDate("2026-07-29T06:00:00.000Z", KOLKATA, now)).toMatch(
+      /^Today /,
+    );
+    expect(formatDueDate("2026-07-30T06:00:00.000Z", KOLKATA, now)).toMatch(
+      /^Tomorrow /,
+    );
+    expect(formatDueDate("2026-07-28T06:00:00.000Z", KOLKATA, now)).toMatch(
+      /^Yesterday /,
+    );
   });
 
-  it("appends a time only when one was set", () => {
-    // Exactly local midnight reads as a whole day, never "Today at 12:00 AM".
-    expect(formatDueDate(iso(2026, 7, 29, 0, 0), now)).toBe("Today");
-    expect(formatDueDate(iso(2026, 7, 29, 17, 30), now)).toMatch(/^Today .+/);
+  it("AC-8: the SAME instant reads as different days in different zones", () => {
+    // 2026-07-29T20:00Z is still the 29th in New York (16:00) but already the
+    // 30th in Kolkata (01:30 the next morning). This is the whole point of
+    // FR-PROF-003: without a stored zone, the answer depended on the device.
+    const instant = "2026-07-29T20:00:00.000Z";
+    expect(formatDueDate(instant, NEW_YORK, now)).toMatch(/^Today /);
+    expect(formatDueDate(instant, KOLKATA, now)).toMatch(/^Tomorrow /);
+  });
+
+  it("appends a time only when one was set IN THAT ZONE", () => {
+    // 18:30Z is exactly midnight in Kolkata (+05:30) — a whole day there...
+    expect(formatDueDate("2026-07-29T18:30:00.000Z", KOLKATA, now)).toBe(
+      "Tomorrow",
+    );
+    // ...and 14:30 in New York, which is a time.
+    expect(formatDueDate("2026-07-29T18:30:00.000Z", NEW_YORK, now)).toMatch(
+      /^Today .+/,
+    );
   });
 
   it("uses the weekday inside the coming week and a date beyond it", () => {
-    // +3 days — a weekday name, not "Aug 1".
-    expect(formatDueDate(iso(2026, 8, 1), now)).toMatch(/^[A-Z][a-z]{2}$/);
+    // Midnight IN KOLKATA on Aug 1 (+3 days) — so the weekday stands alone,
+    // per design.md §6 and the "time only when one was set" rule below.
+    expect(formatDueDate("2026-07-31T18:30:00.000Z", KOLKATA, now)).toBe("Sat");
+    // The same day with a time set keeps the weekday and adds the clock.
+    expect(formatDueDate("2026-08-01T06:00:00.000Z", KOLKATA, now)).toMatch(
+      /^Sat .+/,
+    );
     // +30 days — a month/day date.
-    expect(formatDueDate(iso(2026, 8, 28), now)).toMatch(/Aug/);
+    expect(formatDueDate("2026-08-28T06:00:00.000Z", KOLKATA, now)).toMatch(
+      /Aug/,
+    );
   });
 
   it("counts calendar days, not 24-hour spans", () => {
-    // 11pm today → 1am tomorrow is two hours apart and one calendar day apart.
-    const lateEvening = localDate(2026, 7, 29, 23, 0);
-    expect(formatDueDate(iso(2026, 7, 30, 1, 0), lateEvening)).toMatch(
-      /^Tomorrow /,
-    );
+    // 23:00 → 01:00 next day, in the user's zone: two hours apart, one day.
+    const lateEvening = new Date("2026-07-29T17:30:00.000Z"); // 23:00 Kolkata
+    expect(
+      formatDueDate("2026-07-29T19:30:00.000Z", KOLKATA, lateEvening),
+    ).toMatch(/^Tomorrow /);
+  });
+
+  it("counts calendar days across a DST transition", () => {
+    // US DST ends 2026-11-01. The 1st is a 25-hour day in New York; "tomorrow"
+    // must still be tomorrow.
+    const before = new Date("2026-10-31T18:00:00.000Z"); // 14:00 EDT, Oct 31
+    expect(
+      formatDueDate("2026-11-01T18:00:00.000Z", NEW_YORK, before),
+    ).toMatch(/^Tomorrow /); // 13:00 EST, Nov 1
   });
 });
 
 describe("datetime-local round trip", () => {
-  it("renders the browser's wall clock, not UTC", () => {
-    expect(toDateTimeLocalValue(iso(2026, 7, 29, 14, 5))).toBe(
-      "2026-07-29T14:05",
+  it("AC-8: renders the USER's wall clock, not UTC and not the machine's", () => {
+    // 02:30Z is 08:00 in Kolkata — the design's own worked example.
+    expect(toDateTimeLocalValue("2026-03-01T02:30:00.000Z", KOLKATA)).toBe(
+      "2026-03-01T08:00",
+    );
+    expect(toDateTimeLocalValue("2026-03-01T02:30:00.000Z", NEW_YORK)).toBe(
+      "2026-02-28T21:30",
     );
   });
 
-  it("returns the same instant after a round trip", () => {
-    const original = iso(2026, 7, 29, 14, 5);
-    expect(fromDateTimeLocalValue(toDateTimeLocalValue(original))).toBe(
-      original,
+  it("AC-8: sends the instant the user's wall clock names", () => {
+    // 09:00 in Kolkata (+05:30) is 03:30Z — the design's stated expectation.
+    expect(fromDateTimeLocalValue("2026-03-01T09:00", KOLKATA)).toBe(
+      "2026-03-01T03:30:00.000Z",
     );
+  });
+
+  it.each([
+    ["a half-hour zone", KOLKATA, "2026-03-01T09:00"],
+    ["a 45-minute zone", KATHMANDU, "2026-03-01T09:00"],
+    ["a whole-hour zone", NEW_YORK, "2026-03-01T09:00"],
+    ["UTC itself", "UTC", "2026-03-01T09:00"],
+  ])("round-trips through %s", (_label, zone, wall) => {
+    expect(toDateTimeLocalValue(fromDateTimeLocalValue(wall, zone), zone)).toBe(
+      wall,
+    );
+  });
+
+  it.each([
+    // US DST starts 2026-03-08 (02:00 -> 03:00) and ends 2026-11-01.
+    ["the hour before a spring-forward", "2026-03-08T01:30"],
+    ["the hour after a spring-forward", "2026-03-08T03:30"],
+    ["the hour before a fall-back", "2026-11-01T00:30"],
+    ["the hour after a fall-back", "2026-11-01T03:30"],
+  ])("round-trips %s unchanged", (_label, wall) => {
+    expect(
+      toDateTimeLocalValue(fromDateTimeLocalValue(wall, NEW_YORK), NEW_YORK),
+    ).toBe(wall);
+  });
+
+  it("keeps the instant stable across a value → instant → value cycle", () => {
+    const original = "2026-07-29T14:05:00.000Z";
+    expect(
+      fromDateTimeLocalValue(
+        toDateTimeLocalValue(original, KOLKATA),
+        KOLKATA,
+      ),
+    ).toBe(original);
   });
 });

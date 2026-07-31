@@ -93,3 +93,33 @@ Accepted → Test ref appended (Test ref column only, append-only):
   reports → the FR is fully verified by computation).
 - FR-AUTH-013 → `features/FEAT-007-email-delivery/acceptance-report.md (partial)`
   (remains partially verified — FEAT-005, the enqueue side, is not yet built).
+
+
+# Re-verification — 2026-07-30 · Verdict: Accepted (unchanged) · after the DEF-007 fix
+
+DEF-007 (the API/worker resolved `.env` against the process CWD, so a
+workspace-script start ignored the root file) touched this feature's
+configuration, so its report gains a dated re-verification.
+
+**Verdict unchanged: Accepted.** No criterion's outcome moves, and no code in
+this feature changed. What changed is that `EMAIL_PROVIDER` / `SMTP_URL` /
+`EMAIL_MAX_ATTEMPTS` / the backoff settings are now actually read from the root
+`.env` in local development, where previously they were silently ignored.
+
+The consequence for this feature was the sharpest of any: **an operator could
+configure real SMTP and the worker would go on logging emails instead of sending
+them**, with nothing in the output to say why. The delivery-side criteria were
+never wrong — they were verified against explicitly-passed config, which is why
+this went unnoticed — but the *documented* way to switch providers did not work.
+
+**Chain now complete, and both halves are tested.** `email.provider.spec.ts`
+already covered "config says smtp → `SmtpEmailPort` selected"; the new
+`apps/worker/src/infra/load-env.spec.ts` covers "root `.env` says smtp → config
+says smtp". Suites re-run after the fix: worker **24**, api **247** (serial),
+web **23**, e2e **30**.
+
+**Still untested anywhere, and worth stating rather than implying:** that
+`SmtpEmailPort` actually delivers against a real SMTP server. Both halves of the
+*selection* chain are covered; the send itself has only ever run through
+`LogEmailPort` in this repo. That is a first-deploy verification item, not a
+regression from this fix.

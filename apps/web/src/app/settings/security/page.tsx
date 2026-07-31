@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
+import { SettingsNav } from "@/components/settings-nav";
 import { requireSession } from "@/lib/session";
 
 // SCR-WEB-014 — Settings › Security & Account (ui-design.md). The hub for the
@@ -14,6 +15,10 @@ export default async function SecuritySettingsPage() {
 
   return (
     <AppShell active="settings">
+      {/* FEAT-008 extension: the settings sub-nav. Required, not cosmetic — the
+          sidebar's Settings item now targets /settings/profile, so this is how
+          the two sibling screens reach each other (FEAT-008 ui-design D3). */}
+      <SettingsNav active="security" />
       <h1
         style={{
           fontSize: "var(--font-size-h1)",

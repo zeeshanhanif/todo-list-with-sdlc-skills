@@ -11,11 +11,18 @@ import {
 } from '@todo/shared';
 import { AppModule } from '../../app.module';
 import { configureApp } from '../../app-setup';
+import { APP_CONFIG, readConfig, type AppConfig } from '../../infra/config';
 import { DbService } from '../../infra/db.service';
 import { RealtimeTokenService } from './realtime-token.service';
 
 // FEAT-019 T5 / AC-5, AC-6, AC-8 — the token endpoint over the real app.
 // Needs local Postgres.
+//
+// Config is injected (DEF-008), so this spec overrides APP_CONFIG with its OWN
+// object and toggles that object between cases — no process.env mutation, and
+// nothing here can be perturbed by a developer's .env. The object is shared by
+// reference with the booted app, which is what lets one app instance serve both
+// the configured and unconfigured cases.
 const VALID_PW = '9x!vQ2mLp0zR';
 const IP_PREFIX = '203.0.116.';
 const SECRET = 'controller-spec-jwt-secret';
@@ -25,21 +32,30 @@ const PUBLISHABLE = 'publishable-anon-key';
 describe('GET /realtime/token (contract)', () => {
   let app: INestApplication;
   let db: DbService;
-  const tokens = new RealtimeTokenService();
   const emails: string[] = [];
   let ipCounter = 0;
-  const env = { ...process.env };
+
+  /** The app's own config object — mutated per case, never process.env. */
+  const config: AppConfig = {
+    ...readConfig(),
+    realtimeProvider: 'none',
+    supabaseUrl: PROJECT_URL,
+    supabasePublishableKey: PUBLISHABLE,
+    supabaseJwtSecret: SECRET,
+    realtimeTokenTtlMinutes: 30,
+  };
+  /** Verifies tokens with the same secret the app is configured with. */
+  const tokens = new RealtimeTokenService(config);
 
   const server = () => app.getHttpServer() as Parameters<typeof request>[0];
   // Own IP range, disjoint from every other spec's (DEF-001).
   const nextIp = (): string => `${IP_PREFIX}${(ipCounter++ % 250) + 1}`;
 
   const configured = () => {
-    process.env.REALTIME_PROVIDER = 'supabase';
-    process.env.SUPABASE_URL = PROJECT_URL;
-    process.env.SUPABASE_PUBLISHABLE_KEY = PUBLISHABLE;
-    process.env.SUPABASE_JWT_SECRET = SECRET;
-    process.env.REALTIME_TOKEN_TTL_MINUTES = '30';
+    config.realtimeProvider = 'supabase';
+  };
+  const unconfigured = () => {
+    config.realtimeProvider = 'none';
   };
 
   const signedInUser = async (): Promise<{
@@ -75,9 +91,10 @@ describe('GET /realtime/token (contract)', () => {
   };
 
   beforeAll(async () => {
-    const mod = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
+    const mod = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(APP_CONFIG)
+      .useValue(config)
+      .compile();
     app = mod.createNestApplication();
     configureApp(app);
     await app.init();
@@ -85,7 +102,7 @@ describe('GET /realtime/token (contract)', () => {
   });
 
   afterEach(() => {
-    process.env = { ...env };
+    unconfigured();
   });
 
   afterAll(async () => {
@@ -124,10 +141,9 @@ describe('GET /realtime/token (contract)', () => {
 
   it('answers { enabled: false } with no token when unconfigured (AC-5)', async () => {
     const user = await signedInUser();
-    // A secret IS present in the environment — only the provider switch is off.
-    // If the endpoint minted anyway, this is where it would show.
-    process.env.SUPABASE_JWT_SECRET = SECRET;
-    delete process.env.REALTIME_PROVIDER;
+    // A secret IS configured — only the provider switch is off. If the endpoint
+    // minted anyway, this is where it would show.
+    unconfigured();
 
     const res = await request(server())
       .get(REALTIME_TOKEN_PATH)
@@ -234,7 +250,7 @@ describe('GET /realtime/token (contract)', () => {
   it('never puts a server-side secret on the wire (AC-8)', async () => {
     const user = await signedInUser();
     configured();
-    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-must-not-leak';
+    config.supabaseServiceRoleKey = 'service-role-must-not-leak';
 
     const res = await request(server())
       .get(REALTIME_TOKEN_PATH)

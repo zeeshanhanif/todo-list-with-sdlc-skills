@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { ExecutionContext, HttpException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { APP_CONFIG, readConfig, type AppConfig } from '../../infra/config';
 import { DbService } from '../../infra/db.service';
 import { RateLimitGuard } from './rate-limit.guard';
 import { RateLimitRepository } from './rate-limit.repository';
@@ -25,7 +26,9 @@ describe('RateLimitGuard (integration)', () => {
   let guard: RateLimitGuard;
   let repo: RateLimitRepository;
   const ips: string[] = [];
-  const prevMax = process.env.AUTH_RATELIMIT_MAX;
+  // The guard's thresholds come from injected config (DEF-008), so this spec
+  // owns a config object instead of mutating process.env.
+  const config: AppConfig = { ...readConfig(), authRateLimitMax: 3 };
 
   const freshIp = (): string => {
     const ip = `198.18.12.${Math.floor(Math.random() * 250) + 1}-${randomUUID()}`;
@@ -34,9 +37,13 @@ describe('RateLimitGuard (integration)', () => {
   };
 
   beforeAll(async () => {
-    process.env.AUTH_RATELIMIT_MAX = '3'; // small limit for a fast test
     const mod = await Test.createTestingModule({
-      providers: [RateLimitGuard, RateLimitRepository, DbService],
+      providers: [
+        RateLimitGuard,
+        RateLimitRepository,
+        DbService,
+        { provide: APP_CONFIG, useValue: config },
+      ],
     }).compile();
     db = mod.get(DbService);
     guard = mod.get(RateLimitGuard);
@@ -51,8 +58,6 @@ describe('RateLimitGuard (integration)', () => {
   });
 
   afterAll(async () => {
-    if (prevMax === undefined) delete process.env.AUTH_RATELIMIT_MAX;
-    else process.env.AUTH_RATELIMIT_MAX = prevMax;
     await db.onModuleDestroy();
   });
 

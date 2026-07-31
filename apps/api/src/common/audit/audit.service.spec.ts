@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { Test } from '@nestjs/testing';
+import { APP_CONFIG, readConfig } from '../../infra/config';
 import { DbService } from '../../infra/db.service';
 import { AuditService, AUDIT_EVENTS } from './audit.service';
 import { AuditRepository } from './audit.repository';
@@ -24,7 +25,12 @@ describe('AuditService (integration)', () => {
 
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
-      providers: [AuditService, AuditRepository, DbService],
+      providers: [
+        AuditService,
+        AuditRepository,
+        DbService,
+        { provide: APP_CONFIG, useFactory: readConfig },
+      ],
     }).compile();
     db = mod.get(DbService);
     audit = mod.get(AuditService);

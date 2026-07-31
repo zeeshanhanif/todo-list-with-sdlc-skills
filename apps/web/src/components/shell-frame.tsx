@@ -2,10 +2,15 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import type { ListSummary } from "@todo/shared";
+import { usePathname } from "next/navigation";
+import { SMART_VIEWS, type ListSummary, type UserProfile } from "@todo/shared";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ListsNav } from "@/components/lists-nav";
 import { SyncProvider } from "@/components/sync-provider";
+import { PreferencesProvider } from "@/components/preferences-provider";
+import { SearchOverlay } from "@/components/search-overlay";
+import { ThemeSync } from "@/components/theme-sync";
+import { TimezoneAdoption } from "@/components/timezone-adoption";
 
 // SCR-WEB-007 app-shell frame (design.md §3; FEAT-009 ui-design D3). Persistent
 // 280px sidebar ≥ md; below md a hamburger opens the sidebar as a full drawer over
@@ -17,15 +22,27 @@ import { SyncProvider } from "@/components/sync-provider";
 // wired yet — the same carried deviation the sign-out control records.
 // All colors/spacing come from token CSS variables.
 
-/** Sidebar nav items the shell knows about. Smart views are placeholders until
- * FEAT-016 makes them real; `settings` is live as of FEAT-006. */
+/** Sidebar nav items the shell knows about. `settings` is live as of FEAT-006 —
+ * and as of FEAT-008 it targets Profile & Preferences (SCR-WEB-013), with
+ * Security & Account one click away through the settings sub-nav
+ * (technical-design D5). The smart views need no entry here: their selected
+ * state comes from the pathname (below), which cannot go stale. */
 export type ShellNav = "none" | "settings";
+
+/** SCR-WEB-009's four views, labelled (FEAT-016). */
+const VIEW_LABELS: Record<(typeof SMART_VIEWS)[number], string> = {
+  today: "Today",
+  upcoming: "Upcoming",
+  overdue: "Overdue",
+  all: "All",
+};
 
 export function ShellFrame({
   children,
   active = "none",
   lists,
   activeListId,
+  profile,
 }: {
   children: ReactNode;
   active?: ShellNav;
@@ -33,10 +50,33 @@ export function ShellFrame({
   lists: ListSummary[] | null;
   /** The list currently open, for the selected state (FEAT-010). */
   activeListId?: string;
+  /** The caller's preferences, or null when the fetch failed (FEAT-008). */
+  profile?: UserProfile | null;
 }) {
+  // The open view's selected state is read from the URL rather than threaded
+  // down as a prop: this frame is already a client component, and a prop would
+  // depend on the view layout re-rendering on every param change to stay true.
+  const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // SCR-WEB-012 is an OVERLAY mounted here, not a route (FEAT-015 ui-design
+  // D1): search must be reachable from every authenticated screen without
+  // pushing the user's current list out of view or into their back history.
+  const [searchOpen, setSearchOpen] = useState(false);
   const drawerRef = useRef<HTMLElement | null>(null);
   const hamburgerRef = useRef<HTMLButtonElement | null>(null);
+
+  // Ctrl/Cmd+K opens search from anywhere in the authenticated zone
+  // (ui-design D6). The overlay owns Esc and the focus trap once open.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   // Esc closes the drawer and returns focus to its trigger (design.md §5).
   useEffect(() => {
@@ -53,107 +93,174 @@ export function ShellFrame({
   }, [drawerOpen]);
 
   return (
-    <div className="shell" data-drawer={drawerOpen ? "open" : "closed"}>
-      {/* Cross-device sync (FEAT-019). Renders nothing — it only decides when
+    // The preference host (FEAT-008 technical-design §5.2): everything inside the
+    // authenticated shell reads the caller's timezone and theme from here, and a
+    // saved change re-renders every consumer at once (ui-design D9).
+    <PreferencesProvider profile={profile ?? null}>
+      <div className="shell" data-drawer={drawerOpen ? "open" : "closed"}>
+        {/* Applies the ACCOUNT's theme over whatever the pre-paint script
+            guessed from the cookie, and re-mirrors the cookie for next time
+            (FEAT-008 technical-design D3). Renders nothing. */}
+        <ThemeSync theme={profile?.theme ?? null} />
+        {/* Establishes the account's timezone from the browser, once, when it
+            has never been set (FR-PROF-003; technical-design AC-7). Renders
+            nothing. */}
+        <TimezoneAdoption profile={profile ?? null} />
+        {searchOpen ? (
+          <SearchOverlay onClose={() => setSearchOpen(false)} />
+        ) : null}
+        {/* Cross-device sync (FEAT-019). Renders nothing — it only decides when
           to refetch. Mounted HERE rather than in the root layout because the
           shell is the authenticated zone: no token is minted and no socket is
           opened on /signin, /signup, /verify or /reset-password (AC-10), and
           signing out unmounts it. */}
-      <SyncProvider />
-      <div className="shell-topbar">
-        <button
-          type="button"
-          ref={hamburgerRef}
-          data-testid="drawer-toggle"
-          aria-label="Open navigation"
-          aria-expanded={drawerOpen}
-          onClick={() => setDrawerOpen(true)}
-          style={{
-            minWidth: "var(--size-touch-target)",
-            minHeight: "var(--size-touch-target)",
-            borderRadius: "var(--radius-md)",
-            border: "none",
-            background: "transparent",
-            color: "var(--color-text)",
-            fontSize: "var(--font-size-body-lg)",
-            cursor: "pointer",
-          }}
-        >
-          ☰
-        </button>
-        <span
-          style={{
-            color: "var(--color-primary)",
-            fontWeight: "var(--font-weight-semibold)" as unknown as number,
-            fontSize: "var(--font-size-body-lg)",
-          }}
-        >
-          To-Do
-        </span>
-      </div>
-
-      <div
-        className="shell-scrim"
-        data-testid="drawer-scrim"
-        onClick={() => setDrawerOpen(false)}
-        aria-hidden="true"
-      />
-
-      <aside
-        className="shell-sidebar"
-        ref={drawerRef}
-        tabIndex={-1}
-        aria-label="Main navigation"
-      >
-        <div
-          style={{
-            color: "var(--color-primary)",
-            fontWeight: "var(--font-weight-semibold)" as unknown as number,
-            fontSize: "var(--font-size-body-lg)",
-          }}
-        >
-          To-Do
+        <SyncProvider />
+        <div className="shell-topbar">
+          <button
+            type="button"
+            ref={hamburgerRef}
+            data-testid="drawer-toggle"
+            aria-label="Open navigation"
+            aria-expanded={drawerOpen}
+            onClick={() => setDrawerOpen(true)}
+            style={{
+              minWidth: "var(--size-touch-target)",
+              minHeight: "var(--size-touch-target)",
+              borderRadius: "var(--radius-md)",
+              border: "none",
+              background: "transparent",
+              color: "var(--color-text)",
+              fontSize: "var(--font-size-body-lg)",
+              cursor: "pointer",
+            }}
+          >
+            ☰
+          </button>
+          <span
+            style={{
+              color: "var(--color-primary)",
+              fontWeight: "var(--font-weight-semibold)" as unknown as number,
+              fontSize: "var(--font-size-body-lg)",
+            }}
+          >
+            To-Do
+          </span>
         </div>
 
-        <nav
-          style={{
-            marginTop: "var(--space-6)",
-            display: "flex",
-            flexDirection: "column",
-            gap: "var(--space-2)",
-            color: "var(--color-text-muted)",
-          }}
-          aria-label="Smart views"
-        >
-          <span>Today</span>
-          <span>Upcoming</span>
-          <span>Overdue</span>
-        </nav>
-
-        <ListsNav
-          lists={lists}
-          activeListId={activeListId}
-          onNavigate={() => setDrawerOpen(false)}
+        <div
+          className="shell-scrim"
+          data-testid="drawer-scrim"
+          onClick={() => setDrawerOpen(false)}
+          aria-hidden="true"
         />
 
-        <div style={{ marginTop: "var(--space-6)" }}>
-          <SidebarNavItem
-            href="/settings/security"
-            label="Settings"
-            selected={active === "settings"}
-            onClick={() => setDrawerOpen(false)}
+        <aside
+          className="shell-sidebar"
+          ref={drawerRef}
+          tabIndex={-1}
+          aria-label="Main navigation"
+        >
+          <div
+            style={{
+              color: "var(--color-primary)",
+              fontWeight: "var(--font-weight-semibold)" as unknown as number,
+              fontSize: "var(--font-size-body-lg)",
+            }}
+          >
+            To-Do
+          </div>
+
+          {/* The `command-search` trigger (FEAT-015 ui-design, SCR-WEB-007's
+              extension). A real button with an accessible name, styled as the
+              field it opens — not a decorative input, so it is reachable by
+              keyboard like every other sidebar control. */}
+          <button
+            type="button"
+            data-testid="search-trigger"
+            aria-label="Search tasks"
+            onClick={() => {
+              setDrawerOpen(false);
+              setSearchOpen(true);
+            }}
+            style={{
+              marginTop: "var(--space-5)",
+              width: "100%",
+              minHeight: "var(--size-touch-target)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "var(--space-2)",
+              padding: "0 var(--space-3)",
+              borderRadius: "var(--radius-md)",
+              border:
+                "var(--border-width-hairline) solid var(--color-text-muted)",
+              background: "var(--color-surface)",
+              color: "var(--color-text-muted)",
+              fontSize: "var(--font-size-body)",
+              cursor: "pointer",
+              textAlign: "left",
+            }}
+          >
+            <span>Search</span>
+            <span aria-hidden="true" style={{ fontSize: "var(--font-size-caption)" }}>
+              ⌘K
+            </span>
+          </button>
+
+          {/* SCR-WEB-009's navigation (FEAT-016). Four real `sidebar-nav-item`
+              links in FR-SRCH-008's own order — fixed, not sorted and not
+              user-arrangeable — replacing the three inert placeholders carried
+              since FEAT-009. No count badges (ui-design D6): each would be a
+              second aggregate query per navigation, and a cached "Today" count
+              is quietly wrong at midnight in the user's zone. */}
+          <nav
+            style={{
+              marginTop: "var(--space-6)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "var(--space-1)",
+            }}
+            aria-label="Smart views"
+          >
+            {SMART_VIEWS.map((view) => (
+              <SidebarNavItem
+                key={view}
+                href={`/views/${view}`}
+                label={VIEW_LABELS[view]}
+                testId={`nav-view-${view}`}
+                selected={pathname === `/views/${view}`}
+                onClick={() => setDrawerOpen(false)}
+              />
+            ))}
+          </nav>
+
+          <ListsNav
+            lists={lists}
+            activeListId={activeListId}
+            onNavigate={() => setDrawerOpen(false)}
           />
-        </div>
 
-        <SignOutButton />
-      </aside>
+          <div style={{ marginTop: "var(--space-6)" }}>
+            <SidebarNavItem
+              href="/settings/profile"
+              label="Settings"
+              selected={active === "settings"}
+              onClick={() => setDrawerOpen(false)}
+            />
+          </div>
 
-      <main className="shell-main">
-        <div style={{ maxWidth: "var(--size-content-max)", margin: "0 auto" }}>
-          {children}
-        </div>
-      </main>
-    </div>
+          <SignOutButton />
+        </aside>
+
+        <main className="shell-main">
+          <div
+            style={{ maxWidth: "var(--size-content-max)", margin: "0 auto" }}
+          >
+            {children}
+          </div>
+        </main>
+      </div>
+    </PreferencesProvider>
   );
 }
 
@@ -164,16 +271,18 @@ function SidebarNavItem({
   label,
   selected,
   onClick,
+  testId = "nav-settings",
 }: {
   href: string;
   label: string;
   selected: boolean;
   onClick?: () => void;
+  testId?: string;
 }) {
   return (
     <Link
       href={href}
-      data-testid="nav-settings"
+      data-testid={testId}
       aria-current={selected ? "page" : undefined}
       onClick={onClick}
       style={{
