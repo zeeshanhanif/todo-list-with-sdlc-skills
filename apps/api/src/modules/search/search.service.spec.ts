@@ -168,6 +168,12 @@ describe('SearchService (integration)', () => {
     );
     expect(hit.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/);
     // ...and nothing beyond the contract rode along on the row.
+    // `position` joined the contract in FEAT-014 (D8): SearchResult extends
+    // TaskSummary and there is ONE mapper, so a search hit carries the field
+    // even though nothing here sorts by it — search and the smart views are
+    // cross-list and order by created_at / due_at. Updated toward the design,
+    // not toward the code: the exhaustive key list is the point of this
+    // assertion, so it tracks the contract when the contract changes.
     expect(Object.keys(hit).sort()).toEqual([
       'completedAt',
       'createdAt',
@@ -176,6 +182,7 @@ describe('SearchService (integration)', () => {
       'isOverdue',
       'listId',
       'listName',
+      'position',
       'priority',
       'title',
     ]);

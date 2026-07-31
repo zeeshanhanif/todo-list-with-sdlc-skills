@@ -84,7 +84,7 @@
       DTO's own shape failures), AC-6 (`404 list_not_found`, **byte-identical**
       across the three causes), AC-7 (`401`, nothing written).
 
-- [ ] T6 — Cross-feature integration (design §5/§6; FR-TASK-003/009/010/014,
+- [x] T6 — Cross-feature integration (design §5/§6; FR-TASK-003/009/010/014,
       FR-LIST-005): one spec exercising reorder against the rest of the task
       loop — completed section order unchanged, remaining actives keep their
       relative order after a completion, `activeTaskCount` unaffected, a task

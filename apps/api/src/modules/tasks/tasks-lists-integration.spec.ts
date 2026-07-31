@@ -5,6 +5,7 @@ import request from 'supertest';
 import {
   completeTaskPath,
   listTasksPath,
+  reorderTasksPath,
   reopenTaskPath,
   restoreTaskPath,
   taskPath,
@@ -125,6 +126,31 @@ describe('tasks × lists (cross-feature)', () => {
       .set('Cookie', cookie);
     expect(res.status).toBe(200);
   };
+
+  // --- FEAT-014 helpers ---
+
+  const reopen = async (cookie: string, id: string): Promise<void> => {
+    const res = await request(server())
+      .post(reopenTaskPath(id))
+      .set('Cookie', cookie);
+    expect(res.status).toBe(200);
+  };
+
+  const reorder = async (
+    cookie: string,
+    listId: string,
+    taskIds: string[],
+  ): Promise<ListTasksResponse> => {
+    const res = await request(server())
+      .post(reorderTasksPath(listId))
+      .set('Cookie', cookie)
+      .send({ taskIds });
+    expect(res.status).toBe(200);
+    return res.body as ListTasksResponse;
+  };
+
+  const activeTitles = (view: ListTasksResponse): string[] =>
+    view.active.map((t) => t.title);
 
   beforeAll(async () => {
     process.env.AUTH_RATELIMIT_MAX = '1000';
@@ -375,5 +401,97 @@ describe('tasks × lists (cross-feature)', () => {
       activeTaskCount: 1,
       taskCount: 2,
     });
+  });
+
+  // --- FEAT-014 (T6) — the manual order against the rest of the task loop ---
+  //
+  // AC-3 (a task created after a reorder lands last), AC-8 (completing leaves
+  // the survivors' relative order, the completed section and the counts alone),
+  // AC-9 (a reopened task lands deterministically), AC-10 (so does a restored
+  // one, and a task created while it was deleted does not take its number).
+  // Every assertion goes through the REAL contracts, not the repository.
+
+  it('AC-3/AC-8: reorder holds across creation, completion and the counts', async () => {
+    const { cookie, inbox } = await signedInUser();
+    const a = await addTask(cookie, inbox, 'a');
+    const b = await addTask(cookie, inbox, 'b');
+    const c = await addTask(cookie, inbox, 'c');
+
+    await reorder(cookie, inbox, [c.id, a.id, b.id]);
+
+    // AC-3 — a task created afterwards appends, and moves nothing.
+    const d = await addTask(cookie, inbox, 'd');
+    expect(activeTitles(await getView(cookie, inbox))).toEqual([
+      'c',
+      'a',
+      'b',
+      'd',
+    ]);
+
+    // AC-8 — completing `a` removes it from the active order; c, b, d keep
+    // their RELATIVE order, and the counts move exactly as FEAT-009/012 say.
+    await complete(cookie, a.id);
+    const afterComplete = await getView(cookie, inbox);
+    expect(activeTitles(afterComplete)).toEqual(['c', 'b', 'd']);
+    expect(afterComplete.completed.map((t) => t.title)).toEqual(['a']);
+    expect(afterComplete.list).toMatchObject({
+      activeTaskCount: 3,
+      taskCount: 4,
+    });
+
+    // AC-8 — a reorder of the survivors leaves the completed section and the
+    // counts untouched.
+    const reordered = await reorder(cookie, inbox, [d.id, c.id, b.id]);
+    expect(activeTitles(reordered)).toEqual(['d', 'c', 'b']);
+    expect(reordered.completed.map((t) => t.title)).toEqual(['a']);
+    expect(reordered.list).toMatchObject({ activeTaskCount: 3, taskCount: 4 });
+    expect((await getLists(cookie)).lists[0]).toMatchObject({
+      activeTaskCount: 3,
+      taskCount: 4,
+    });
+  });
+
+  it('AC-9: a reopened task comes back at its stored position, and reads the same twice', async () => {
+    const { cookie, inbox } = await signedInUser();
+    const a = await addTask(cookie, inbox, 'a');
+    const b = await addTask(cookie, inbox, 'b');
+    const c = await addTask(cookie, inbox, 'c');
+
+    // `a` is completed while it sits at position 0, then the survivors are
+    // reordered — which renumbers only the ACTIVE set (D3), so `a`'s stored 0
+    // is now also held by `c`.
+    await complete(cookie, a.id);
+    await reorder(cookie, inbox, [c.id, b.id]); // c:0, b:1
+    await reopen(cookie, a.id);
+
+    const once = activeTitles(await getView(cookie, inbox));
+    const twice = activeTitles(await getView(cookie, inbox));
+    // `a` ties with `c` at position 0 and was created FIRST, so it sorts ahead
+    // of it (D4). Note what this shape rules out: a reopened task landing LAST
+    // would be indistinguishable from an append, so the tie is deliberately set
+    // up to put it FIRST — a result no append rule could produce.
+    expect(once).toEqual(['a', 'c', 'b']);
+    expect(twice).toEqual(once);
+  });
+
+  it('AC-10: a restored task returns to its position, and a task created meanwhile did not take its number', async () => {
+    const { cookie, inbox } = await signedInUser();
+    const a = await addTask(cookie, inbox, 'a');
+    const b = await addTask(cookie, inbox, 'b');
+
+    await remove(cookie, b.id); // b holds position 1 while soft-deleted
+    const c = await addTask(cookie, inbox, 'c'); // must NOT be given 1 (D5)
+    expect(c.position).toBe(2);
+    expect(activeTitles(await getView(cookie, inbox))).toEqual(['a', 'c']);
+
+    await restore(cookie, b.id);
+    const view = await getView(cookie, inbox);
+    expect(activeTitles(view)).toEqual(['a', 'b', 'c']);
+    expect(view.active.map((t) => t.position)).toEqual([0, 1, 2]);
+
+    // And the restored task participates in the next reorder like any other.
+    expect(activeTitles(await reorder(cookie, inbox, [b.id, c.id, a.id]))).toEqual(
+      ['b', 'c', 'a'],
+    );
   });
 });
