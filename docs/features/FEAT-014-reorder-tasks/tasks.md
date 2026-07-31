@@ -55,7 +55,7 @@
       and a re-applied migration leaves every row in a list with a distinct
       position (AC-13's precondition).
 
-- [ ] T3 — Repository (design §5; FR-TASK-012): project `position` in
+- [x] T3 — Repository (design §5; FR-TASK-012): project `position` in
       `TASK_COLUMNS` / `TaskRow` / `toTaskRow`; change `findByList`'s active
       branch to `position ASC` with `created_at ASC, id ASC` behind it (completed
       branch untouched); append on `create` via the `MAX(position) + 1` scalar

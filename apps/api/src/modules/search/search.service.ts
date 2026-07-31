@@ -76,5 +76,6 @@ export function toResult(row: SearchRow): SearchResult {
     dueAt: row.dueAt ? row.dueAt.toISOString() : null,
     priority: row.priority,
     isOverdue: isTaskOverdue(row),
+    position: row.position,
   };
 }

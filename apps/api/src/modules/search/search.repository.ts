@@ -19,6 +19,11 @@ export interface SearchRow {
   createdAt: Date;
   dueAt: Date | null;
   priority: TaskPriority;
+  /** FR-TASK-012's manual rank (FEAT-014). Carried because `SearchResult`
+   * extends `TaskSummary` and the wire shape has one mapper, NOT because
+   * anything here sorts by it — search and the smart views are cross-list and
+   * order by `created_at` / `due_at` (FEAT-014 D8). */
+  position: number;
 }
 
 interface RawRow {
@@ -31,6 +36,7 @@ interface RawRow {
   created_at: Date;
   due_at: Date | null;
   priority: TaskPriority;
+  position: number;
 }
 
 /**
@@ -119,7 +125,7 @@ export class SearchRepository {
 
     const res = await this.db.query<RawRow>(
       `SELECT t.id, t.list_id, l.name AS list_name, t.title,
-              t.completed_at, t.created_at, t.due_at, t.priority,
+              t.completed_at, t.created_at, t.due_at, t.priority, t.position,
               to_char(${sortColumn} AT TIME ZONE 'UTC',
                       'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS sort_key_exact
          FROM tasks t
@@ -194,5 +200,6 @@ function toRow(row: RawRow): SearchRow {
     createdAt: row.created_at,
     dueAt: row.due_at,
     priority: row.priority,
+    position: row.position,
   };
 }

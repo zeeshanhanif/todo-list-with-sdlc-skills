@@ -258,6 +258,7 @@ function toSummary(row: TaskRow): TaskSummary {
     dueAt: row.dueAt ? row.dueAt.toISOString() : null,
     priority: row.priority,
     isOverdue: isTaskOverdue(row),
+    position: row.position,
   };
 }
 
