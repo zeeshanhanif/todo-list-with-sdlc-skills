@@ -14,7 +14,7 @@ recycled.
 | DEF-008 | 2026-07-30 | NFR-MAINT-003 / walking skeleton — `apps/api` config layer | `loadConfig()` re-read `process.env` and re-ran its coercions on **every call**, and it was called per-request from 21 sites (session guard, rate-limit guard, db, auth, realtime). Config is ambient rather than declared, and values that cannot change during a process's life were rebuilt thousands of times a minute. Raised by the user reviewing the DEF-007 fix | `16f580c` (built once at boot, injected as `APP_CONFIG`; `loadConfig` → `readConfig`) | 2026-07-30 — api 247 serial, worker 24, web 23, e2e 30 ×2 consecutive; lint/boundaries/build clean |
 | DEF-007 | 2026-07-30 | NFR-MAINT-003 (externalized config) / walking skeleton — affects every env-driven setting in `apps/api` and `apps/worker` | `loadConfig()` called dotenv with no path, so it resolved `.env` against the **process CWD** — which is `apps/api` when started as a workspace script. The repo's only `.env` is at the root, so `npm run dev:api` / `npm run start -w @todo/api` silently ran on **defaults**, ignoring every value an operator set. `.env.example` says "Copy to .env for local development", so the documented path did not work | `8cafe7e` (env loading moved to the entrypoint, resolved by walking up; `loadConfig()` is now a pure read) | 2026-07-30 — guard red before / green after; the reported symptom reproduced and gone (`npm run start -w @todo/api` now logs `envFile` + honours `REALTIME_PROVIDER`); api 247, worker 24, web 23, e2e 30 |
 | DEF-006 | 2026-07-29 | NFR-USE-004 (design.md §5 contrast) / FEAT-001, FEAT-003, FEAT-005, FEAT-009 — the **inline-alert** instances DEF-003 and DEF-004 both missed | **Open.** Five shipped sites still put `--color-danger` on `--color-danger-subtle` at `small` — the **3.95:1** pairing DEF-003 measured and `--color-danger-text` (6.80:1) exists to replace: `app/signup/page.tsx:89`, `app/signin/page.tsx:128`, `app/reset-password/page.tsx:46`, `components/lists-nav.tsx:117`, `components/list-dialog.tsx:196`. A web-tier pass, not per-feature rework | _open_ | _open_ |
-| DEF-009 | 2026-07-30 | NFR-USE-004 (design.md §5 focus) / product-wide — every screen since FEAT-001 | **Open.** design.md §5 requires "a visible 2px `--color-focus-ring` ring with 2px offset on `:focus-visible`" and the token exists in both themes, but **no CSS in `apps/web` ever sets it** — every screen has relied on the browser default since the first slice. Found by FEAT-008 acceptance while verifying AC-16's keyboard clause; the default indicator is visible, so this is a design-system conformance gap, not an accessibility blocker. A web-tier pass like DEF-005/DEF-006, not per-feature rework | _open_ | _open_ |
+| DEF-009 | 2026-07-30 | NFR-USE-004 (design.md §5 focus) / product-wide — every screen since FEAT-001 | design.md §5 requires "a visible 2px `--color-focus-ring` ring with 2px offset on `:focus-visible`" and the token exists in both themes, but **no CSS in `apps/web` ever set it** — every screen relied on the browser's 1px default since the first slice. Found by FEAT-008 acceptance while verifying AC-16's keyboard clause; the default indicator is visible, so this was a design-system conformance gap, not an accessibility blocker. A web-tier pass like DEF-005/DEF-006, not per-feature rework | `70b4a30` (one `:focus-visible` rule in globals.css, width and offset from `--border-width-thick`) | 2026-08-01 — guard red before (1px measured) / green after; ring confirmed unclipped visually in row and sidebar; product-wide re-verification **Accepted (unchanged)**; api 442, web 78, e2e 53 |
 | DEF-010 | 2026-08-01 | FR-SRCH-007/008 (smart views) / FEAT-016 — `views.service.spec` AC-2 and `smart-views.spec` UC-014 | **Test defect, not a product defect.** Both fixtures assume a wall-clock condition that holds for only part of each day: the unit test needs New York and Calcutta to share a calendar date (false after ~14:30 NY), and the E2E seeds a task at `now() + 5 hours` and expects it in Today (false after 19:00 UTC). The product is correct in both cases — verified by inspecting the seeded instants against the rule. One root cause, two symptoms; CI would fail daily for part of the day | `3fd7619` (both fixtures derive their zone from the current instant — `Etc/GMT±N`, fixed offset, no DST) | 2026-08-01 — red before / green after; arithmetic checked across all 24 UTC hours; FEAT-016 re-verified **Accepted (unchanged)**; api 442, e2e 48 |
 | DEF-011 | 2026-08-01 | NFR-USE-004 (design.md §5 targets) / product-wide — icon-only controls since FEAT-009 | Icon-only buttons are **40px** (`--size-control-md`) on every viewport, where design.md §4 specifies "40px (**44px touch**)" and §5 requires "≥ 44×44px on touch viewports". No coarse-pointer rule exists anywhere in `apps/web`, so the touch size was never implemented. Found by FEAT-014 acceptance (AC-12 names the 44px target explicitly). A web-tier pass like DEF-005/DEF-006/DEF-009, not per-feature rework — `detail-panel.tsx` already shows the codebase's own answer | `1838a4d` (lists-nav's two icon buttons → `--size-touch-target`; FEAT-014's three fixed in its own rework at `152de92`) | 2026-08-01 — `e2e/tests/touch-target.spec.ts` measured 40×40 before / ≥44×44 after; FEAT-009 re-verified **Accepted (unchanged)**; api 442, e2e 48 |
 
@@ -701,3 +701,78 @@ question, not a defect fix.
 **Verification.** Guard red before / green after, api **442/442**, web 76/76,
 worker 24/24, e2e **48/48**, lint · boundaries · build clean. FEAT-009's report
 carries a dated re-verification: Accepted, unchanged.
+
+## DEF-006 — fix (2026-08-01)
+
+**Seven sites, not five.** The ledger recorded five style objects painting
+`--color-danger` on `--color-danger-subtle` (3.95:1, against design.md §5's
+4.5:1 for body text). The fix found two more: the sign-up alert contains **two
+links** carrying their own `--color-danger` on the same tint. A sweep reading
+only each alert's own `color` would have declared that screen fixed while both
+links stayed at 3.95:1.
+
+**Two guards, because neither subsumes the other.**
+
+- `e2e/tests/inline-alert-contrast.spec.ts` — drives each auth screen to its
+  real error state and measures **what the browser painted**, walking the alert
+  and every element inside it. Computed ratios, not expected hex, so a token
+  change that keeps the rule stays green. This is what found the two links.
+  (The reset-password screen reaches its alert by aborting the request: an
+  invalid token renders a dedicated state instead, so the unreachable-server
+  branch is the honest path to that element.)
+- `apps/web/src/styles/danger-tint-pairing.spec.ts` — sweeps source for the
+  pairing, scoped to the enclosing style object so a reformat cannot narrow it.
+  It exists because two of the five sites — the sidebar's "couldn't load your
+  lists" alert and the list dialog's form error — need the API to fail
+  mid-session, which no honest E2E path produces. Those are exactly the sites
+  that survived DEF-003's and DEF-004's fixes. Its known limit is the mirror of
+  the other guard's strength: a CHILD element with its own style object is
+  invisible to it.
+
+Both were red before the fix — the source guard naming all five files
+independently of the ledger — and green after.
+
+**Verification.** api 442/442, web **78/78**, worker 24/24, e2e **53/53**,
+lint · boundaries · build clean. FEAT-001, FEAT-003, FEAT-005 and FEAT-009
+carry dated re-verifications: Accepted, unchanged.
+
+## DEF-009 — fix (2026-08-01)
+
+**One rule, in `globals.css`, where the other cross-cutting rules already live**
+(a pseudo-class cannot be expressed in the components' inline token styles):
+
+```css
+:focus-visible {
+  outline: var(--border-width-thick) solid var(--color-focus-ring);
+  outline-offset: var(--border-width-thick);
+}
+```
+
+Width and offset come from the 2px token this system already has rather than
+literals. The selector is deliberately **not** scoped to a control list —
+"every interactive element" is design.md's rule, and a selector enumerating
+today's controls would silently exclude tomorrow's.
+
+**Guard.** `e2e/tests/focus-ring.spec.ts` sweeps a signed-out screen and all
+three regions of the shell (composer, sidebar icon button, task row's checkbox
+and link), asserting style, width, colour and offset against the token's value
+**read from the running page**, so a token change moves the assertion rather
+than breaking it. Red before at `outline-width: 1px` — the browser default that
+had stood in for the design system since FEAT-001.
+
+**Worth knowing for the next person**, and recorded in the spec: `:focus-visible`
+is a heuristic on input **modality**. Chromium matches it on a text input
+however focus arrived, but on a `<button>` only while the user is navigating by
+keyboard — so a bare programmatic `.focus()` reports `outline: none` on every
+button. That is the selector behaving correctly, not a missing ring; the helper
+presses Tab first to establish keyboard modality.
+
+**Checked and deliberately left alone:** `detail-panel.tsx`'s `outline: "none"`
+sits on the panel *container*, a `tabIndex={-1}` focus-trap host rather than an
+interactive control. Ringing an entire slide-over would be noise, and §5 governs
+controls.
+
+**Verification.** Guard red before / green after; the ring confirmed **visually**
+unclipped in both a task row and the sidebar, where `overflow-y: auto` could have
+cropped an offset outline. api 442/442, web 78/78, worker 24/24, e2e **53/53**,
+lint · boundaries · build clean.

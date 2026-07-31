@@ -1,5 +1,27 @@
 # Acceptance Report: FEAT-003 — Sign in (session, lockout, rate-limit)
 
+# Re-verification — 2026-08-01 · Verdict: Accepted (unchanged) · after the DEF-006 and DEF-009 fixes
+
+**Two one-line-per-site colour changes; no behaviour, contract or state moved.**
+
+- **DEF-006** — this feature's inline error alert paired `--color-danger` with
+  `--color-danger-subtle` (**3.95:1**, under design.md §5's 4.5:1 for body
+  text). It now uses the tint's partner ink `--color-danger-text` (**6.80:1**
+  light / 8.31:1 dark). The alert's copy, role, testid, trigger conditions and
+  placement are untouched — only the ink.
+- **DEF-009** — the design system's `:focus-visible` ring (2px
+  `--color-focus-ring`, 2px offset) is now actually applied, product-wide, in
+  `globals.css`. Every screen previously showed the browser's 1px default.
+
+**Verdict unchanged: Accepted.** No acceptance criterion of this feature is
+affected: both changes make the screens conform *more* closely to design.md §5,
+which the criteria already required. Both are now guarded permanently —
+`e2e/tests/inline-alert-contrast.spec.ts` measures the rendered contrast ratio
+and `e2e/tests/focus-ring.spec.ts` measures the rendered ring.
+
+**Re-executed (2026-08-01, from `70b4a30`):** api **442/442**, web **78/78**,
+worker 24/24, e2e **53/53**, lint · boundaries · build clean.
+
 > Verdict: **Accepted** · Date: 2026-07-24
 > Standard: technical-design.md §6 @ f7256d5 · Sources: srs.md (v1.0), use-cases.md (UC-003)
 > Repo state audited: d285303
