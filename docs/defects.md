@@ -15,6 +15,8 @@ recycled.
 | DEF-007 | 2026-07-30 | NFR-MAINT-003 (externalized config) / walking skeleton — affects every env-driven setting in `apps/api` and `apps/worker` | `loadConfig()` called dotenv with no path, so it resolved `.env` against the **process CWD** — which is `apps/api` when started as a workspace script. The repo's only `.env` is at the root, so `npm run dev:api` / `npm run start -w @todo/api` silently ran on **defaults**, ignoring every value an operator set. `.env.example` says "Copy to .env for local development", so the documented path did not work | `8cafe7e` (env loading moved to the entrypoint, resolved by walking up; `loadConfig()` is now a pure read) | 2026-07-30 — guard red before / green after; the reported symptom reproduced and gone (`npm run start -w @todo/api` now logs `envFile` + honours `REALTIME_PROVIDER`); api 247, worker 24, web 23, e2e 30 |
 | DEF-006 | 2026-07-29 | NFR-USE-004 (design.md §5 contrast) / FEAT-001, FEAT-003, FEAT-005, FEAT-009 — the **inline-alert** instances DEF-003 and DEF-004 both missed | **Open.** Five shipped sites still put `--color-danger` on `--color-danger-subtle` at `small` — the **3.95:1** pairing DEF-003 measured and `--color-danger-text` (6.80:1) exists to replace: `app/signup/page.tsx:89`, `app/signin/page.tsx:128`, `app/reset-password/page.tsx:46`, `components/lists-nav.tsx:117`, `components/list-dialog.tsx:196`. A web-tier pass, not per-feature rework | _open_ | _open_ |
 | DEF-009 | 2026-07-30 | NFR-USE-004 (design.md §5 focus) / product-wide — every screen since FEAT-001 | **Open.** design.md §5 requires "a visible 2px `--color-focus-ring` ring with 2px offset on `:focus-visible`" and the token exists in both themes, but **no CSS in `apps/web` ever sets it** — every screen has relied on the browser default since the first slice. Found by FEAT-008 acceptance while verifying AC-16's keyboard clause; the default indicator is visible, so this is a design-system conformance gap, not an accessibility blocker. A web-tier pass like DEF-005/DEF-006, not per-feature rework | _open_ | _open_ |
+| DEF-010 | 2026-08-01 | FR-SRCH-007/008 (smart views) / FEAT-016 — `views.service.spec` AC-2 and `smart-views.spec` UC-014 | **Test defect, not a product defect.** Both fixtures assume a wall-clock condition that holds for only part of each day: the unit test needs New York and Calcutta to share a calendar date (false after ~14:30 NY), and the E2E seeds a task at `now() + 5 hours` and expects it in Today (false after 19:00 UTC). The product is correct in both cases — verified by inspecting the seeded instants against the rule. One root cause, two symptoms; CI would fail daily for part of the day | `3fd7619` (both fixtures derive their zone from the current instant — `Etc/GMT±N`, fixed offset, no DST) | 2026-08-01 — red before / green after; arithmetic checked across all 24 UTC hours; FEAT-016 re-verified **Accepted (unchanged)**; api 442, e2e 48 |
+| DEF-011 | 2026-08-01 | NFR-USE-004 (design.md §5 targets) / product-wide — icon-only controls since FEAT-009 | Icon-only buttons are **40px** (`--size-control-md`) on every viewport, where design.md §4 specifies "40px (**44px touch**)" and §5 requires "≥ 44×44px on touch viewports". No coarse-pointer rule exists anywhere in `apps/web`, so the touch size was never implemented. Found by FEAT-014 acceptance (AC-12 names the 44px target explicitly). A web-tier pass like DEF-005/DEF-006/DEF-009, not per-feature rework — `detail-panel.tsx` already shows the codebase's own answer | `1838a4d` (lists-nav's two icon buttons → `--size-touch-target`; FEAT-014's three fixed in its own rework at `152de92`) | 2026-08-01 — `e2e/tests/touch-target.spec.ts` measured 40×40 before / ≥44×44 after; FEAT-009 re-verified **Accepted (unchanged)**; api 442, e2e 48 |
 
 ## DEF-006 — the inline-alert instances of the DEF-003 pairing
 
@@ -624,3 +626,78 @@ had never been true before.
 **Verification.** api **247** (serial), worker **24**, web **23**, e2e **30**
 twice consecutively; lint, boundaries and build clean. No behaviour change — the
 values the apps run on are identical, they are simply computed once.
+
+## DEF-010 — smart-view fixtures depended on the hour of the run (2026-08-01)
+
+**Reported by** FEAT-014's acceptance run, which hit two red tests it had not
+caused and had to prove were not its own.
+
+**Symptom.** `views.service.spec` AC-2 ("the same task is Today in one zone and
+Upcoming in another") and `smart-views.spec` UC-014 both failed. Neither had
+anything to do with FEAT-014, whose only search-module change was adding
+`t.position` to a projection.
+
+**Diagnosis — the product was right in both cases.** The unit test asserted a
+property true only while New York and Calcutta share a calendar date, which
+stops being true after about 14:30 New York time. The E2E seeded tasks at
+`now() + 3 hours` and `now() + 5 hours` and expected both in Today; at 20:34 UTC
+those instants are **tomorrow**, so FR-SRCH-008's Today view correctly excluded
+one. Confirmed by reading the seeded rows out of the database rather than by
+argument: `Call the supplier back` was due `2026-08-01 01:34 UTC` while the
+user's today was `2026-07-31`.
+
+**Independence established before anything was changed.** The unit failure was
+reproduced at `cf89857` — the commit before FEAT-014 began — in a clean git
+worktree.
+
+**Fix (`3fd7619`) — the premise, not the assertions.** Every expectation was
+kept, including the Today view's exact due-ascending order and the Overdue set
+of one. What changed is that both fixtures now *choose their zone from the
+current instant*: the unit test derives a pair (`near` at ~02:00 local, `ahead`
+three hours east) so a task at 23:00 on `near`'s today is always today there and
+always tomorrow in `ahead`; the E2E puts the user in a zone where local time is
+~02:00 and seeds at offsets from that zone's start of day, so "earlier today"
+and "later today" both exist at any real hour. `Etc/GMT±N` throughout — fixed
+offsets, no DST, so a transition cannot reintroduce the flake by another door.
+
+**Verification.** Arithmetic checked across all 24 UTC hours (offsets stay
+inside the Etc range; local time lands at 02:00 every time). api **442/442**,
+web 76/76, worker 24/24, e2e **48/48**. FEAT-016's report carries a dated
+re-verification: Accepted, unchanged.
+
+## DEF-011 — icon-only controls never got their touch size (2026-08-01)
+
+**Reported by** FEAT-014's acceptance run, whose AC-12 names the 44px target
+explicitly — which is what made a long-standing product-wide gap finally
+measurable against something.
+
+**Symptom.** Every icon-only button sized on `--size-control-md` (40px) is 40×40
+on *every* viewport, including touch. design.md §4 specifies `icon-button` as
+"40px (**44px touch**) square" and §5 requires "≥ 44×44px on touch viewports",
+but `apps/web` contains no `pointer: coarse` rule at all, so the parenthetical
+had never been implemented. Instances: `lists-nav.tsx`'s row-menu trigger and
+"New list" (since FEAT-009), and FEAT-014's three reorder controls.
+`shell-frame.tsx`, `detail-panel.tsx` and `task-checkbox.tsx` were already
+correct — which is what made the two stragglers findable rather than looking
+like the house style.
+
+**Failing test first.** `e2e/tests/touch-target.spec.ts` — the sibling of
+DEF-005's `control-contrast.spec.ts`, and built the same way: it measures
+**rendered bounding boxes** at a 390×844 phone viewport rather than asserting
+style strings, so a token change that keeps the rule stays green while one that
+breaks it goes red. It was red naming `reorder-handle` at 40×40; after
+FEAT-014's fix it went red again naming `new-list`, finding the second instance
+on its own.
+
+**Fix.** `152de92` (FEAT-014's own controls, as that feature's rework) and
+`1838a4d` (`lists-nav.tsx`). One token each: `--size-control-md` →
+`--size-touch-target`.
+
+**Scope held deliberately.** Icon-only buttons only — the family §4 sizes by
+name. Text buttons, inputs and selects carry their own labels and their own §4
+sizing and were left alone; widening the sweep to them is a design-system
+question, not a defect fix.
+
+**Verification.** Guard red before / green after, api **442/442**, web 76/76,
+worker 24/24, e2e **48/48**, lint · boundaries · build clean. FEAT-009's report
+carries a dated re-verification: Accepted, unchanged.

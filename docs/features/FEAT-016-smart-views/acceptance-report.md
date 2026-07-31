@@ -1,5 +1,27 @@
 # Acceptance Report: FEAT-016 — Smart views (Today / Upcoming / Overdue / All)
 
+# Re-verification — 2026-08-01 · Verdict: Accepted (unchanged) · after the DEF-010 fix
+
+**No FEAT-016 code changed.** DEF-010 was a defect in this feature's own *test
+fixtures*, not in its behaviour: `views.service.spec` AC-2 assumed New York and
+Calcutta share a calendar date (false after ~14:30 New York), and
+`smart-views.spec` UC-014 seeded tasks at `now() + 3h/+5h` and expected them in
+Today (false after 19:00 UTC). Both were failing when FEAT-014's acceptance run
+found them; the product was correct in both cases, which is why the fixtures
+were re-premised rather than the assertions weakened — every expectation,
+including Today's exact due-ascending order and the Overdue set of one, is
+unchanged.
+
+**Verdict unchanged: Accepted.** No acceptance criterion's outcome moves. What
+changes is that the evidence is now trustworthy at every hour instead of for
+part of the day: the fixtures derive their zone from the current instant
+(`Etc/GMT±N`, fixed offset, no DST), verified across all 24 UTC hours.
+
+**Re-executed (2026-08-01, from `3fd7619`):** api **442/442** (46 suites),
+web 76/76, worker 24/24, e2e **48/48**, lint · boundaries · build clean. The
+previously failing `views.service.spec` AC-2 and `smart-views.spec` UC-014 are
+green. See docs/defects.md DEF-010.
+
 > Verdict: **Accepted** · Date: 2026-07-31
 > Standard: technical-design.md §6 @ `77255fa` · Sources: docs/srs.md (FR-SRCH-006/007/008/009,
 > NFR-PERF-001, NFR-SCAL-002, NFR-USE-003, FR-AUTHZ-001/002/003), docs/use-cases.md (UC-014)

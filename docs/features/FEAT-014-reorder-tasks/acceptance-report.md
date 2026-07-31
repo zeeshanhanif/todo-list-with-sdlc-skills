@@ -1,6 +1,67 @@
 # Acceptance Report: FEAT-014 — Reorder active tasks within a list
 
-> Verdict: **Rework** · Date: 2026-08-01
+> Verdict: **Accepted** · Date: 2026-08-01 (re-verification after the rework)
+> Prior verdict: Rework (2026-08-01) — preserved below.
+
+# Re-verification — 2026-08-01 · Verdict: **Accepted**
+
+Both rework findings are fixed at `152de92`, and the standard is unchanged —
+technical-design §6 was not amended, so this is the same audit table re-run
+against new code.
+
+## The two findings, re-checked
+
+**R1 — the 44px touch target: FIXED.** `active-tasks.tsx`'s `iconButton` now
+takes `--size-touch-target`. Verified by **measurement, not by reading the
+diff**: `e2e/tests/touch-target.spec.ts` renders the list at a 390×844 phone
+viewport and measures the rendered bounding box of the handle and both move
+controls. It was red before the fix naming `reorder-handle` at **40×40**; it is
+green after. The guard is permanent and product-wide, so this cannot regress
+silently — see DEF-011.
+
+**R2 — the no-op drag: FIXED.** `dropOn` now compares the computed order against
+the current one and returns early when they match, which is the condition that
+actually matters (the drop indicator sits on the target's leading edge, so
+"onto the next row" and "stay put" are the same position — an index comparison
+could not express that). The failing test committed with the first verdict as
+the work order is **green without having been touched**, which is the check that
+matters: the code moved to the test, not the test to the code.
+
+## Independent execution (re-run, from `3fd7619`)
+
+| Run | Observed |
+| :-- | :------- |
+| api (`--runInBand`) | **442 passed / 442** — 46 suites, zero failures |
+| web | **76 passed / 76** |
+| worker | **24 passed / 24** |
+| e2e | **48 passed / 48** |
+| lint · boundaries · build | clean · clean (190 modules) · clean |
+
+**Every suite in the repository is green** — including the two pre-existing
+time-dependent failures this feature's audit surfaced, now fixed under DEF-010
+(they were never FEAT-014's, and the fix is recorded separately so the
+distinction stays legible).
+
+## Findings (re-verification)
+
+Rework: **none**. Design defect: **none**. The three minors from the first pass
+are all resolved or routed: M1 became **DEF-011** (fixed — `lists-nav.tsx`'s two
+icon buttons, found by the new sweep itself rather than by a human remembering);
+M2 became **DEF-010** (fixed — both fixtures now derive their zone from the
+current instant, verified across all 24 UTC hours); M3 (AC-12 bundling four
+obligations) stands as a note for future criteria, not a defect in this one.
+
+## RTM (re-verification)
+
+**Written.** `FR-TASK-012` Test ref ←
+`features/FEAT-014-reorder-tasks/acceptance-report.md`. The row's lifecycle is
+complete: Plan ref FEAT-014 → Design ref (technical-design.md + ui-design.md) →
+Test ref. FR-TASK-012 is implemented by FEAT-014 alone, so this append also
+makes it **fully verified** by the RTM's own computation.
+
+---
+
+# First pass — 2026-08-01 · Verdict: Rework *(superseded, preserved)*
 > Standard: technical-design.md §6 @ `83b2ea9` · Sources: docs/srs.md (FR-TASK-012,
 > NFR-PERF-001, NFR-USE-003, NFR-USE-004), docs/use-cases.md (UC-010),
 > docs/design.md §4/§5, docs/design-manifest.json (SCR-WEB-008)
