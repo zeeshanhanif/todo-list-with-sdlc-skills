@@ -105,7 +105,7 @@
       accessible names) and AC-15 (failure surfaces an explicit error, no
       half-applied order).
 
-- [ ] T8 — E2E: extend `e2e/tests/` with the path this feature completes — sign
+- [x] T8 — E2E: extend `e2e/tests/` with the path this feature completes — sign
       in → add three tasks → reorder them from the list view → the new order is
       the rendered order → **reload** and it is still the rendered order →
       complete one and the remaining two keep their relative order. [UC-010]
