@@ -5,9 +5,12 @@ import request from 'supertest';
 import {
   LIST_ERROR_CODES,
   TASK_TITLE_MAX_LENGTH,
+  completeTaskPath,
   listTasksPath,
   reorderTasksPath,
+  taskPath,
   type ApiError,
+  type CreateListResponse,
   type CreateTaskResponse,
   type ListTasksResponse,
 } from '@todo/shared';
@@ -462,39 +465,79 @@ describe('task endpoints (contract)', () => {
 
   it('AC-5: malformed vectors are 400 validation_failed on `taskIds`, with ONE message', async () => {
     const { cookie, id: owner, inbox } = await signedInUser();
+    const other = await signedInUser();
     const a = await newTask(cookie, inbox, 'a');
     const b = await newTask(cookie, inbox, 'b');
+    const done = await newTask(cookie, inbox, 'done');
+    const gone = await newTask(cookie, inbox, 'gone');
+    expect(
+      (
+        await request(server())
+          .post(completeTaskPath(done))
+          .set('Cookie', cookie)
+      ).status,
+    ).toBe(200);
+    expect(
+      (await request(server()).delete(taskPath(gone)).set('Cookie', cookie))
+        .status,
+    ).toBe(200);
+    const listRes = await request(server())
+      .post('/lists')
+      .set('Cookie', cookie)
+      .send({ name: 'Other' });
+    expect(listRes.status).toBe(201);
+    const elsewhere = await newTask(
+      cookie,
+      (listRes.body as CreateListResponse).list.id,
+      'elsewhere',
+    );
+    const foreign = await newTask(other.cookie, other.inbox, 'foreign');
     const before = await countTasks(owner);
 
-    const bodies: unknown[] = [
+    // The criterion's OWN enumerated cases — every one of them a vector whose
+    // ids are individually well-formed, so they all reach the service's set
+    // check. AC-5 requires ONE identical message across these, and `<= 2` is
+    // not that: it would pass a build that answered "that task is completed"
+    // for one and "unknown id" for another, which is precisely the existence
+    // oracle the uniform message exists to prevent. Asserted as exactly one.
+    const setFailures: object[] = [
       { taskIds: [a, a] }, // duplicated
-      { taskIds: [a] }, // missing one
-      { taskIds: [a, b, randomUUID()] }, // extra unknown
-      { taskIds: [] }, // empty — the DTO's own rule
-      { taskIds: ['not-a-uuid'] }, // shape — the DTO's own rule
-      { taskIds: 'nope' }, // not even an array
+      { taskIds: [a] }, // missing one of the active set
+      { taskIds: [a, b, randomUUID()] }, // extra unknown id
+      { taskIds: [a, b, done] }, // includes a completed task
+      { taskIds: [a, b, gone] }, // includes a soft-deleted task
+      { taskIds: [a, b, elsewhere] }, // another of the caller's lists
+      { taskIds: [a, b, foreign] }, // another user's task
+    ];
+    // The DTO's shape rule is a DIFFERENT rejection with its own message, and
+    // it is asserted separately rather than averaged in with the above.
+    const shapeFailures: object[] = [
+      { taskIds: [] }, // empty
+      { taskIds: ['not-a-uuid'] }, // not a uuid
+      { taskIds: 'nope' }, // not an array
       {}, // absent
     ];
 
-    const messages = new Set<string>();
-    for (const body of bodies) {
-      const res = await request(server())
-        .post(reorderTasksPath(inbox))
-        .set('Cookie', cookie)
-        .send(body as object);
+    const check = async (bodies: object[]): Promise<Set<string>> => {
+      const messages = new Set<string>();
+      for (const body of bodies) {
+        const res = await request(server())
+          .post(reorderTasksPath(inbox))
+          .set('Cookie', cookie)
+          .send(body);
 
-      expect(res.status).toBe(400);
-      const err = res.body as ApiError;
-      expect(err.code).toBe('validation_failed');
-      expect(err.fields?.map((f) => f.field)).toEqual(['taskIds']);
-      messages.add(err.fields?.[0].message ?? '');
-      expect(await countTasks(owner)).toBe(before);
-    }
+        expect(res.status).toBe(400);
+        const err = res.body as ApiError;
+        expect(err.code).toBe('validation_failed');
+        expect(err.fields?.map((f) => f.field)).toEqual(['taskIds']);
+        messages.add(err.fields?.[0].message ?? '');
+        expect(await countTasks(owner)).toBe(before);
+      }
+      return messages;
+    };
 
-    // Two messages at most — the service's set-failure answer and the DTO's
-    // shape answer — and NEITHER varies by which id was wrong, which is the
-    // property that keeps the endpoint from being an existence oracle.
-    expect(messages.size).toBeLessThanOrEqual(2);
+    expect((await check(setFailures)).size).toBe(1);
+    expect((await check(shapeFailures)).size).toBe(1);
 
     // The order is unchanged after every rejection.
     const view = await request(server())

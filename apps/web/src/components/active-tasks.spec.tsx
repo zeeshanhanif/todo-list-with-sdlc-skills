@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { TaskSummary } from "@todo/shared";
 import { ActiveTasks } from "./active-tasks";
@@ -178,5 +178,70 @@ describe("ActiveTasks — the reorder affordance (SCR-WEB-008)", () => {
 
     expect(screen.getAllByTestId("task-row")).toHaveLength(1);
     expect(screen.queryByTestId("reorder-handle")).not.toBeInTheDocument();
+  });
+
+  // --- Acceptance (FEAT-014 verification) — the drag path ---
+  //
+  // ui-design D1 specifies THREE affordances and T7 tested two: the pointer
+  // drag shipped with no coverage at all, and its `dropOn` carries the one
+  // genuinely error-prone line in this component — the splice-index correction
+  // for a downward move, where removing the row first shifts every later index
+  // by one. An off-by-one there lands the task one place from where it was
+  // dropped, silently, on the affordance UC-010 main 2 names by name.
+
+  const drag = (fromIndex: number, toIndex: number) => {
+    const handles = screen.getAllByTestId("reorder-handle");
+    const rows = screen.getAllByTestId("task-row");
+    fireEvent.dragStart(handles[fromIndex]);
+    fireEvent.dragOver(rows[toIndex]);
+    fireEvent.drop(rows[toIndex]);
+  };
+
+  it("UC-010 main 2: dragging a row DOWN lands it before the row it was dropped on", async () => {
+    render(<ActiveTasks listId="list-1" tasks={TASKS} />);
+
+    // The drop indicator is drawn on the target row's LEADING edge, so dropping
+    // `alpha` on `gamma` means "put alpha immediately before gamma".
+    drag(0, 2);
+
+    await waitFor(() => expect(titles()).toEqual(["beta", "alpha", "gamma"]));
+    expect(sentOrder()).toEqual([TASKS[1].id, TASKS[0].id, TASKS[2].id]);
+  });
+
+  it("UC-010 main 2: dragging a row UP lands it before the target too", async () => {
+    render(<ActiveTasks listId="list-1" tasks={TASKS} />);
+
+    drag(2, 0);
+
+    await waitFor(() => expect(titles()).toEqual(["gamma", "alpha", "beta"]));
+    expect(sentOrder()).toEqual([TASKS[2].id, TASKS[0].id, TASKS[1].id]);
+  });
+
+  it("UC-010 main 2: dropping a row on itself, or on the row just after it, changes nothing", async () => {
+    render(<ActiveTasks listId="list-1" tasks={TASKS} />);
+
+    drag(0, 0); // onto itself
+    expect(titles()).toEqual(["alpha", "beta", "gamma"]);
+    // Onto the NEXT row's leading edge — which is where `alpha` already is.
+    drag(0, 1);
+    expect(titles()).toEqual(["alpha", "beta", "gamma"]);
+    // Neither is a write: a no-op move must not spend a request.
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("AC-15: a failed DRAG rolls back exactly as a failed keyboard move does", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({}),
+    }) as unknown as typeof fetch;
+    render(<ActiveTasks listId="list-1" tasks={TASKS} />);
+
+    drag(0, 2);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("reorder-error")).toBeInTheDocument(),
+    );
+    expect(titles()).toEqual(["alpha", "beta", "gamma"]);
   });
 });

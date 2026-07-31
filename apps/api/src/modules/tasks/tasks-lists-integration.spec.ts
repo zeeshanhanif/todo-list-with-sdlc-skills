@@ -6,6 +6,8 @@ import {
   completeTaskPath,
   listTasksPath,
   reorderTasksPath,
+  SEARCH_PATH,
+  smartViewPath,
   reopenTaskPath,
   restoreTaskPath,
   taskPath,
@@ -493,5 +495,53 @@ describe('tasks × lists (cross-feature)', () => {
     expect(
       activeTitles(await reorder(cookie, inbox, [b.id, c.id, a.id])),
     ).toEqual(['b', 'c', 'a']);
+  });
+
+  // --- Acceptance (FEAT-014 verification) — AC-14, which had no test ---
+  //
+  // The criterion is a NO-REGRESSION claim about two other features, and
+  // "their suites are still green" does not test it: those suites never
+  // reorder anything. This one does, and then reads both surfaces.
+
+  it('AC-14: reordering a list leaves search results and the smart views untouched', async () => {
+    const { cookie, inbox } = await signedInUser();
+    const a = await addTask(cookie, inbox, 'zebra alpha');
+    const b = await addTask(cookie, inbox, 'zebra beta');
+    const c = await addTask(cookie, inbox, 'zebra gamma');
+
+    const search = async (): Promise<string[]> => {
+      const res = await request(server())
+        .get(`${SEARCH_PATH}?q=zebra`)
+        .set('Cookie', cookie);
+      expect(res.status).toBe(200);
+      return (res.body as { results: { title: string }[] }).results.map(
+        (r) => r.title,
+      );
+    };
+    const allView = async (): Promise<string[]> => {
+      const res = await request(server())
+        .get(smartViewPath('all'))
+        .set('Cookie', cookie);
+      expect(res.status).toBe(200);
+      return (res.body as { results: { title: string }[] }).results.map(
+        (r) => r.title,
+      );
+    };
+
+    const searchBefore = await search();
+    const viewBefore = await allView();
+    expect(searchBefore).toHaveLength(3); // the fixture actually matched
+
+    // Reverse the list's manual order — the most disruptive permutation there is.
+    expect(
+      (await reorder(cookie, inbox, [c.id, b.id, a.id])).active.map(
+        (t) => t.title,
+      ),
+    ).toEqual(['zebra gamma', 'zebra beta', 'zebra alpha']);
+
+    // Both surfaces sort by their OWN keys (created_at / due_at), which this
+    // feature does not touch, so neither moves.
+    expect(await search()).toEqual(searchBefore);
+    expect(await allView()).toEqual(viewBefore);
   });
 });
