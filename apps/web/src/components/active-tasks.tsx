@@ -122,12 +122,20 @@ export function ActiveTasks({
     const fromIndex = rows.findIndex((t) => t.id === dragging);
     setDragging(null);
     setDropTarget(null);
-    if (fromIndex < 0 || fromIndex === targetIndex) return;
+    if (fromIndex < 0) return;
     const next = [...rows];
     const [moved] = next.splice(fromIndex, 1);
     // Removing the row first shifts everything after it down by one, so a drop
     // onto a LATER row lands one short without this correction.
     next.splice(fromIndex < targetIndex ? targetIndex - 1 : targetIndex, 0, moved);
+    // A drop that produces the order we already have is a NO-OP, and the guard
+    // has to compare the RESULT rather than the indices: dropping a row on the
+    // one just after it is `fromIndex !== targetIndex` yet lands the row exactly
+    // where it started, because the indicator sits on the target's leading edge.
+    // Without this, that drop spent a write AND announced "Moved X to N of M"
+    // for a move that never happened — a false statement to the one audience
+    // that cannot see the list did not change (FEAT-014 acceptance R2).
+    if (next.every((task, i) => task.id === rows[i].id)) return;
     void persist(next, moved.id);
   }
 
@@ -312,9 +320,14 @@ const sectionStyle = {
   padding: 0,
 };
 
+// design.md §4's `icon-button` is "40px (44px TOUCH) square", and §5 requires
+// >= 44x44 on touch viewports. `apps/web` has no coarse-pointer rule, so the
+// control is ONE size everywhere and that size has to be the touch one —
+// the call `shell-frame.tsx` and `detail-panel.tsx` already made. Guarded by
+// `e2e/tests/touch-target.spec.ts`.
 const iconButton = (disabled: boolean) => ({
-  minWidth: "var(--size-control-md)",
-  minHeight: "var(--size-control-md)",
+  minWidth: "var(--size-touch-target)",
+  minHeight: "var(--size-touch-target)",
   borderRadius: "var(--radius-md)",
   border: "none",
   background: "transparent",
