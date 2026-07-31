@@ -381,9 +381,13 @@ function MenuItem({
   );
 }
 
+// DEF-011: design.md §4's `icon-button` is "40px (44px TOUCH) square" and §5
+// requires >= 44x44 on touch viewports; with no coarse-pointer rule in the app
+// the control is one size everywhere, so that size must be the touch one.
+// Guarded by `e2e/tests/touch-target.spec.ts`.
 const iconButton = {
-  minWidth: "var(--size-control-md)",
-  minHeight: "var(--size-control-md)",
+  minWidth: "var(--size-touch-target)",
+  minHeight: "var(--size-touch-target)",
   borderRadius: "var(--radius-md)",
   border: "none",
   background: "transparent",
