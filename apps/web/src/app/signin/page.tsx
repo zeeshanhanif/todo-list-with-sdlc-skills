@@ -126,7 +126,9 @@ export default function SignInPage() {
             padding: "var(--space-3)",
             borderRadius: "var(--radius-md)",
             background: "var(--color-danger-subtle)",
-            color: "var(--color-danger)",
+            // The tint's PARTNER ink — `--color-danger` here is 3.95:1, under
+            // design.md §5's 4.5:1 for body text (DEF-006).
+            color: "var(--color-danger-text)",
             fontSize: "var(--font-size-small)",
           }}
         >
