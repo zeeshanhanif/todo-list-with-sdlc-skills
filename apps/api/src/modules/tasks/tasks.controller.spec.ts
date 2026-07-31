@@ -543,4 +543,83 @@ describe('task endpoints (contract)', () => {
       b,
     ]);
   });
+
+  // --- FEAT-014 (T9) — the two criteria the per-task tests could not reach ---
+
+  it('AC-2: a SECOND, independently issued session sees the order on its first read', async () => {
+    // The reload in the E2E proves the order is not in React state; this proves
+    // it is not in the SESSION either — a different cookie, never involved in
+    // the write, reading it cold. That is what "persist across devices" means.
+    const { cookie: first, inbox } = await signedInUser();
+    const a = await newTask(first, inbox, 'a');
+    const b = await newTask(first, inbox, 'b');
+    const c = await newTask(first, inbox, 'c');
+
+    const email = await db.query<{ email: string }>(
+      `SELECT u.email FROM users u JOIN lists l ON l.owner_id = u.id WHERE l.id = $1`,
+      [inbox],
+    );
+    const login = await request(server())
+      .post('/auth/login')
+      .set('X-Forwarded-For', nextIp())
+      .send({ email: email.rows[0].email, password: VALID_PW });
+    expect(login.status).toBe(200);
+    const second = (
+      login.headers['set-cookie'] as unknown as string[]
+    )[0].split(';')[0];
+    expect(second).not.toBe(first); // genuinely a different session
+
+    const reordered = await request(server())
+      .post(reorderTasksPath(inbox))
+      .set('Cookie', first)
+      .send({ taskIds: [c, a, b] });
+    expect(reordered.status).toBe(200);
+
+    const view = await request(server())
+      .get(listTasksPath(inbox))
+      .set('Cookie', second);
+    expect(view.status).toBe(200);
+    expect((view.body as ListTasksResponse).active.map((t) => t.id)).toEqual([
+      c,
+      a,
+      b,
+    ]);
+  });
+
+  it('AC-11: reorder and the list view stay inside NFR-PERF-001 for a 50-task list', async () => {
+    const { cookie, inbox } = await signedInUser();
+    const ids: string[] = [];
+    for (let i = 0; i < 50; i++) {
+      ids.push(await newTask(cookie, inbox, `perf ${i}`));
+    }
+
+    // Ten real permutations, not ten identical no-ops.
+    const reorderMs: number[] = [];
+    for (let i = 0; i < 10; i++) {
+      const vector = [...ids];
+      vector.push(vector.splice(i, 1)[0]);
+      const started = Date.now();
+      const res = await request(server())
+        .post(reorderTasksPath(inbox))
+        .set('Cookie', cookie)
+        .send({ taskIds: vector });
+      reorderMs.push(Date.now() - started);
+      expect(res.status).toBe(200);
+    }
+
+    const viewMs: number[] = [];
+    for (let i = 0; i < 10; i++) {
+      const started = Date.now();
+      const res = await request(server())
+        .get(listTasksPath(inbox))
+        .set('Cookie', cookie);
+      viewMs.push(Date.now() - started);
+      expect(res.status).toBe(200);
+    }
+
+    // The 300 ms bound is per operation, so the SLOWEST sample is the honest
+    // check at this sample size — a p95 over ten points is just the max anyway.
+    expect(Math.max(...reorderMs)).toBeLessThan(300);
+    expect(Math.max(...viewMs)).toBeLessThan(300);
+  });
 });

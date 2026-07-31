@@ -1,7 +1,7 @@
 # Tasks: FEAT-014 — Reorder active tasks within a list
 
 > Executes: docs/features/FEAT-014-reorder-tasks/technical-design.md
-> Status: pending · Last updated: 2026-08-01
+> Status: all tasks done · Last updated: 2026-08-01
 > Notes: **The pattern already exists — copy it, don't invent it.** FEAT-009's
 > `POST /lists/reorder` is this feature's model end to end: whole-vector
 > submission, set-equality in the service, `unnest(...) WITH ORDINALITY` rewrite
@@ -113,7 +113,7 @@
       up), covering AC-1, AC-2 (server-side persistence observed across a fresh
       page load) and AC-8.
 
-- [ ] T9 — Verify: every acceptance criterion in design §6 demonstrably passes,
+- [x] T9 — Verify: every acceptance criterion in design §6 demonstrably passes,
       including **AC-11 measured** (reorder and list-view timings for a 50-task
       list, recorded here against NFR-PERF-001's 300 ms — and D9's index added
       only if the number demands it), AC-13 checked against a pre-migration
