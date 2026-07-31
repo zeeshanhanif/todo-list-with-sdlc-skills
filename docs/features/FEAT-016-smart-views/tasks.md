@@ -78,7 +78,7 @@
       appears; an unknown view name is `404 view_not_found`) and AC-13 — each
       rendering the `ApiError` envelope.
 
-- [ ] T6 — Verify NFR-PERF-001 empirically (design D3; AC-14). Seed a user with
+- [x] T6 — Verify NFR-PERF-001 empirically (design D3; AC-14). Seed a user with
       **5,000 tasks**, then time all four views plus a deep cursor page through
       the **HTTP endpoint**, not just the SQL.
       Done when: p95 for each shape is recorded and under 300 ms, with the
