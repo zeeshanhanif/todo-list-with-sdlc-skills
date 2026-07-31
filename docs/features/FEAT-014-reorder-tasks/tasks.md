@@ -38,7 +38,7 @@
 > clear `auth_rate_buckets` for `::1` — do not "fix" it by weakening a test.
 > `apps/web/AGENTS.md`: read `node_modules/next/dist/docs/` before writing web code.
 
-- [ ] T1 — Shared contracts (`@todo/shared`, design §3.2/§5): `reorderTasksPath(listId)`,
+- [x] T1 — Shared contracts (`@todo/shared`, design §3.2/§5): `reorderTasksPath(listId)`,
       `ReorderTasksRequest`, and **`position: number` on `TaskSummary`** —
       replacing the "FEAT-014 adds `position`" note with the field and its
       meaning (0-based rank within the list's *active* order; stored but not

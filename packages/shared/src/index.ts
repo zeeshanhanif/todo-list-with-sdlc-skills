@@ -389,8 +389,8 @@ export const TASK_ERROR_CODES = {
  * A task as the task endpoints return it (FEAT-010 technical-design §3).
  *
  * **Deliberately minimal, and it grows** (technical-design D5): these are exactly
- * the columns that exist today. FEAT-011 adds `dueAt` and `priority`, FEAT-014
- * adds `position`. Consumers should read the fields they need rather than assume
+ * the columns that exist today. FEAT-011 added `dueAt` and `priority`, FEAT-014
+ * added `position`. Consumers should read the fields they need rather than assume
  * this shape is exhaustive — shipping `dueAt: null` placeholders for columns the
  * system does not store would be a contract that lies.
  */
@@ -428,6 +428,23 @@ export interface TaskSummary {
    * that is the same rule, not a second one.
    */
   isOverdue: boolean;
+  /**
+   * FR-TASK-012 — the task's 0-based rank within its list's **active** order,
+   * the manual arrangement `POST /lists/{listId}/tasks/reorder` writes. Added by
+   * FEAT-014.
+   *
+   * Meaningful only for active tasks: a completed or soft-deleted task keeps the
+   * position it last held (nothing rewrites it — FEAT-014 D4), which is what
+   * makes a reopen or a restore land somewhere deterministic rather than
+   * arbitrary, but the completed section sorts by `completedAt`, not by this.
+   *
+   * **Not a stable identifier and not a display value** (ui-design D5): every
+   * reorder renumbers it, and the order of the rows is its rendered form.
+   * Positions are dense `0..n-1` immediately after a reorder and merely
+   * increasing between them — new tasks append at `MAX + 1` (D5) — so read it
+   * as a sort key, never as a count.
+   */
+  position: number;
 }
 
 /**
@@ -565,6 +582,41 @@ export interface DeleteTaskResponse {
 export interface RestoreTaskResponse {
   task: TaskSummary;
 }
+
+// --- Tasks: manual order (FEAT-014) ---
+
+/** Path of the reorder endpoint: `POST /lists/{listId}/tasks/reorder`
+ * (FR-TASK-012). A sub-path of the collection rather than a sibling of it, so —
+ * unlike `LIST_REORDER_PATH` — no route-declaration order is load-bearing: the
+ * single-task routes live on `/tasks/{id}`, not under this collection. */
+export const reorderTasksPath = (listId: string): string =>
+  `${listTasksPath(listId)}/reorder`;
+
+/**
+ * Request body of `POST /lists/{listId}/tasks/reorder` — the caller's
+ * **complete set of active, non-deleted task ids in that list**, in the desired
+ * order (FEAT-014 technical-design D2).
+ *
+ * The whole vector, not a `{ taskId, toIndex }` patch: the server rewrites
+ * positions to a dense `0..n-1` from it, which is what makes the operation
+ * idempotent and keeps positions drift-free — and what lets a **stale** client
+ * be told (`400`) rather than allowed to apply a move against an order it no
+ * longer has. The same contract `ReorderListsRequest` uses for lists.
+ *
+ * Completed and soft-deleted tasks are not part of it: FR-TASK-012 orders
+ * *active* tasks, and the completed section's order is FR-TASK-011's
+ * (most recently completed first).
+ */
+export interface ReorderTasksRequest {
+  taskIds: string[];
+}
+
+/** Success response (200) of the reorder endpoint — the **full list view** in
+ * its new order, so the client re-renders from the server's truth rather than
+ * its optimistic guess (D6). Deliberately the same shape `GET /lists/{listId}/tasks`
+ * returns: one code path, so "the reorder response" and "a fresh read" cannot
+ * disagree. */
+export type ReorderTasksResponse = ListTasksResponse;
 
 // --- Realtime cross-device sync (FEAT-019) ---
 
