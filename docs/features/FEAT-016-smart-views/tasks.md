@@ -52,7 +52,7 @@
       new tests pin AC-10's due-ascending order with an id tie-break and AC-11's
       keyset stability on a due-sorted result set.
 
-- [ ] T4 — Domain: `views.service.ts` + `views.errors.ts` (design §5.1, §5.2;
+- [x] T4 — Domain: `views.service.ts` + `views.errors.ts` (design §5.1, §5.2;
       FR-SRCH-007, FR-SRCH-008). Maps a view name to fixed criteria per §5.2's
       table, resolves the caller's zone through `UserTimeZoneService`, calls the
       repository, and maps rows with `search.service.ts`'s **existing**

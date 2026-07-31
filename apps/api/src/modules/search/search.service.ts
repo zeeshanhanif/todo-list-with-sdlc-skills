@@ -56,7 +56,8 @@ export class SearchService {
 }
 
 /**
- * Row → wire (FR-SRCH-002).
+ * Row → wire (FR-SRCH-002). Exported for the smart views, which return the same
+ * `SearchResult` shape and must not grow a second mapper (FEAT-016 D1).
  *
  * `isOverdue` comes from the **shared** derivation, which is FEAT-011 D3's
  * single definition — so a task's overdue state is the same fact here, in the
@@ -64,7 +65,7 @@ export class SearchService {
  * `status=overdue` and `due=overdue` agree with the payload holds by
  * construction rather than by coincidence.
  */
-function toResult(row: SearchRow): SearchResult {
+export function toResult(row: SearchRow): SearchResult {
   return {
     id: row.id,
     listId: row.listId,
