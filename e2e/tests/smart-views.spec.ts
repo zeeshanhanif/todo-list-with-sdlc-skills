@@ -34,11 +34,34 @@ async function withDb<T>(fn: (c: Client) => Promise<T>): Promise<T> {
  * (All only), plus a completed and a soft-deleted one that must appear nowhere.
  * The zone is pinned to UTC so the day boundaries are the ones the SQL uses.
  */
+/**
+ * A fixed-offset zone where it is currently ~02:00, so "later today" always has
+ * room (DEF-010).
+ *
+ * The bug this replaces: the fixture pinned the user to UTC and seeded tasks at
+ * `now() + 3h` / `now() + 5h`, expecting both in Today and NEITHER in Overdue.
+ * After 19:00 UTC those instants fall on tomorrow, so the suite failed for the
+ * last five hours of every UTC day. Nothing was wrong with the product — Today
+ * correctly excluded a task due tomorrow.
+ *
+ * The fix keeps every assertion and removes the wall-clock premise instead: the
+ * views are computed in the USER'S zone (FR-PROF-003), so choosing a zone whose
+ * local clock reads 02:00 makes "earlier today" and "later today" both
+ * available at any real hour. `Etc/GMT±N` has fixed offsets and no DST (sign
+ * inverted by POSIX convention — `Etc/GMT-5` is UTC+5).
+ */
+function earlyMorningZone(now: Date = new Date()): string {
+  const raw = (2 - now.getUTCHours() + 24) % 24;
+  const offset = raw > 12 ? raw - 24 : raw;
+  return `Etc/GMT${offset >= 0 ? "-" : "+"}${Math.abs(offset)}`;
+}
+
 async function seedViews(email: string): Promise<void> {
+  const zone = earlyMorningZone();
   await withDb(async (c) => {
     await c.query(
-      "UPDATE users SET verified_at = now(), timezone = 'UTC' WHERE email = $1",
-      [email],
+      "UPDATE users SET verified_at = now(), timezone = $2 WHERE email = $1",
+      [email, zone],
     );
     await c.query(
       `INSERT INTO lists (owner_id, name, position)
@@ -63,16 +86,22 @@ async function seedViews(email: string): Promise<void> {
 
     // `::timestamp` before AT TIME ZONE is load-bearing — a bare date casts
     // through timestamptz and comes back zone-less.
-    const startOfToday =
-      "(now() AT TIME ZONE 'UTC')::date::timestamp AT TIME ZONE 'UTC'";
+    //
+    // Every instant below is expressed as an OFFSET FROM THE USER'S START OF
+    // DAY rather than from `now()`, which is what makes the memberships fixed
+    // facts instead of a function of when the suite runs (DEF-010). With local
+    // time at ~02:00: hour 0 is earlier today (Today AND Overdue), hours 8 and
+    // 10 are later today (Today, not Overdue), and +2 days is Upcoming.
+    const at = (expr: string) =>
+      `((now() AT TIME ZONE '${zone}')::date::timestamp + ${expr}) AT TIME ZONE '${zone}'`;
 
-    await seed("Inbox", "Draft the quarterly report", "now() + interval '3 hour'");
-    await seed("Work", "Call the supplier back", "now() + interval '5 hour'");
-    await seed("Inbox", "Missed this morning", startOfToday);
-    await seed("Work", "Ship the release notes", "now() + interval '2 day'");
+    await seed("Inbox", "Draft the quarterly report", at("interval '8 hour'"));
+    await seed("Work", "Call the supplier back", at("interval '10 hour'"));
+    await seed("Inbox", "Missed this morning", at("interval '0 hour'"));
+    await seed("Work", "Ship the release notes", at("interval '2 day'"));
     await seed("Inbox", "Someday maybe", null);
-    await seed("Inbox", "Already finished", "now() + interval '1 hour'", "completed_at");
-    await seed("Inbox", "Thrown away", "now() + interval '1 hour'", "deleted_at");
+    await seed("Inbox", "Already finished", at("interval '9 hour'"), "completed_at");
+    await seed("Inbox", "Thrown away", at("interval '9 hour'"), "deleted_at");
   });
 }
 

@@ -22,8 +22,35 @@ const providers = [
   { provide: APP_CONFIG, useFactory: readConfig },
 ];
 
-const NEW_YORK = 'America/New_York';
-const CALCUTTA = 'Asia/Calcutta';
+/**
+ * A fixed-offset zone pair, chosen from the CURRENT instant so the day-boundary
+ * property under test holds at every hour (DEF-010).
+ *
+ * The bug this replaces: the pair was hard-coded (New York / Calcutta) and the
+ * assertion "Today here, Upcoming there" is only true while those two zones
+ * share a calendar date — false after about 14:30 New York time, so the suite
+ * failed for a stretch of every day and passed for the rest.
+ *
+ * The fix is not to weaken the assertion but to stop leaving the *premise* to
+ * chance. `near` is a zone where it is currently ~02:00, so "later today" always
+ * has room; `ahead` is three hours further east, so its local clock reads ~05:00
+ * on the SAME date. A task at 23:00 on `near`'s today is therefore today in
+ * `near` and 02:00 tomorrow in `ahead` — at every hour of the year.
+ *
+ * `Etc/GMT±N` is used deliberately: fixed offsets, no DST, so nothing here
+ * shifts under a transition either. (Their sign is inverted by POSIX
+ * convention — `Etc/GMT-5` is UTC+5.)
+ */
+function zonePair(now: Date = new Date()): { near: string; ahead: string } {
+  const utcHour = now.getUTCHours();
+  // The offset that puts local time at ~02:00, normalised into [-12, +11] so
+  // that `+3` below still lands inside the Etc range's +14 ceiling.
+  const raw = (2 - utcHour + 24) % 24;
+  const offset = raw > 11 ? raw - 24 : raw;
+  const etc = (hours: number): string =>
+    `Etc/GMT${hours >= 0 ? '-' : '+'}${Math.abs(hours)}`;
+  return { near: etc(offset), ahead: etc(offset + 3) };
+}
 
 describe('ViewsService (integration)', () => {
   let db: DbService;
@@ -116,26 +143,28 @@ describe('ViewsService (integration)', () => {
 
   describe('Today (FR-SRCH-008)', () => {
     it('AC-2: the same task is Today in one zone and Upcoming in another', async () => {
-      const { id, inbox } = await freshUser(NEW_YORK);
       // The property FEAT-015 AC-4 pinned with a fixed instant, expressed so it
-      // holds whenever the suite runs: a task due late in New York's current
-      // day has already crossed midnight in Calcutta (+9h30 from New York), so
-      // it is Today in one zone and Upcoming in the other. `now()` is the
-      // DATABASE's clock, so the boundary is computed there rather than in JS.
-      const endOfNyDay = await db.query<{ due: string }>(
-        `SELECT ((now() AT TIME ZONE $1)::date + interval '23 hour 30 minute')
+      // holds whenever the suite runs — including the hours the original
+      // New York / Calcutta pairing could not survive (DEF-010).
+      const { near, ahead } = zonePair();
+      const { id, inbox } = await freshUser(near);
+      // 23:00 on the stored zone's today: late enough that a zone three hours
+      // east has already rolled over, and `now()` is the DATABASE's clock, so
+      // the boundary is computed where the service computes it.
+      const lateToday = await db.query<{ due: string }>(
+        `SELECT ((now() AT TIME ZONE $1)::date + interval '23 hour')
                  AT TIME ZONE $1 AS due`,
-        [NEW_YORK],
+        [near],
       );
       await seed(id, inbox, 'the boundary task', {
-        dueAt: endOfNyDay.rows[0].due,
+        dueAt: lateToday.rows[0].due,
       });
 
       await expect(titles(id, 'today')).resolves.toEqual(['the boundary task']);
       await expect(titles(id, 'upcoming')).resolves.toEqual([]);
 
       // The stored zone is the ONLY thing that changes.
-      await setTimezone(id, CALCUTTA);
+      await setTimezone(id, ahead);
       await expect(titles(id, 'today')).resolves.toEqual([]);
       await expect(titles(id, 'upcoming')).resolves.toEqual([
         'the boundary task',
