@@ -65,7 +65,7 @@
       (reopened/restored rows land deterministically behind the tiebreaker) and
       the unchanged completed ordering, and passes.
 
-- [ ] T4 — Service: `TasksService.reorder(ownerId, listId, taskIds)` in one
+- [x] T4 — Service: `TasksService.reorder(ownerId, listId, taskIds)` in one
       transaction — list ownership → duplicate check → set-equality against the
       active ids → `setPositions` → re-read the view (design §5; FR-TASK-012,
       FR-AUTHZ-002/003). Inject `DbService` alongside the repository.

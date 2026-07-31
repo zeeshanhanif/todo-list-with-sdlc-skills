@@ -7,6 +7,7 @@ import { TasksRepository } from './tasks.repository';
 import { TasksService } from './tasks.service';
 import {
   ListNotFoundError,
+  TaskFieldInvalidError,
   TaskNotFoundError,
   TaskTitleInvalidError,
 } from './tasks.errors';
@@ -711,5 +712,114 @@ describe('TasksService — task detail (FEAT-011)', () => {
     expect((await tasks.detail(owner, task.id)).task.dueAt).toBe(
       '2026-08-01T04:00:00.000Z',
     );
+  });
+
+  // --- FEAT-014 (T4) — TasksService.reorder (FR-TASK-012) ---
+  //
+  // AC-1 (persisted, not echoed), AC-4 (idempotent, dense 0..n-1), AC-5 (every
+  // bad vector is ONE indistinguishable error and writes nothing), AC-6 (the
+  // list-lookup failures stay the uniform ListNotFoundError).
+
+  const positions = async (ownerId: string) => {
+    const r = await db.query<{ title: string; position: number }>(
+      'SELECT title, position FROM tasks WHERE owner_id = $1 ORDER BY position, title',
+      [ownerId],
+    );
+    return r.rows.map((row) => `${row.title}:${row.position}`);
+  };
+
+  it('AC-1: reorder persists — the response and a FRESH read agree', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const a = await tasks.create(owner, inbox, 'a');
+    const b = await tasks.create(owner, inbox, 'b');
+    const c = await tasks.create(owner, inbox, 'c');
+
+    const response = await tasks.reorder(owner, inbox, [c.id, a.id, b.id]);
+
+    expect(response.active.map((t) => t.title)).toEqual(['c', 'a', 'b']);
+    // The point of the criterion: read it again, from scratch.
+    const fresh = await tasks.listView(owner, inbox);
+    expect(fresh.active.map((t) => t.title)).toEqual(['c', 'a', 'b']);
+    expect(fresh.active.map((t) => t.position)).toEqual([0, 1, 2]);
+  });
+
+  it('AC-4: the same vector twice returns the same body, and positions stay dense 0..n-1', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const a = await tasks.create(owner, inbox, 'a');
+    const b = await tasks.create(owner, inbox, 'b');
+    const c = await tasks.create(owner, inbox, 'c');
+    const vector = [b.id, c.id, a.id];
+
+    const first = await tasks.reorder(owner, inbox, vector);
+    const dense1 = await positions(owner);
+    const second = await tasks.reorder(owner, inbox, vector);
+
+    expect(second.active).toEqual(first.active);
+    expect(dense1).toEqual(['b:0', 'c:1', 'a:2']);
+    expect(await positions(owner)).toEqual(dense1);
+  });
+
+  it('AC-5: every malformed vector is the SAME error on `taskIds`, and nothing is written', async () => {
+    const { id: ownerA, inbox } = await freshUser();
+    const { id: ownerB, inbox: inboxB } = await freshUser();
+    const other = await db.query<{ id: string }>(
+      `INSERT INTO lists (owner_id, name, position) VALUES ($1, 'Other', 1) RETURNING id`,
+      [ownerA],
+    );
+
+    const a = await tasks.create(ownerA, inbox, 'a');
+    const b = await tasks.create(ownerA, inbox, 'b');
+    const done = await tasks.create(ownerA, inbox, 'done');
+    const gone = await tasks.create(ownerA, inbox, 'gone');
+    await tasks.complete(ownerA, done.id);
+    await tasks.softDelete(ownerA, gone.id);
+    const elsewhere = await tasks.create(ownerA, other.rows[0].id, 'elsewhere');
+    const foreign = await tasks.create(ownerB, inboxB, 'foreign');
+
+    const before = await positions(ownerA);
+    const bad: Array<[string, string[]]> = [
+      ['duplicated', [a.id, a.id]],
+      ['missing one', [a.id]],
+      ['extra unknown', [a.id, b.id, randomUUID()]],
+      ['includes a completed task', [a.id, b.id, done.id]],
+      ['includes a soft-deleted task', [a.id, b.id, gone.id]],
+      ["includes another of the caller's lists", [a.id, b.id, elsewhere.id]],
+      ["includes another user's task", [a.id, b.id, foreign.id]],
+      ['empty', []],
+    ];
+
+    const messages = new Set<string>();
+    for (const [why, vector] of bad) {
+      const err = await tasks
+        .reorder(ownerA, inbox, vector)
+        .then(() => null)
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(TaskFieldInvalidError);
+      const failure = err as TaskFieldInvalidError;
+      expect(failure.field).toBe('taskIds');
+      messages.add(failure.requirement);
+      // Nothing was written on ANY of them — the vector is validated before the
+      // rewrite, inside the transaction.
+      expect(await positions(ownerA)).toEqual(before);
+      expect(why).toBeTruthy();
+    }
+
+    // One message for all eight: telling them apart would disclose that an id
+    // exists somewhere the caller cannot see (FR-AUTHZ-002/003).
+    expect(messages.size).toBe(1);
+  });
+
+  it('AC-6: an unknown, foreign or non-uuid list is the uniform ListNotFoundError', async () => {
+    const { id: ownerA, inbox } = await freshUser();
+    const { inbox: inboxB } = await freshUser();
+    const a = await tasks.create(ownerA, inbox, 'a');
+
+    for (const listId of [randomUUID(), inboxB, 'not-a-uuid']) {
+      await expect(tasks.reorder(ownerA, listId, [a.id])).rejects.toThrow(
+        ListNotFoundError,
+      );
+    }
+    // The caller's own list is untouched throughout.
+    expect((await tasks.listView(ownerA, inbox)).active).toHaveLength(1);
   });
 });
