@@ -94,7 +94,7 @@
       FEAT-010/011/012/013 test needed an edit** to stay green (if one does, the
       change was not additive — stop and re-read D4).
 
-- [ ] T7 — UI integration: consume the contract on SCR-WEB-008 per ui-design's
+- [x] T7 — UI integration: consume the contract on SCR-WEB-008 per ui-design's
       manifest — the reorder affordance on `task-row`, optimistic move →
       `POST` the full active vector → `router.refresh()`, inline error on
       failure (the `lists-nav.tsx` shape) — plus the BFF route

@@ -490,8 +490,8 @@ describe('tasks × lists (cross-feature)', () => {
     expect(view.active.map((t) => t.position)).toEqual([0, 1, 2]);
 
     // And the restored task participates in the next reorder like any other.
-    expect(activeTitles(await reorder(cookie, inbox, [b.id, c.id, a.id]))).toEqual(
-      ['b', 'c', 'a'],
-    );
+    expect(
+      activeTitles(await reorder(cookie, inbox, [b.id, c.id, a.id])),
+    ).toEqual(['b', 'c', 'a']);
   });
 });

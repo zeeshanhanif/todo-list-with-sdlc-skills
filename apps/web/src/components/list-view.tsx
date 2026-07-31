@@ -1,18 +1,24 @@
-import Link from "next/link";
-import type { ListTasksResponse, TaskSummary } from "@todo/shared";
+import type { ListTasksResponse } from "@todo/shared";
 import { QuickAdd } from "@/components/quick-add";
-import { DueChip, PriorityDot } from "@/components/task-meta";
-import { TaskCheckbox } from "@/components/task-checkbox";
+import { ActiveTasks } from "@/components/active-tasks";
+import { TaskRow } from "@/components/task-row";
 
 // SCR-WEB-008 — List View (FEAT-010 ui-design), and SCR-WEB-018 when the account
 // is brand new. Server component: header, composer, active section, completed
 // section.
 //
-// `task-row` reaches design.md's spec here except for one part: FEAT-010 shipped
-// the title, FEAT-011 added the due-date chip, the priority dot and the row-click
-// to SCR-WEB-010, and FEAT-012 adds the complete-checkbox. Only the drag handle
-// (FEAT-014) is still omitted rather than faked — the rule FEAT-010 ui-design D2
-// set, now down to its last deferral.
+// `task-row` now reaches design.md's spec in full: FEAT-010 shipped the title,
+// FEAT-011 added the due-date chip, the priority dot and the row-click to
+// SCR-WEB-010, FEAT-012 added the complete-checkbox, and FEAT-014 adds the
+// reorder handle — the last of FEAT-010 ui-design D2's four deferrals, none of
+// them ever faked.
+//
+// The ACTIVE section is a client island (`active-tasks.tsx`) because reorder
+// needs client state; everything else here — including the completed <details>
+// disclosure — stays server-rendered (FEAT-014 ui-design D3), which is what
+// keeps FEAT-012 D5's zero-JS property for the part that does not need it.
+// The row itself moved to `task-row.tsx` so both sections render identical
+// markup rather than forking.
 // All values are design tokens.
 
 export function ListView({
@@ -68,11 +74,7 @@ export function ListView({
       ) : (
         <>
           {active.length > 0 && (
-            <ul data-testid="active-tasks" style={sectionStyle}>
-              {active.map((task) => (
-                <TaskRow key={task.id} task={task} />
-              ))}
-            </ul>
+            <ActiveTasks listId={list.id} tasks={active} />
           )}
 
           {/* FR-TASK-011 — collapsed by default, expandable to review and
@@ -123,88 +125,6 @@ const sectionStyle = {
   margin: 0,
   padding: 0,
 };
-
-/** design.md §4 `task-row`: complete-checkbox + title + right cluster (due-date
- * chip, priority dot). The **full row is the click target for detail** — minus
- * the checkbox's own 44px target — as a link, so middle-click and keyboard both
- * work. Completed rows are struck through and muted. 44px minimum height.
- *
- * **The checkbox is a SIBLING of the link, not a child of it** (FEAT-012 D6):
- * an interactive control inside an anchor is invalid markup and browsers
- * disagree about which target a click or an Enter press activates. The <li> is
- * the flex container; that is the whole reason this row was restructured.
- *
- * Completed rows deliberately take **no `--color-surface-sunken` hover tint**
- * (FEAT-012 ui-design D3): `--color-text-muted` measures 4.34:1 on that tint,
- * below the 4.5:1 design.md §5 requires at `body` size. */
-function TaskRow({
-  task,
-  completed = false,
-}: {
-  task: TaskSummary;
-  completed?: boolean;
-}) {
-  return (
-    <li
-      data-testid="task-row"
-      data-task-title={task.title}
-      data-completed={completed ? "true" : "false"}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "var(--space-1)",
-        paddingLeft: "var(--space-1)",
-        borderBottom: "var(--border-width-hairline) solid var(--color-border)",
-      }}
-    >
-      <TaskCheckbox
-        taskId={task.id}
-        completed={completed}
-        label={
-          completed ? `Reopen ${task.title}` : `Mark ${task.title} complete`
-        }
-      />
-      <Link
-        href={`/tasks/${task.id}`}
-        data-testid="task-row-link"
-        style={{
-          display: "flex",
-          flex: 1,
-          minWidth: 0,
-          alignItems: "center",
-          gap: "var(--space-3)",
-          minHeight: "var(--size-touch-target)",
-          padding: "var(--space-2) var(--space-3)",
-          color: completed ? "var(--color-text-muted)" : "var(--color-text)",
-          fontSize: "var(--font-size-body)",
-          textDecoration: "none",
-        }}
-      >
-        <span
-          style={{
-            flex: 1,
-            minWidth: 0,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            // The title truncates LAST — it is the row's meaning; the right
-            // cluster collapses before it does (ui-design responsive note).
-            textDecoration: completed ? "line-through" : "none",
-          }}
-        >
-          {task.title}
-        </span>
-        {/* Right cluster. Each part renders only when it has something to say:
-            no due date means no chip, and priority `none` means no dot — the
-            default state is the absence of a mark, not a grey dot everywhere. */}
-        {task.dueAt && (
-          <DueChip dueAt={task.dueAt} isOverdue={task.isOverdue} />
-        )}
-        <PriorityDot priority={task.priority} />
-      </Link>
-    </li>
-  );
-}
 
 /** design.md §4's empty convention — icon slot + h3 + one-line subtext + a
  * primary action. The action is the composer above, already focused
