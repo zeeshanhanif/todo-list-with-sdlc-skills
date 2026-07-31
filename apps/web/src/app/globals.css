@@ -120,3 +120,18 @@ body {
     transform: none;
   }
 }
+
+/* SCR-WEB-009's row (FEAT-016 ui-design D7). In a cross-list view the list
+   badge is the row's whole point — UC-014 step 3 — so below `sm` it WRAPS to a
+   second line beneath the title instead of being dropped the way the rest of
+   the right cluster is. A media query, therefore not expressible in the
+   component's inline token styles. */
+@media (max-width: 639px) {
+  .view-row {
+    flex-wrap: wrap;
+  }
+
+  .view-row-title {
+    flex-basis: 100%;
+  }
+}

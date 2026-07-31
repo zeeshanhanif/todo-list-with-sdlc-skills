@@ -87,7 +87,7 @@
       bound is a design escalation (D3's threshold reasoning), not a task to
       grind on.
 
-- [ ] T7 — UI integration point (design §5.4): `app/api/views/[view]/route.ts`
+- [x] T7 — UI integration point (design §5.4): `app/api/views/[view]/route.ts`
       (BFF GET, query string + cookie forwarded, envelope relayed verbatim),
       `lib/views.ts`, `app/views/[view]/page.tsx` + `loading.tsx`,
       `components/smart-view.tsx` consuming the contract, and the sidebar in

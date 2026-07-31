@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import type { ListSummary, UserProfile } from "@todo/shared";
+import { usePathname } from "next/navigation";
+import { SMART_VIEWS, type ListSummary, type UserProfile } from "@todo/shared";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ListsNav } from "@/components/lists-nav";
 import { SyncProvider } from "@/components/sync-provider";
@@ -21,11 +22,20 @@ import { TimezoneAdoption } from "@/components/timezone-adoption";
 // wired yet — the same carried deviation the sign-out control records.
 // All colors/spacing come from token CSS variables.
 
-/** Sidebar nav items the shell knows about. Smart views are placeholders until
- * FEAT-016 makes them real; `settings` is live as of FEAT-006 — and as of
- * FEAT-008 it targets Profile & Preferences (SCR-WEB-013), with Security &
- * Account one click away through the settings sub-nav (technical-design D5). */
+/** Sidebar nav items the shell knows about. `settings` is live as of FEAT-006 —
+ * and as of FEAT-008 it targets Profile & Preferences (SCR-WEB-013), with
+ * Security & Account one click away through the settings sub-nav
+ * (technical-design D5). The smart views need no entry here: their selected
+ * state comes from the pathname (below), which cannot go stale. */
 export type ShellNav = "none" | "settings";
+
+/** SCR-WEB-009's four views, labelled (FEAT-016). */
+const VIEW_LABELS: Record<(typeof SMART_VIEWS)[number], string> = {
+  today: "Today",
+  upcoming: "Upcoming",
+  overdue: "Overdue",
+  all: "All",
+};
 
 export function ShellFrame({
   children,
@@ -43,6 +53,10 @@ export function ShellFrame({
   /** The caller's preferences, or null when the fetch failed (FEAT-008). */
   profile?: UserProfile | null;
 }) {
+  // The open view's selected state is read from the URL rather than threaded
+  // down as a prop: this frame is already a client component, and a prop would
+  // depend on the view layout re-rendering on every param change to stay true.
+  const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   // SCR-WEB-012 is an OVERLAY mounted here, not a route (FEAT-015 ui-design
   // D1): search must be reachable from every authenticated screen without
@@ -193,19 +207,31 @@ export function ShellFrame({
             </span>
           </button>
 
+          {/* SCR-WEB-009's navigation (FEAT-016). Four real `sidebar-nav-item`
+              links in FR-SRCH-008's own order — fixed, not sorted and not
+              user-arrangeable — replacing the three inert placeholders carried
+              since FEAT-009. No count badges (ui-design D6): each would be a
+              second aggregate query per navigation, and a cached "Today" count
+              is quietly wrong at midnight in the user's zone. */}
           <nav
             style={{
               marginTop: "var(--space-6)",
               display: "flex",
               flexDirection: "column",
-              gap: "var(--space-2)",
-              color: "var(--color-text-muted)",
+              gap: "var(--space-1)",
             }}
             aria-label="Smart views"
           >
-            <span>Today</span>
-            <span>Upcoming</span>
-            <span>Overdue</span>
+            {SMART_VIEWS.map((view) => (
+              <SidebarNavItem
+                key={view}
+                href={`/views/${view}`}
+                label={VIEW_LABELS[view]}
+                testId={`nav-view-${view}`}
+                selected={pathname === `/views/${view}`}
+                onClick={() => setDrawerOpen(false)}
+              />
+            ))}
           </nav>
 
           <ListsNav
@@ -245,16 +271,18 @@ function SidebarNavItem({
   label,
   selected,
   onClick,
+  testId = "nav-settings",
 }: {
   href: string;
   label: string;
   selected: boolean;
   onClick?: () => void;
+  testId?: string;
 }) {
   return (
     <Link
       href={href}
-      data-testid="nav-settings"
+      data-testid={testId}
       aria-current={selected ? "page" : undefined}
       onClick={onClick}
       style={{
