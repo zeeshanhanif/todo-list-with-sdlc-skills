@@ -69,13 +69,33 @@ export function SmartViewScreen({
   /** The server-rendered first page (technical-design §5.4). */
   initial: SmartViewResponse;
 }) {
-  const [results, setResults] = useState<SearchResult[]>(initial.results);
-  const [nextCursor, setNextCursor] = useState<string | null>(
-    initial.nextCursor,
-  );
+  // Only the APPENDED pages are state; the first page is always the server's
+  // current answer. Snapshotting `initial` into state instead would freeze this
+  // screen at mount: `router.refresh()` re-renders the page and hands down new
+  // props, but `useState`'s initial value is read once — so completing a task
+  // would leave its row on screen, and FEAT-019's cross-device refresh would
+  // reach every surface except this one.
+  const [appended, setAppended] = useState<SearchResult[]>([]);
+  const [cursor, setCursor] = useState<string | null>(initial.nextCursor);
+  const [seed, setSeed] = useState<SmartViewResponse>(initial);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const copy = VIEW_COPY[view];
+
+  // A new server page means the data changed underneath us (a completed task, a
+  // write from another device). React's adjust-state-on-prop-change: drop the
+  // appended pages rather than keep rows the server may no longer place in this
+  // view — a stale row here is a wrong answer, and re-paging is one click.
+  if (seed !== initial) {
+    setSeed(initial);
+    setAppended([]);
+    setCursor(initial.nextCursor);
+  }
+
+  const results = appended.length
+    ? [...initial.results, ...appended]
+    : initial.results;
+  const nextCursor = cursor;
 
   async function loadMore() {
     if (!nextCursor) return;
@@ -92,8 +112,8 @@ export function SmartViewScreen({
       return;
     }
     // Append — "Load more" adds to what is read, it does not replace it.
-    setResults((prev) => [...prev, ...outcome.data.results]);
-    setNextCursor(outcome.data.nextCursor);
+    setAppended((prev) => [...prev, ...outcome.data.results]);
+    setCursor(outcome.data.nextCursor);
   }
 
   return (

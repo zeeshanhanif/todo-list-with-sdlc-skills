@@ -101,7 +101,7 @@
       from a view removes the task on refresh), with AC-8's per-view empty copy
       reachable.
 
-- [ ] T8 — E2E: extend `e2e/tests/` with the path this feature completes — sign
+- [x] T8 — E2E: extend `e2e/tests/` with the path this feature completes — sign
       in → open Today from the sidebar → see tasks due today from more than one
       list with their list names → switch to Upcoming, Overdue and All and see
       the membership change → open an empty view and see its empty state → page
