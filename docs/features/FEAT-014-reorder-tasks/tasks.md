@@ -75,7 +75,7 @@
       and write nothing) and AC-6 (unknown, foreign and non-uuid list ids raise
       the same `ListNotFoundError`) pass.
 
-- [ ] T5 — Contract: `@Post('reorder')` on `TasksController` with
+- [x] T5 — Contract: `@Post('reorder')` on `TasksController` with
       `ReorderTasksDto`, `@HttpCode(200)`, returning `ListTasksResponse`
       (design §3.1; UC-010 main 2–3). `toHttp` needs no change — verify that
       rather than assume it.

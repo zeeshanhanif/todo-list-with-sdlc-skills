@@ -14,6 +14,7 @@ import {
   LIST_ERROR_CODES,
   type CreateTaskResponse,
   type ListTasksResponse,
+  type ReorderTasksResponse,
   type SessionUser,
 } from '@todo/shared';
 import { SessionGuard } from '../../common/authz/session.guard';
@@ -21,6 +22,7 @@ import { ChangeSignalInterceptor } from '../../common/realtime/change-signal.int
 import { CurrentUser } from '../../common/authz/current-user.decorator';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
+import { ReorderTasksDto } from './dto/reorder-tasks.dto';
 import {
   ListNotFoundError,
   TaskFieldInvalidError,
@@ -51,6 +53,27 @@ export class TasksController {
   ): Promise<ListTasksResponse> {
     try {
       return await this.tasks.listView(user.id, listId);
+    } catch (err) {
+      throw toHttp(err);
+    }
+  }
+
+  // POST /lists/{listId}/tasks/reorder (FR-TASK-012; UC-010 main 2–3) — persist
+  // the manual order of the list's active tasks (FEAT-014).
+  // Unlike FEAT-009's /lists/reorder, no route-declaration order is load-bearing:
+  // this controller's other routes sit on the empty sub-path, and the
+  // single-task routes live on TaskItemController's /tasks/{id}. The static
+  // segment can collide with nothing.
+  // 200, not 201: nothing is created (the same call FEAT-009 made).
+  @Post('reorder')
+  @HttpCode(200)
+  async reorder(
+    @Param('listId') listId: string,
+    @Body() dto: ReorderTasksDto,
+    @CurrentUser() user: SessionUser,
+  ): Promise<ReorderTasksResponse> {
+    try {
+      return await this.tasks.reorder(user.id, listId, dto.taskIds);
     } catch (err) {
       throw toHttp(err);
     }
