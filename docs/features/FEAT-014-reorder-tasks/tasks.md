@@ -46,7 +46,7 @@
       Done when: `npm run build -w @todo/shared` is clean and the existing
       consumers still typecheck (`npm run build`) — the addition is additive.
 
-- [ ] T2 — Migration 012 `1721590000000_task-manual-order.js` (design §4):
+- [x] T2 — Migration 012 `1721590000000_task-manual-order.js` (design §4):
       add `tasks.position integer NOT NULL DEFAULT 0`; backfill dense
       `0..n-1` **per `(owner_id, list_id)`** ordered `created_at ASC, id ASC`
       over *all* the list's rows (completed and soft-deleted included); down
