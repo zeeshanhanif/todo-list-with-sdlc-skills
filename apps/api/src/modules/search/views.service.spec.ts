@@ -232,14 +232,17 @@ describe('ViewsService (integration)', () => {
 
     it('AC-10: All is ordered newest-created first, not by due date', async () => {
       const { id, inbox } = await freshUser('UTC');
-      // Created oldest to newest, with due dates in the OPPOSITE order — so an
-      // implementation that sorted All by due_at (the other three views' key)
-      // would return the exact reverse and be caught here.
+      // Due dates run in the SAME direction as creation, which is what makes
+      // this falsifiable: newest-first yields third/second/first while
+      // due-ascending yields the exact reverse, so an implementation that gave
+      // `all` the due views' sort key cannot pass. (Inverse due dates — the
+      // obvious fixture — make the two orders identical and prove nothing;
+      // caught by mutating the sort during acceptance.)
       await db.query(
         `INSERT INTO tasks (owner_id, list_id, title, due_at, created_at) VALUES
-           ($1, $2, 'created first',  now() + interval '9 day', now() - interval '3 hour'),
+           ($1, $2, 'created first',  now() + interval '1 day', now() - interval '3 hour'),
            ($1, $2, 'created second', now() + interval '5 day', now() - interval '2 hour'),
-           ($1, $2, 'created third',  now() + interval '1 day', now() - interval '1 hour')`,
+           ($1, $2, 'created third',  now() + interval '9 day', now() - interval '1 hour')`,
         [id, inbox],
       );
 

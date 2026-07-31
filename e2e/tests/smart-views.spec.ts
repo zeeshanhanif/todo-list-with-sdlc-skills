@@ -240,6 +240,68 @@ test("FR-SRCH-009: a view longer than a page loads more without losing rows", as
   await expect(page.getByTestId("view-subtitle")).not.toContainText("so far");
 });
 
+test("AC-12: the BFF refuses an unauthenticated request too", async ({
+  request,
+}) => {
+  // The criterion names BOTH doors, and only the API's was covered: a proxy
+  // that forwarded no cookie but answered anyway would leak one user's views to
+  // an anonymous caller, and the API-side test cannot see that.
+  const res = await request.get("/api/views/today");
+  expect(res.status()).toBe(401);
+  expect(((await res.json()) as { code: string }).code).toBe("unauthenticated");
+});
+
+test("AC-15: the view is operable from the keyboard alone", async ({
+  page,
+  request,
+}) => {
+  const email = uniqueEmail();
+  await register(request, email);
+  await withDb(async (c) => {
+    await c.query(
+      "UPDATE users SET verified_at = now(), timezone = 'UTC' WHERE email = $1",
+      [email],
+    );
+    await c.query(
+      `INSERT INTO tasks (owner_id, list_id, title, due_at)
+       SELECT u.id, l.id, 'Upcoming task ' || g, now() + (g || ' day')::interval
+         FROM users u JOIN lists l ON l.owner_id = u.id AND l.is_default = true
+        CROSS JOIN generate_series(1, 30) g
+        WHERE u.email = $1`,
+      [email],
+    );
+  });
+  await signIn(page, email);
+
+  // Reach the view itself from the sidebar without a pointer.
+  await page.goto("/");
+  await page.getByTestId("nav-view-upcoming").focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("view-title")).toHaveText("Upcoming");
+
+  // Then the two controls the screen adds: Load more, and a row's checkbox
+  // (Space, which is the rule design.md §5 states for a checkbox).
+  await page.getByTestId("view-load-more").focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("view-load-more")).toHaveCount(0);
+  expect(await titles(page)).toHaveLength(30);
+
+  const first = page.getByTestId("view-task-row").first();
+  const title = await first.getAttribute("data-task-title");
+  await first.getByTestId("task-checkbox").focus();
+  await page.keyboard.press("Space");
+  // Matched on the exact title attribute, not on text: "Upcoming task 1" is a
+  // substring of "Upcoming task 10", so a hasText filter would still find rows
+  // after this one was removed and the check would pass for the wrong reason.
+  await expect(page.locator(`[data-task-title="${title}"]`)).toHaveCount(0);
+  // Back to ONE page: completing refreshes the server component, and a fresh
+  // first page replaces the appended ones rather than keeping rows the server
+  // may no longer place in this view. Deliberate (see the T8 commit) and
+  // asserted here so the trade is visible rather than discovered.
+  expect(await titles(page)).toHaveLength(25);
+  await expect(page.getByTestId("view-load-more")).toBeVisible();
+});
+
 test("AC-16: completing a task from a view removes it from that view", async ({
   page,
   request,
