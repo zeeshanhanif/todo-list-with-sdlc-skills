@@ -829,3 +829,56 @@ export const isTaskOverdue = (task: {
     task.dueAt instanceof Date ? task.dueAt.getTime() : Date.parse(task.dueAt);
   return due < Date.now();
 };
+
+// --- Smart views (FEAT-016) ---
+
+/**
+ * The four cross-list views, in the order FR-SRCH-008 defines them — which is
+ * also the order the sidebar renders (ui-design D6's neighbour: fixed, not
+ * sorted and not user-arrangeable).
+ *
+ * Membership, all four excluding completed and soft-deleted tasks: **today** =
+ * due within the current day, **upcoming** = due after it — both calendar-day
+ * questions and therefore computed in the caller's stored timezone
+ * (FR-PROF-003) — **overdue** = the due instant has passed, which is the same
+ * zone-invariant rule `isTaskOverdue` spells above, and **all** = every active
+ * task, due date or not.
+ */
+export const SMART_VIEWS = ["today", "upcoming", "overdue", "all"] as const;
+export type SmartView = (typeof SMART_VIEWS)[number];
+
+/** Path of one view. The segment is a **resource name**, not a filter value, so
+ * a name outside the four is a `404 view_not_found` rather than a validation
+ * error (technical-design D6). */
+export const smartViewPath = (view: string): string => `/views/${view}`;
+
+/** Error `code` values the smart-view endpoint adds to the ApiError envelope
+ * (technical-design §3.1). Field-level failures — `limit`, `cursor` — reuse the
+ * existing `validation_failed` + `fields[]` convention unchanged. */
+export const SMART_VIEW_ERROR_CODES = {
+  viewNotFound: "view_not_found",
+} as const;
+
+/**
+ * Success response (200) of `GET /views/{view}`.
+ *
+ * `results` reuses `SearchResult` — the same task payload plus the originating
+ * list's name — because a cross-list view and a cross-list search answer the
+ * same question about a row: what is it, and where does it live (UC-014 step 3).
+ * A second shape would be a second thing to keep in step.
+ *
+ * `view` is **echoed** so a client that fired two view requests cannot render
+ * the slower one's answer under the other one's heading.
+ *
+ * Ordering is the server's and the client does not re-sort: due-date ascending
+ * for `today`/`upcoming`/`overdue`, newest-created first for `all`, which is the
+ * only view whose members can lack a due date (technical-design D2). `nextCursor`
+ * is FEAT-015's opaque keyset cursor, unchanged in format — only the meaning of
+ * its timestamp half follows the sort.
+ */
+export interface SmartViewResponse {
+  view: SmartView;
+  results: SearchResult[];
+  /** Opaque cursor for the next page, or `null` when this page is the last. */
+  nextCursor: string | null;
+}

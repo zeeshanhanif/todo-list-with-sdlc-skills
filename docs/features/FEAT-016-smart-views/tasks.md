@@ -23,7 +23,7 @@
 > `--color-danger-text` on the danger tint, never `--color-danger`.
 > `apps/web/AGENTS.md`: read `node_modules/next/dist/docs/` before writing web code.
 
-- [ ] T1 — Shared contracts (`@todo/shared`, design §3): a FEAT-016 block adding
+- [x] T1 — Shared contracts (`@todo/shared`, design §3): a FEAT-016 block adding
       `SMART_VIEWS` (`today`/`upcoming`/`overdue`/`all`) + `SmartView`,
       `smartViewPath(view)`, `SmartViewResponse` (`view`, `results:
       SearchResult[]`, `nextCursor`), and `SMART_VIEW_ERROR_CODES.viewNotFound`
