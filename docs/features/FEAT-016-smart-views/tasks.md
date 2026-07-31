@@ -33,7 +33,7 @@
       new symbols, and **no existing exported shape changes** — `SearchResult`
       and `SearchResponse` in particular are reused, never edited.
 
-- [ ] T2 — Migration `1721580000000_smart-view-index.js` (design §4): the partial
+- [x] T2 — Migration `1721580000000_smart-view-index.js` (design §4): the partial
       index `tasks_owner_due_idx (owner_id, due_at) WHERE completed_at IS NULL
       AND deleted_at IS NULL`. No columns, no tables, no constraints.
       Done when: `npm run db:migrate` applies clean and the down migration drops
