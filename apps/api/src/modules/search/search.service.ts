@@ -49,7 +49,7 @@ export class SearchService {
       // a request that returns nothing and looks like a bug (D4).
       nextCursor:
         hasMore && last
-          ? encodeCursor({ createdAt: last.createdAtExact, id: last.id })
+          ? encodeCursor({ sortKey: last.sortKeyExact, id: last.id })
           : null,
     };
   }

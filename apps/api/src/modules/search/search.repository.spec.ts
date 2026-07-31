@@ -3,7 +3,11 @@ import { Test } from '@nestjs/testing';
 import { APP_CONFIG, readConfig } from '../../infra/config';
 import { DbService } from '../../infra/db.service';
 import { SearchRepository } from './search.repository';
-import { parseCriteria, type RawSearchQuery } from './search.criteria';
+import {
+  parseCriteria,
+  type RawSearchQuery,
+  type SearchCriteria,
+} from './search.criteria';
 
 // Integration tests (need local Postgres; schema ensured by jest globalSetup).
 // FEAT-015 T4 — SearchRepository: AC-1 (case-insensitive substring across every
@@ -430,6 +434,108 @@ describe('SearchRepository (integration)', () => {
       );
       expect(exact.rows).toHaveLength(3);
       expect(exact.hasMore).toBe(false); // exactly a full page is not "more"
+    });
+  });
+
+  // FEAT-016 T3 — the second sort. The predicates are unchanged; what these
+  // pin is that `sort: 'due'` flips the ORDER BY, the keyset comparison and
+  // the exact sort key together, because getting one of the three wrong
+  // silently returns a plausible-looking wrong page (FEAT-016 D2).
+  describe('due-ordered pages (FEAT-016 AC-10, AC-11)', () => {
+    /** Criteria the smart views build directly — not through the parser, which
+     * only ever produces `sort: 'newest'`. */
+    const dueCriteria = (over: Partial<SearchCriteria> = {}): SearchCriteria => ({
+      term: null,
+      status: 'active',
+      due: 'upcoming',
+      limit: 25,
+      cursor: null,
+      sort: 'due',
+      ...over,
+    });
+
+    it('AC-10: orders by due date ascending, breaking ties by id', async () => {
+      const { id, inbox } = await freshUser();
+      const day = (n: number) =>
+        new Date(Date.now() + n * 86_400_000).toISOString();
+      // Seeded out of order, and two share an instant so the tie-break is
+      // exercised rather than assumed.
+      const sameInstant = day(5);
+      await seed(id, inbox, 'in three days', { dueAt: day(3) });
+      await seed(id, inbox, 'tie b', { dueAt: sameInstant });
+      await seed(id, inbox, 'in one day', { dueAt: day(1) });
+      await seed(id, inbox, 'tie a', { dueAt: sameInstant });
+
+      const { rows } = await repo.search(id, dueCriteria(), 'UTC');
+      const titles = rows.map((r) => r.title);
+
+      expect(titles.slice(0, 2)).toEqual(['in one day', 'in three days']);
+      expect(titles.slice(2).sort()).toEqual(['tie a', 'tie b']);
+      // Total order: the two tied rows come back in id order, so a page
+      // boundary landing between them cannot lose or repeat one.
+      const tied = rows.slice(2);
+      expect(tied[0].id < tied[1].id).toBe(true);
+    });
+
+    it('AC-11: a task inserted between pages neither duplicates nor hides a row', async () => {
+      const { id, inbox } = await freshUser();
+      const day = (n: number) =>
+        new Date(Date.now() + n * 86_400_000).toISOString();
+      for (const n of [1, 2, 3, 4]) {
+        await seed(id, inbox, `due in ${n}`, { dueAt: day(n) });
+      }
+
+      const first = await repo.search(id, dueCriteria({ limit: 2 }), 'UTC');
+      expect(first.rows.map((r) => r.title)).toEqual(['due in 1', 'due in 2']);
+      expect(first.hasMore).toBe(true);
+
+      // The insert lands INSIDE the range page 1 already returned — the case
+      // offset pagination gets wrong by shifting every later page.
+      await seed(id, inbox, 'inserted between', { dueAt: day(1.5) });
+
+      const last = first.rows[first.rows.length - 1];
+      const second = await repo.search(
+        id,
+        dueCriteria({
+          limit: 2,
+          cursor: { sortKey: last.sortKeyExact, id: last.id },
+        }),
+        'UTC',
+      );
+
+      expect(second.rows.map((r) => r.title)).toEqual(['due in 3', 'due in 4']);
+      expect(second.hasMore).toBe(false);
+    });
+
+    it('AC-11: the cursor carries the DUE date, not the created date', async () => {
+      const { id, inbox } = await freshUser();
+      // Created newest-first but due oldest-first, so a cursor built from the
+      // wrong column would page in the wrong direction and return nothing.
+      await seed(id, inbox, 'due soonest', {
+        dueAt: new Date(Date.now() + 86_400_000).toISOString(),
+        createdAt: '2026-03-01T00:00:00Z',
+      });
+      await seed(id, inbox, 'due later', {
+        dueAt: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+        createdAt: '2026-01-01T00:00:00Z',
+      });
+
+      const first = await repo.search(id, dueCriteria({ limit: 1 }), 'UTC');
+      expect(first.rows[0].title).toBe('due soonest');
+      expect(first.rows[0].sortKeyExact.startsWith('2026-03-01')).toBe(false);
+
+      const second = await repo.search(
+        id,
+        dueCriteria({
+          limit: 1,
+          cursor: {
+            sortKey: first.rows[0].sortKeyExact,
+            id: first.rows[0].id,
+          },
+        }),
+        'UTC',
+      );
+      expect(second.rows.map((r) => r.title)).toEqual(['due later']);
     });
   });
 });

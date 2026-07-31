@@ -40,7 +40,7 @@
       it clean against the current schema, and `\d tasks` shows the index with
       its predicate.
 
-- [ ] T3 — Domain: generalize the sort in `search.criteria.ts` +
+- [x] T3 — Domain: generalize the sort in `search.criteria.ts` +
       `search.repository.ts` (design §5.1, §5.3, D2). `SearchCriteria` gains
       `sort: 'newest' | 'due'`; the cursor's timestamp field is renamed
       `createdAt` → `sortKey`; the repository picks its `ORDER BY`, its keyset

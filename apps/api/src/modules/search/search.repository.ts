@@ -8,9 +8,10 @@ import type { SearchCriteria } from './search.criteria';
  * derivation — reusing FEAT-011's single definition, never adding a second. */
 export interface SearchRow {
   id: string;
-  /** The row's `created_at` as text at full database precision — what the
-   * cursor is built from, since a JS `Date` would truncate its microseconds. */
-  createdAtExact: string;
+  /** The row's **sort key** — `created_at` or `due_at` per `criteria.sort` — as
+   * text at full database precision, since a JS `Date` would truncate its
+   * microseconds. This is what the cursor is built from (FEAT-016 D2). */
+  sortKeyExact: string;
   listId: string;
   listName: string;
   title: string;
@@ -22,7 +23,7 @@ export interface SearchRow {
 
 interface RawRow {
   id: string;
-  created_at_exact: string;
+  sort_key_exact: string;
   list_id: string;
   list_name: string;
   title: string;
@@ -96,13 +97,21 @@ export class SearchRepository {
       }
     }
 
+    // The sort key, its direction and the keyset comparison all follow
+    // `criteria.sort` — one statement, two orders (FEAT-016 D2).
+    const dueSorted = criteria.sort === 'due';
+    const sortColumn = dueSorted ? 't.due_at' : 't.created_at';
+    const direction = dueSorted ? 'ASC' : 'DESC';
+
     if (criteria.cursor !== null) {
       // Keyset: strictly past the last row of the previous page, in the same
       // total order the ORDER BY imposes (D4). The row comparison is what makes
-      // ties on created_at resolve by id rather than by luck.
-      params.push(criteria.cursor.createdAt, criteria.cursor.id);
+      // ties on the sort key resolve by id rather than by luck — and the
+      // comparison flips with the direction, or a due-sorted second page would
+      // read backwards into rows the first page already returned.
+      params.push(criteria.cursor.sortKey, criteria.cursor.id);
       where.push(
-        `(t.created_at, t.id) < ($${params.length - 1}::timestamptz, $${params.length}::uuid)`,
+        `(${sortColumn}, t.id) ${dueSorted ? '>' : '<'} ($${params.length - 1}::timestamptz, $${params.length}::uuid)`,
       );
     }
 
@@ -111,12 +120,12 @@ export class SearchRepository {
     const res = await this.db.query<RawRow>(
       `SELECT t.id, t.list_id, l.name AS list_name, t.title,
               t.completed_at, t.created_at, t.due_at, t.priority,
-              to_char(t.created_at AT TIME ZONE 'UTC',
-                      'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS created_at_exact
+              to_char(${sortColumn} AT TIME ZONE 'UTC',
+                      'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS sort_key_exact
          FROM tasks t
          JOIN lists l ON l.id = t.list_id
         WHERE ${where.join('\n          AND ')}
-        ORDER BY t.created_at DESC, t.id DESC
+        ORDER BY ${sortColumn} ${direction}, t.id ${direction}
         LIMIT $${params.length}`,
       params,
     );
@@ -177,7 +186,7 @@ const OVERDUE =
 function toRow(row: RawRow): SearchRow {
   return {
     id: row.id,
-    createdAtExact: row.created_at_exact,
+    sortKeyExact: row.sort_key_exact,
     listId: row.list_id,
     listName: row.list_name,
     title: row.title,

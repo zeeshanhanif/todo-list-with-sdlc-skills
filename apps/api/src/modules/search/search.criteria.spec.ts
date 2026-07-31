@@ -33,6 +33,10 @@ describe('parseCriteria', () => {
       due: null,
       limit: SEARCH_PAGE_SIZE,
       cursor: null,
+      // Search has exactly one order and the parser is the only thing that
+      // produces it; the smart views' `due` sort is built directly, never
+      // parsed from a request (FEAT-016 D2).
+      sort: 'newest',
     });
   });
 
@@ -101,7 +105,7 @@ describe('the cursor codec (D4)', () => {
   // TEXT rather than a JS Date (a Date truncates to milliseconds, and a
   // truncated cursor returns an empty second page).
   const cursor = {
-    createdAt: '2026-07-31T09:15:00.123456Z',
+    sortKey: '2026-07-31T09:15:00.123456Z',
     id: '11111111-1111-4111-8111-111111111111',
   };
 
@@ -110,7 +114,7 @@ describe('the cursor codec (D4)', () => {
     expect(decoded?.id).toBe(cursor.id);
     // Byte-identical, microseconds included — the assertion a Date-based
     // cursor cannot pass.
-    expect(decoded?.createdAt).toBe(cursor.createdAt);
+    expect(decoded?.sortKey).toBe(cursor.sortKey);
   });
 
   it('re-encodes to the same string — the codec is stable', () => {
