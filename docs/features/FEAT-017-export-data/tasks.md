@@ -63,7 +63,7 @@
       transaction opens is absent from the task read, which fails under
       `READ COMMITTED` and passes under `REPEATABLE READ`).
 
-- [ ] T3 — Domain: `AccountExportService` + `account-data.errors.ts` (design §5.1;
+- [x] T3 — Domain: `AccountExportService` + `account-data.errors.ts` (design §5.1;
       FR-DATA-001/002). Row → wire mapping: `Date → toISOString()`,
       `display_name → displayName` **verbatim, no `displayNameFor`** (D4), tasks
       grouped into their lists in one pass over the task rows, `exportedAt`
