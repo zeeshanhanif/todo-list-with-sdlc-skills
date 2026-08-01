@@ -49,10 +49,19 @@ export default async function SecuritySettingsPage() {
           overflow: "hidden",
         }}
       >
+        {/* Rows run least- to most-consequential, so FEAT-018's irreversible
+            "Delete account" lands last rather than beside a routine action
+            (FEAT-017 ui-design). */}
         <HubRow
           href="/settings/security/password"
           label="Change password"
           help="Update your password. Other devices will be signed out."
+        />
+        <HubRow
+          href="/settings/security/export"
+          label="Export data"
+          help="Download your lists and tasks as a JSON file."
+          divider
         />
       </section>
     </AppShell>
@@ -65,20 +74,31 @@ function HubRow({
   href,
   label,
   help,
+  divider = false,
 }: {
   href: string;
   label: string;
   help: string;
+  /** Draws the base spec's 1px rule BETWEEN rows. A top rule rather than a
+   * bottom one so it is set by each row after the first — the card never grows
+   * a trailing rule as FEAT-018 appends its own. */
+  divider?: boolean;
 }) {
   return (
     <Link
       href={href}
-      data-testid="row-change-password"
+      data-testid={`row-${href.split("/").pop()!}`}
       style={{
         display: "block",
         minHeight: 44,
         padding: "var(--space-4) var(--space-5)",
         textDecoration: "none",
+        ...(divider
+          ? {
+              borderTop:
+                "var(--border-width-hairline) solid var(--color-border)",
+            }
+          : {}),
       }}
     >
       <span

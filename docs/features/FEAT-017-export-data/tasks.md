@@ -111,7 +111,7 @@
       `401` envelope unchanged, and a `500` from the API surfaces as the typed
       failure rather than a thrown parse error (NFR-REL-004).
 
-- [ ] T6 — UI integration point (design §5.2): `app/settings/security/export/page.tsx`
+- [x] T6 — UI integration point (design §5.2): `app/settings/security/export/page.tsx`
       (**SCR-WEB-016**) + `components/export-data.tsx` client island consuming
       `POST /api/account/export`, and one new `HubRow` on
       `app/settings/security/page.tsx` (**SCR-WEB-014**) reaching it. Screens are
