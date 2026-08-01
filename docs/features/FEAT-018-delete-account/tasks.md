@@ -44,7 +44,7 @@
       new symbols, and **no existing exported shape changes** — `confirm`'s type
       is the literal `true`, so a `confirm: false` call site fails to compile.
 
-- [ ] T2 — Refactor: promote `PasswordHasher` from
+- [x] T2 — Refactor: promote `PasswordHasher` from
       `apps/api/src/modules/auth/password-hasher.ts` to
       `apps/api/src/common/crypto/password-hasher.ts` (design D2), moving
       `password-hasher.spec.ts` with it and updating every import
