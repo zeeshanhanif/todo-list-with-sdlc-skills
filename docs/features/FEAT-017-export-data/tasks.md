@@ -127,7 +127,7 @@
       focus ring on every control, any icon-only control ≥ 44×44 at a touch
       viewport) all hold.
 
-- [ ] T7 — E2E: extend `e2e/tests/` with the path this feature completes — sign in
+- [x] T7 — E2E: extend `e2e/tests/` with the path this feature completes — sign in
       → Settings › Security & account → Export → a file downloads → its parsed
       contents contain the seeded lists and both an active and a completed task,
       and **not** a task the same run soft-deleted. [UC-015]
