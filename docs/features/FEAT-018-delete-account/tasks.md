@@ -69,7 +69,7 @@
       throws before commit leaves every row in place — nothing partially
       deleted).
 
-- [ ] T4 — Domain: `AccountDeleteService` + the `CurrentPasswordInvalidError`
+- [x] T4 — Domain: `AccountDeleteService` + the `CurrentPasswordInvalidError`
       addition to `account-data.errors.ts` (design §5.1; FR-DATA-003/004/005).
       The order **is** the design: credential read → `hasher.verify` → (on
       failure: `account_delete_failure` audit + throw, **nothing written**) →

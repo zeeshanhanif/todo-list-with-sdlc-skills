@@ -16,6 +16,29 @@ export class AccountNotFoundError extends Error {
 }
 
 /**
+ * The `currentPassword` supplied to a delete-account request does not verify
+ * against the stored hash (FEAT-018 → 400 `current_password_invalid`, field
+ * `currentPassword`; FR-DATA-004; UC-016 alt 3a).
+ *
+ * **Not 401**, for the reason FEAT-006 D3 gave and this design inherits (D4):
+ * on an authenticated route 401 means "your session is gone" and every client
+ * redirects to sign-in — which would throw the user out of the flow and lose
+ * the screen's state over a recoverable typo. It is a distinct class from
+ * `auth`'s error of the same name because the boundary rule forbids importing
+ * that module's code; the wire `code` is shared, which is the part that matters
+ * (`AUTH_ERROR_CODES.currentPasswordInvalid`).
+ *
+ * Thrown only *before* anything is written. Nothing is ever partially deleted
+ * on this path.
+ */
+export class CurrentPasswordInvalidError extends Error {
+  constructor() {
+    super('That password is incorrect.');
+    this.name = 'CurrentPasswordInvalidError';
+  }
+}
+
+/**
  * A task came back whose list is not in the same snapshot's list set — an
  * invariant violation that should be unreachable: `tasks.list_id` is `NOT NULL`
  * with an FK (FR-LIST-009), both reads are owner-scoped, and D8's REPEATABLE
