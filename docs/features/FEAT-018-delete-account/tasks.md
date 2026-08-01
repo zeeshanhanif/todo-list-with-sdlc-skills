@@ -136,7 +136,7 @@
       ring, icon-only controls ≥ 44×44 at a touch viewport — **measured in both
       themes**) all hold.
 
-- [ ] T8 — E2E: extend `e2e/tests/` with the path this feature completes — sign in
+- [x] T8 — E2E: extend `e2e/tests/` with the path this feature completes — sign in
       → Settings › Security & account → Delete account → the warning names what
       will be lost → a wrong password is refused with the data still there → the
       correct password deletes → the confirmation renders → the app is signed out
