@@ -85,7 +85,7 @@
       category, never the submitted password), and the concurrent-delete case
       (`deleteAccount` returning `false` → `AccountNotFoundError`).
 
-- [ ] T5 — Contract: `AccountDeleteController` + `dto/delete-account.dto.ts`,
+- [x] T5 — Contract: `AccountDeleteController` + `dto/delete-account.dto.ts`,
       wired into `account-data.module.ts` (design §3.1, §5.1). Class-level
       `@UseGuards(SessionGuard, RateLimitGuard)`; **no `ChangeSignalInterceptor`**
       (D7). DTO validates a non-empty `currentPassword` and `confirm === true`
