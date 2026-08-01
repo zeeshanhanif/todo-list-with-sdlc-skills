@@ -55,7 +55,7 @@
       from `modules/account-data`), and the **whole api suite** — auth included —
       passes serially, demonstrating the move broke nothing that was verified.
 
-- [ ] T3 — Domain: `AccountDeleteRepository` (design §5.1; FR-DATA-003,
+- [x] T3 — Domain: `AccountDeleteRepository` (design §5.1; FR-DATA-003,
       FR-DATA-005). `findCredential(userId)` → `{ passwordHash } | null`, and
       `deleteAccount(userId)` → `boolean`, the latter in one `db.transaction`:
       `DELETE FROM email_outbox WHERE payload->>'userId' = $1` **then**
