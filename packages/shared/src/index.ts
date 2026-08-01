@@ -1062,3 +1062,42 @@ export const accountExportFilename = (
   }).format(instant);
   return `todo-export-${date}.json`;
 };
+
+// --- Account data: delete account (FEAT-018) ---
+
+/** Path of the account-deletion endpoint. Single-subject, exactly like the
+ * export: the account deleted is always the caller's own, so no id appears in
+ * the path, the query or the body — there is no request shape that addresses
+ * another account (FR-AUTHZ-004; technical-design §3.1). */
+export const ACCOUNT_DELETE_PATH = "/account/delete";
+
+/**
+ * Request body of `POST /account/delete` (FR-DATA-003, FR-DATA-004).
+ *
+ * The user is taken from the session, never from the body (FR-AUTHZ-001) — the
+ * same rule `ChangePasswordRequest` follows, which is also where the field name
+ * `currentPassword` comes from: it is the same fact, so it keeps the same name.
+ */
+export interface DeleteAccountRequest {
+  currentPassword: string;
+  /**
+   * Must be the literal `true`. FR-DATA-004 requires an explicit confirmation
+   * of **the system**, not only of the screen, so it is encoded in the contract
+   * rather than left as a property of one client (technical-design D3): no
+   * caller destroys an account by sending a password alone, and the requirement
+   * is testable at the API.
+   */
+  confirm: true;
+}
+
+/**
+ * Success response (200) of `POST /account/delete`.
+ *
+ * Deliberately says nothing about what was deleted: the account is gone, and a
+ * count of destroyed rows would be data about a user we no longer hold. The
+ * response also carries a `Set-Cookie` clearing the session cookie — every
+ * session was revoked with the account (FR-DATA-005).
+ */
+export interface DeleteAccountResponse {
+  status: "account_deleted";
+}

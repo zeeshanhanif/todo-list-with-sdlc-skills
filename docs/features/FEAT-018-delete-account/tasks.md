@@ -34,7 +34,7 @@
 > sweeps now run **both themes** through `e2e/tests/contrast.ts` (AC-19).
 > `apps/web/AGENTS.md`: read `node_modules/next/dist/docs/` before writing web code.
 
-- [ ] T1 — Shared contracts (`@todo/shared`, design §3.2): a FEAT-018 block adding
+- [x] T1 — Shared contracts (`@todo/shared`, design §3.2): a FEAT-018 block adding
       `ACCOUNT_DELETE_PATH` (`"/account/delete"`), `DeleteAccountRequest`
       (`currentPassword: string; confirm: true`) and `DeleteAccountResponse`
       (`status: "account_deleted"`). **Re-mint nothing**: the error code is the
