@@ -47,7 +47,7 @@
       api + web typecheck against the new symbols, and **no existing exported
       shape changes**.
 
-- [ ] T2 — Domain: `AccountExportRepository` (design §5.1; FR-DATA-001/002,
+- [x] T2 — Domain: `AccountExportRepository` (design §5.1; FR-DATA-001/002,
       FR-AUTHZ-002). The three reads (`ACCOUNT_SQL`, `LISTS_SQL`, `TASKS_SQL`) in
       one `db.transaction`, opened with
       `SET TRANSACTION ISOLATION LEVEL REPEATABLE READ` (D8). Every statement
