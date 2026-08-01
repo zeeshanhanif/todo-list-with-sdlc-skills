@@ -1,5 +1,20 @@
 # Acceptance Report: FEAT-008 — View/edit profile (display name, timezone, theme)
 
+# Re-verification — 2026-08-01 · Verdict: Accepted (unchanged) · after the DEF-009 fix
+
+**One product-wide CSS rule; nothing feature-specific changed.** design.md §5's
+`:focus-visible` ring (2px `--color-focus-ring`, 2px offset) is now applied in
+`globals.css`; every screen, including this feature's, previously showed the
+browser's 1px default. This feature's own AC-16 keyboard clause is the one that
+originally surfaced the gap (DEF-009 was filed by FEAT-008's acceptance run).
+
+**Verdict unchanged: Accepted.** No criterion's outcome moves — the screens now
+conform more closely to the §5 clause the criteria already required, and the
+ring is guarded by `e2e/tests/focus-ring.spec.ts`.
+
+**Re-executed (2026-08-01, from `70b4a30`):** api **442/442**, web **78/78**,
+worker 24/24, e2e **53/53**, lint · boundaries · build clean.
+
 > Verdict: **Accepted** · Date: 2026-07-30
 > Standard: technical-design.md §6 (AC-1..AC-16) · Sources: docs/srs.md (FR-PROF-001..005,
 > NFR-LOC-001, NFR-PERF-001, NFR-USE-003/004, NFR-REL-004, FR-AUTHZ-001/004),

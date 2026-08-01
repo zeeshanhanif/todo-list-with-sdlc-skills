@@ -9,6 +9,7 @@ import {
   type TaskSummary,
   type UpdateTaskRequest,
 } from '@todo/shared';
+import { DbService, type TxClient } from '../../infra/db.service';
 import {
   TasksRepository,
   type TaskPatch,
@@ -32,17 +33,80 @@ import {
  */
 @Injectable()
 export class TasksService {
-  constructor(private readonly tasks: TasksRepository) {}
+  constructor(
+    private readonly db: DbService,
+    private readonly tasks: TasksRepository,
+  ) {}
 
   /** The list view: the list itself plus its tasks, split by the server
    * (FR-TASK-003 — the system separates active from completed, not the client). */
   async listView(ownerId: string, listId: string): Promise<ListTasksResponse> {
     assertLookupId(listId);
-    const list = await this.tasks.findOwnedList(ownerId, listId);
+    return this.readView(ownerId, listId);
+  }
+
+  /**
+   * FR-TASK-012 — persist a manual order for the list's active tasks
+   * (FEAT-014 §3.1).
+   *
+   * `taskIds` must be **exactly** the list's active, non-deleted set: the whole
+   * vector is rewritten to a dense `0..n-1` in one transaction, which is what
+   * makes the operation idempotent and keeps positions drift-free (D2), and
+   * what lets a stale client be *told* rather than allowed to apply a move
+   * against an order it no longer has.
+   *
+   * The set check is deliberately **one error for every way of failing it** —
+   * duplicated, missing, extra, completed, soft-deleted, another list's, another
+   * user's. Telling them apart would disclose that an id exists somewhere the
+   * caller cannot see (FR-AUTHZ-002/003; the rule FEAT-009 D3 set, and the same
+   * one `ListsService.reorder` follows).
+   *
+   * Everything runs inside the transaction, including the closing read, so the
+   * response is the order this call committed rather than one a concurrent
+   * write could have interleaved with.
+   */
+  async reorder(
+    ownerId: string,
+    listId: string,
+    taskIds: string[],
+  ): Promise<ListTasksResponse> {
+    assertLookupId(listId);
+    return this.db.transaction(async (tx) => {
+      const list = await this.tasks.findOwnedList(ownerId, listId, tx);
+      if (!list) {
+        throw new ListNotFoundError();
+      }
+
+      if (new Set(taskIds).size !== taskIds.length) {
+        throw orderInvalid();
+      }
+      const owned = new Set(
+        await this.tasks.findActiveIdsByList(ownerId, listId, tx),
+      );
+      const sameSet =
+        owned.size === taskIds.length && taskIds.every((id) => owned.has(id));
+      if (!sameSet) {
+        throw orderInvalid();
+      }
+
+      await this.tasks.setPositions(tx, ownerId, listId, taskIds);
+      return this.readView(ownerId, listId, tx);
+    });
+  }
+
+  /** The list view's composition, usable inside a transaction — so the reorder
+   * response is read from the same snapshot that wrote it (D6: one code path,
+   * so a reorder response and a fresh `GET` cannot disagree). */
+  private async readView(
+    ownerId: string,
+    listId: string,
+    q?: TxClient,
+  ): Promise<ListTasksResponse> {
+    const list = await this.tasks.findOwnedList(ownerId, listId, q);
     if (!list) {
       throw new ListNotFoundError();
     }
-    const rows = await this.tasks.findByList(ownerId, listId);
+    const rows = await this.tasks.findByList(ownerId, listId, q);
     return {
       list,
       active: rows.filter((r) => r.completedAt === null).map(toSummary),
@@ -258,7 +322,26 @@ function toSummary(row: TaskRow): TaskSummary {
     dueAt: row.dueAt ? row.dueAt.toISOString() : null,
     priority: row.priority,
     isOverdue: isTaskOverdue(row),
+    position: row.position,
   };
+}
+
+/** The one answer to every way a reorder vector can be wrong — duplicated,
+ * missing, extra, completed, soft-deleted, another list's, another user's.
+ *
+ * `TaskFieldInvalidError` rather than a fifth error class (FEAT-014 D7): it
+ * already carries `(field, requirement)` and the controller already renders it
+ * as `validation_failed` with a `fields[]` entry, so a `TaskOrderInvalidError`
+ * would be a new class with an identical HTTP mapping. Symmetry with
+ * `ListOrderInvalidError` is preserved where it matters — in the response.
+ *
+ * ONE message, built here rather than at each throw site, so the two call sites
+ * cannot drift into two distinguishable answers (FR-AUTHZ-002/003). */
+function orderInvalid(): TaskFieldInvalidError {
+  return new TaskFieldInvalidError(
+    'taskIds',
+    'Send every active task in this list exactly once, in the order you want.',
+  );
 }
 
 /** FR-TASK-006: a due date is an ISO-8601 instant, or null for "no due date".

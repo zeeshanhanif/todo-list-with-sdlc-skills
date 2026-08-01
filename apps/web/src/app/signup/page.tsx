@@ -87,16 +87,26 @@ export default function SignUpPage() {
             padding: "var(--space-3)",
             borderRadius: "var(--radius-md)",
             background: "var(--color-danger-subtle)",
-            color: "var(--color-danger)",
+            // The tint's PARTNER ink — `--color-danger` here is 3.95:1, under
+            // design.md §5's 4.5:1 for body text (DEF-006).
+            color: "var(--color-danger-text)",
             fontSize: "var(--font-size-small)",
           }}
         >
           {formError}{" "}
-          <Link href="/signin" style={{ color: "var(--color-danger)", textDecoration: "underline" }}>
+          <Link
+            href="/signin"
+            // Inside the tint too — a link on this background needs the same
+            // partner ink as the text around it (DEF-006).
+            style={{ color: "var(--color-danger-text)", textDecoration: "underline" }}
+          >
             Sign in
           </Link>{" "}
           or{" "}
-          <Link href="/reset-password" style={{ color: "var(--color-danger)", textDecoration: "underline" }}>
+          <Link
+            href="/reset-password"
+            style={{ color: "var(--color-danger-text)", textDecoration: "underline" }}
+          >
             reset your password
           </Link>
           .

@@ -1,5 +1,49 @@
 # Acceptance Report: FEAT-009 — List management
 
+# Re-verification — 2026-08-01 · Verdict: Accepted (unchanged) · after the DEF-006 and DEF-009 fixes
+
+**Two one-line-per-site colour changes; no behaviour, contract or state moved.**
+
+- **DEF-006** — this feature's inline error alert paired `--color-danger` with
+  `--color-danger-subtle` (**3.95:1**, under design.md §5's 4.5:1 for body
+  text). It now uses the tint's partner ink `--color-danger-text` (**6.80:1**
+  light / 8.31:1 dark). The alert's copy, role, testid, trigger conditions and
+  placement are untouched — only the ink.
+- **DEF-009** — the design system's `:focus-visible` ring (2px
+  `--color-focus-ring`, 2px offset) is now actually applied, product-wide, in
+  `globals.css`. Every screen previously showed the browser's 1px default.
+
+**Verdict unchanged: Accepted.** No acceptance criterion of this feature is
+affected: both changes make the screens conform *more* closely to design.md §5,
+which the criteria already required. Both are now guarded permanently —
+`e2e/tests/inline-alert-contrast.spec.ts` measures the rendered contrast ratio
+and `e2e/tests/focus-ring.spec.ts` measures the rendered ring.
+
+**Re-executed (2026-08-01, from `70b4a30`):** api **442/442**, web **78/78**,
+worker 24/24, e2e **53/53**, lint · boundaries · build clean.
+
+# Re-verification — 2026-08-01 · Verdict: Accepted (unchanged) · after the DEF-011 fix
+
+**One line of FEAT-009 code changed:** `lists-nav.tsx`'s shared `iconButton`
+style now sizes on `--size-touch-target` (44px) instead of `--size-control-md`
+(40px), affecting the list-row menu trigger and the "New list" button.
+design.md §4 specifies `icon-button` as "40px (**44px touch**)" and §5 requires
+≥ 44×44 on touch viewports, but no coarse-pointer rule exists anywhere in
+`apps/web`, so the touch size had never been implemented — the controls were
+40px on every viewport since this feature shipped. Found by FEAT-014's
+acceptance run, whose AC-12 names the 44px target explicitly.
+
+**Verdict unchanged: Accepted.** No FEAT-009 acceptance criterion is affected —
+the controls' behaviour, labels, states and contrast are untouched; only their
+minimum box grew by 4px. Nothing else in the sidebar moved: the rows already
+had `--size-touch-target` minimum height.
+
+**Re-executed (2026-08-01, from `3fd7619`):** api **442/442**, web 76/76,
+worker 24/24, e2e **48/48** including `lists.spec`, lint · boundaries · build
+clean. The fix is now guarded permanently by `e2e/tests/touch-target.spec.ts`,
+which measures rendered bounding boxes at a phone viewport. See docs/defects.md
+DEF-011.
+
 > Verdict: **Accepted** · Date: 2026-07-27
 > Standard: technical-design.md §6 (AC-1..AC-13) · Sources: docs/srs.md (FR-LIST-001/002/004..009, FR-AUTHZ-001..005, NFR-USE-002, NFR-PERF-001), docs/use-cases.md (UC-008)
 > Repo state audited: `2d7dac1` (feature range `cc7e1bc`..`2d7dac1`)

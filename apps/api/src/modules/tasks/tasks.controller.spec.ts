@@ -5,8 +5,12 @@ import request from 'supertest';
 import {
   LIST_ERROR_CODES,
   TASK_TITLE_MAX_LENGTH,
+  completeTaskPath,
   listTasksPath,
+  reorderTasksPath,
+  taskPath,
   type ApiError,
+  type CreateListResponse,
   type CreateTaskResponse,
   type ListTasksResponse,
 } from '@todo/shared';
@@ -408,5 +412,257 @@ describe('task endpoints (contract)', () => {
 
     expect(res.status).toBe(201);
     expect((res.body as CreateTaskResponse).task.dueAt).toBeNull();
+  });
+
+  // --- FEAT-014 (T5) — POST /lists/{listId}/tasks/reorder (FR-TASK-012) ---
+  //
+  // AC-1 (200 + the new order, persisted), AC-5 (400 validation_failed on
+  // `taskIds`, ONE message), AC-6 (404 byte-identical across the three causes),
+  // AC-7 (401, nothing written).
+
+  /** Create a task and assert the fixture's own response, per DEF-002's
+   * diagnosis — a silently failed create surfaces later as an unrelated error. */
+  const newTask = async (
+    cookie: string,
+    listId: string,
+    title: string,
+  ): Promise<string> => {
+    const res = await request(server())
+      .post(listTasksPath(listId))
+      .set('Cookie', cookie)
+      .send({ title });
+    expect(res.status).toBe(201);
+    return (res.body as CreateTaskResponse).task.id;
+  };
+
+  it('AC-1: 200 with the list view in the new order, and a fresh GET agrees', async () => {
+    const { cookie, inbox } = await signedInUser();
+    const a = await newTask(cookie, inbox, 'a');
+    const b = await newTask(cookie, inbox, 'b');
+    const c = await newTask(cookie, inbox, 'c');
+
+    const res = await request(server())
+      .post(reorderTasksPath(inbox))
+      .set('Cookie', cookie)
+      .send({ taskIds: [c, b, a] });
+
+    expect(res.status).toBe(200);
+    const body = res.body as ListTasksResponse;
+    expect(body.active.map((t) => t.id)).toEqual([c, b, a]);
+    expect(body.active.map((t) => t.position)).toEqual([0, 1, 2]);
+    expect(body.list.id).toBe(inbox); // the FULL list view, not a bare ack (D6)
+
+    const fresh = await request(server())
+      .get(listTasksPath(inbox))
+      .set('Cookie', cookie);
+    expect(fresh.status).toBe(200);
+    expect((fresh.body as ListTasksResponse).active.map((t) => t.id)).toEqual([
+      c,
+      b,
+      a,
+    ]);
+  });
+
+  it('AC-5: malformed vectors are 400 validation_failed on `taskIds`, with ONE message', async () => {
+    const { cookie, id: owner, inbox } = await signedInUser();
+    const other = await signedInUser();
+    const a = await newTask(cookie, inbox, 'a');
+    const b = await newTask(cookie, inbox, 'b');
+    const done = await newTask(cookie, inbox, 'done');
+    const gone = await newTask(cookie, inbox, 'gone');
+    expect(
+      (
+        await request(server())
+          .post(completeTaskPath(done))
+          .set('Cookie', cookie)
+      ).status,
+    ).toBe(200);
+    expect(
+      (await request(server()).delete(taskPath(gone)).set('Cookie', cookie))
+        .status,
+    ).toBe(200);
+    const listRes = await request(server())
+      .post('/lists')
+      .set('Cookie', cookie)
+      .send({ name: 'Other' });
+    expect(listRes.status).toBe(201);
+    const elsewhere = await newTask(
+      cookie,
+      (listRes.body as CreateListResponse).list.id,
+      'elsewhere',
+    );
+    const foreign = await newTask(other.cookie, other.inbox, 'foreign');
+    const before = await countTasks(owner);
+
+    // The criterion's OWN enumerated cases — every one of them a vector whose
+    // ids are individually well-formed, so they all reach the service's set
+    // check. AC-5 requires ONE identical message across these, and `<= 2` is
+    // not that: it would pass a build that answered "that task is completed"
+    // for one and "unknown id" for another, which is precisely the existence
+    // oracle the uniform message exists to prevent. Asserted as exactly one.
+    const setFailures: object[] = [
+      { taskIds: [a, a] }, // duplicated
+      { taskIds: [a] }, // missing one of the active set
+      { taskIds: [a, b, randomUUID()] }, // extra unknown id
+      { taskIds: [a, b, done] }, // includes a completed task
+      { taskIds: [a, b, gone] }, // includes a soft-deleted task
+      { taskIds: [a, b, elsewhere] }, // another of the caller's lists
+      { taskIds: [a, b, foreign] }, // another user's task
+    ];
+    // The DTO's shape rule is a DIFFERENT rejection with its own message, and
+    // it is asserted separately rather than averaged in with the above.
+    const shapeFailures: object[] = [
+      { taskIds: [] }, // empty
+      { taskIds: ['not-a-uuid'] }, // not a uuid
+      { taskIds: 'nope' }, // not an array
+      {}, // absent
+    ];
+
+    const check = async (bodies: object[]): Promise<Set<string>> => {
+      const messages = new Set<string>();
+      for (const body of bodies) {
+        const res = await request(server())
+          .post(reorderTasksPath(inbox))
+          .set('Cookie', cookie)
+          .send(body);
+
+        expect(res.status).toBe(400);
+        const err = res.body as ApiError;
+        expect(err.code).toBe('validation_failed');
+        expect(err.fields?.map((f) => f.field)).toEqual(['taskIds']);
+        messages.add(err.fields?.[0].message ?? '');
+        expect(await countTasks(owner)).toBe(before);
+      }
+      return messages;
+    };
+
+    expect((await check(setFailures)).size).toBe(1);
+    expect((await check(shapeFailures)).size).toBe(1);
+
+    // The order is unchanged after every rejection.
+    const view = await request(server())
+      .get(listTasksPath(inbox))
+      .set('Cookie', cookie);
+    expect((view.body as ListTasksResponse).active.map((t) => t.id)).toEqual([
+      a,
+      b,
+    ]);
+  });
+
+  it('AC-6: unknown, foreign and non-uuid list ids give byte-identical 404s', async () => {
+    const { cookie, inbox } = await signedInUser();
+    const other = await signedInUser();
+    const a = await newTask(cookie, inbox, 'a');
+
+    const bodies: string[] = [];
+    for (const listId of [randomUUID(), other.inbox, 'not-a-uuid']) {
+      const res = await request(server())
+        .post(reorderTasksPath(listId))
+        .set('Cookie', cookie)
+        .send({ taskIds: [a] });
+      expect(res.status).toBe(404);
+      expect((res.body as ApiError).code).toBe(LIST_ERROR_CODES.listNotFound);
+      bodies.push(JSON.stringify(res.body));
+    }
+    expect(new Set(bodies).size).toBe(1); // byte-identical, not merely similar
+  });
+
+  it('AC-7: unauthenticated is 401 and writes nothing', async () => {
+    const { cookie, id: owner, inbox } = await signedInUser();
+    const a = await newTask(cookie, inbox, 'a');
+    const b = await newTask(cookie, inbox, 'b');
+
+    const res = await request(server())
+      .post(reorderTasksPath(inbox))
+      .send({ taskIds: [b, a] });
+
+    expect(res.status).toBe(401);
+    expect(await countTasks(owner)).toBe(2);
+    const view = await request(server())
+      .get(listTasksPath(inbox))
+      .set('Cookie', cookie);
+    expect((view.body as ListTasksResponse).active.map((t) => t.id)).toEqual([
+      a,
+      b,
+    ]);
+  });
+
+  // --- FEAT-014 (T9) — the two criteria the per-task tests could not reach ---
+
+  it('AC-2: a SECOND, independently issued session sees the order on its first read', async () => {
+    // The reload in the E2E proves the order is not in React state; this proves
+    // it is not in the SESSION either — a different cookie, never involved in
+    // the write, reading it cold. That is what "persist across devices" means.
+    const { cookie: first, inbox } = await signedInUser();
+    const a = await newTask(first, inbox, 'a');
+    const b = await newTask(first, inbox, 'b');
+    const c = await newTask(first, inbox, 'c');
+
+    const email = await db.query<{ email: string }>(
+      `SELECT u.email FROM users u JOIN lists l ON l.owner_id = u.id WHERE l.id = $1`,
+      [inbox],
+    );
+    const login = await request(server())
+      .post('/auth/login')
+      .set('X-Forwarded-For', nextIp())
+      .send({ email: email.rows[0].email, password: VALID_PW });
+    expect(login.status).toBe(200);
+    const second = (
+      login.headers['set-cookie'] as unknown as string[]
+    )[0].split(';')[0];
+    expect(second).not.toBe(first); // genuinely a different session
+
+    const reordered = await request(server())
+      .post(reorderTasksPath(inbox))
+      .set('Cookie', first)
+      .send({ taskIds: [c, a, b] });
+    expect(reordered.status).toBe(200);
+
+    const view = await request(server())
+      .get(listTasksPath(inbox))
+      .set('Cookie', second);
+    expect(view.status).toBe(200);
+    expect((view.body as ListTasksResponse).active.map((t) => t.id)).toEqual([
+      c,
+      a,
+      b,
+    ]);
+  });
+
+  it('AC-11: reorder and the list view stay inside NFR-PERF-001 for a 50-task list', async () => {
+    const { cookie, inbox } = await signedInUser();
+    const ids: string[] = [];
+    for (let i = 0; i < 50; i++) {
+      ids.push(await newTask(cookie, inbox, `perf ${i}`));
+    }
+
+    // Ten real permutations, not ten identical no-ops.
+    const reorderMs: number[] = [];
+    for (let i = 0; i < 10; i++) {
+      const vector = [...ids];
+      vector.push(vector.splice(i, 1)[0]);
+      const started = Date.now();
+      const res = await request(server())
+        .post(reorderTasksPath(inbox))
+        .set('Cookie', cookie)
+        .send({ taskIds: vector });
+      reorderMs.push(Date.now() - started);
+      expect(res.status).toBe(200);
+    }
+
+    const viewMs: number[] = [];
+    for (let i = 0; i < 10; i++) {
+      const started = Date.now();
+      const res = await request(server())
+        .get(listTasksPath(inbox))
+        .set('Cookie', cookie);
+      viewMs.push(Date.now() - started);
+      expect(res.status).toBe(200);
+    }
+
+    // The 300 ms bound is per operation, so the SLOWEST sample is the honest
+    // check at this sample size — a p95 over ten points is just the max anyway.
+    expect(Math.max(...reorderMs)).toBeLessThan(300);
+    expect(Math.max(...viewMs)).toBeLessThan(300);
   });
 });

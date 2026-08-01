@@ -627,4 +627,167 @@ describe('TasksRepository (integration)', () => {
       '2026-08-01T04:00:00.000Z',
     );
   });
+  // --- FEAT-014 (T3) — the manual order (FR-TASK-012) ---
+  //
+  // AC-3 (a new task appends last), AC-9 (a reopened task lands
+  // deterministically), AC-10 (a restored task does too, and a task created
+  // while it was deleted does not take its number), plus the two new statements'
+  // own scoping. The completed section's order is asserted unchanged.
+
+  /** Seed with an explicit position — the shared `seed` above leaves the column
+   * at its default 0, which is what the pre-FEAT-014 tests rely on (and what
+   * demonstrates the created_at tiebreaker still working). */
+  const seedAt = async (
+    ownerId: string,
+    listId: string,
+    title: string,
+    position: number,
+    state: 'active' | 'completed' | 'soft-deleted' = 'active',
+  ): Promise<string> => {
+    const id = await seed(ownerId, listId, title, state);
+    await db.query('UPDATE tasks SET position = $2 WHERE id = $1', [
+      id,
+      position,
+    ]);
+    return id;
+  };
+
+  const activeTitles = async (owner: string, listId: string) =>
+    (await tasks.findByList(owner, listId))
+      .filter((r) => r.completedAt === null)
+      .map((r) => r.title);
+
+  it('AC-3: create appends — each new task takes the next position, and the existing order does not move', async () => {
+    const { id: owner, inbox } = await freshUser();
+
+    const first = await tasks.create(owner, inbox, 'first');
+    const second = await tasks.create(owner, inbox, 'second');
+    const third = await tasks.create(owner, inbox, 'third');
+
+    expect([first.position, second.position, third.position]).toEqual([
+      0, 1, 2,
+    ]);
+    expect(await activeTitles(owner, inbox)).toEqual([
+      'first',
+      'second',
+      'third',
+    ]);
+
+    // After a manual rewrite, a further create still lands LAST rather than
+    // reusing a number the rewrite freed.
+    await db.transaction((tx) =>
+      tasks.setPositions(tx, owner, inbox, [third.id, first.id, second.id]),
+    );
+    const fourth = await tasks.create(owner, inbox, 'fourth');
+
+    expect(fourth.position).toBe(3);
+    expect(await activeTitles(owner, inbox)).toEqual([
+      'third',
+      'first',
+      'second',
+      'fourth',
+    ]);
+  });
+
+  it('D5: the append MAX spans soft-deleted rows, so a restore cannot collide with a later task', async () => {
+    const { id: owner, inbox } = await freshUser();
+    await tasks.create(owner, inbox, 'kept'); // position 0
+    const doomed = await tasks.create(owner, inbox, 'doomed'); // position 1
+    await tasks.setDeletion(owner, doomed.id, true);
+
+    // A MAX filtered to active rows would hand this task position 1 — the
+    // number the soft-deleted row still holds.
+    const later = await tasks.create(owner, inbox, 'later');
+    expect(later.position).toBe(2);
+
+    await tasks.setDeletion(owner, doomed.id, false); // restore (AC-10)
+    expect(await activeTitles(owner, inbox)).toEqual([
+      'kept',
+      'doomed',
+      'later',
+    ]);
+  });
+
+  it('AC-9: a reopened task lands at its stored position, deterministically when it ties', async () => {
+    const { id: owner, inbox } = await freshUser();
+    // The reopened task and an active task both hold position 1: reorder only
+    // ever renumbers the ACTIVE set (D3), so this collision is expected, and
+    // created_at ASC is what has to resolve it (D4).
+    await seedAt(owner, inbox, 'a-first', 0);
+    const reopened = await seedAt(owner, inbox, 'b-reopened', 1, 'completed');
+    await seedAt(owner, inbox, 'c-active', 1);
+    await seedAt(owner, inbox, 'd-last', 2);
+
+    await tasks.setCompletion(owner, reopened, false);
+
+    // b was seeded before c, so it sorts ahead of it at the same position.
+    const once = await activeTitles(owner, inbox);
+    const twice = await activeTitles(owner, inbox);
+    expect(once).toEqual(['a-first', 'b-reopened', 'c-active', 'd-last']);
+    expect(twice).toEqual(once); // same read twice — no arbitrary ordering
+  });
+
+  it('AC-8: reordering the active set leaves the completed section untouched', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const x = await tasks.create(owner, inbox, 'x');
+    const y = await tasks.create(owner, inbox, 'y');
+    await seedAt(owner, inbox, 'old-done', 0, 'completed');
+    await seedAt(owner, inbox, 'new-done', 1, 'completed');
+    await db.query(
+      `UPDATE tasks SET completed_at = CASE title WHEN 'old-done' THEN '2026-07-01T10:00:00Z'::timestamptz ELSE '2026-07-20T10:00:00Z'::timestamptz END
+        WHERE owner_id = $1 AND completed_at IS NOT NULL`,
+      [owner],
+    );
+
+    const before = (await tasks.findByList(owner, inbox))
+      .filter((r) => r.completedAt !== null)
+      .map((r) => r.title);
+    await db.transaction((tx) =>
+      tasks.setPositions(tx, owner, inbox, [y.id, x.id]),
+    );
+    const after = (await tasks.findByList(owner, inbox))
+      .filter((r) => r.completedAt !== null)
+      .map((r) => r.title);
+
+    expect(before).toEqual(['new-done', 'old-done']); // most recent first
+    expect(after).toEqual(before);
+    expect(await activeTitles(owner, inbox)).toEqual(['y', 'x']);
+  });
+
+  it("setPositions is scoped to ONE list — an id in another of the caller's lists is not renumbered", async () => {
+    const { id: owner, inbox } = await freshUser();
+    const other = await addList(owner, 'Other');
+    const here = await tasks.create(owner, inbox, 'here');
+    const elsewhere = await tasks.create(owner, other, 'elsewhere');
+
+    // `elsewhere` is the caller's own task, but it is not in this list: without
+    // the list_id predicate it would be renumbered to 0.
+    await db.transaction((tx) =>
+      tasks.setPositions(tx, owner, inbox, [elsewhere.id, here.id]),
+    );
+
+    const stored = await db.query<{ title: string; position: number }>(
+      'SELECT title, position FROM tasks WHERE owner_id = $1 ORDER BY title',
+      [owner],
+    );
+    expect(stored.rows).toEqual([
+      { title: 'elsewhere', position: 0 }, // untouched: still its own list's first
+      { title: 'here', position: 1 },
+    ]);
+  });
+
+  it('findActiveIdsByList returns exactly the active, non-deleted ids of that list', async () => {
+    const { id: owner, inbox } = await freshUser();
+    const other = await addList(owner, 'Other');
+    const active = await tasks.create(owner, inbox, 'active');
+    const done = await tasks.create(owner, inbox, 'done');
+    const gone = await tasks.create(owner, inbox, 'gone');
+    await tasks.create(owner, other, 'elsewhere');
+    await tasks.setCompletion(owner, done.id, true);
+    await tasks.setDeletion(owner, gone.id, true);
+
+    expect(await tasks.findActiveIdsByList(owner, inbox)).toEqual([active.id]);
+    // Ownership is structural here as everywhere else.
+    expect(await tasks.findActiveIdsByList(randomUUID(), inbox)).toEqual([]);
+  });
 });

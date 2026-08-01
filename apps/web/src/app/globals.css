@@ -101,6 +101,26 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* design.md §5 Focus (DEF-009): "every interactive element shows a visible 2px
+   --color-focus-ring ring with 2px offset on :focus-visible". The token has
+   existed in both themes since the first slice and nothing ever set it — every
+   screen relied on the browser's 1px default instead. It lives here, once, for
+   the same reason the media queries do: it is a rule about every screen, and
+   the components' inline token styles cannot express a pseudo-class.
+
+   `:focus-visible` rather than `:focus` is design.md's own wording, and it is
+   the behaviour that matters — a mouse click on a button should not ring it,
+   while Tab should. The width doubles as the offset because §5 specifies both
+   as 2px, and `--border-width-thick` is the 2px token this system already has.
+
+   Deliberately NOT scoped to a control list: "every interactive element" is the
+   rule, and a selector that enumerated today's controls would silently exclude
+   tomorrow's. Guarded by e2e/tests/focus-ring.spec.ts. */
+:focus-visible {
+  outline: var(--border-width-thick) solid var(--color-focus-ring);
+  outline-offset: var(--border-width-thick);
+}
+
 /* SCR-WEB-008's undo snackbar (FEAT-013 ui-design) — design.md §4 places the
    toast bottom-center on mobile and bottom-right on desktop, which is a media
    query and therefore cannot live in the component's inline token styles. The

@@ -115,7 +115,9 @@ export function ListsNav({
             padding: "var(--space-3)",
             borderRadius: "var(--radius-md)",
             background: "var(--color-danger-subtle)",
-            color: "var(--color-danger)",
+            // The tint's PARTNER ink — `--color-danger` here is 3.95:1, under
+            // design.md §5's 4.5:1 for body text (DEF-006).
+            color: "var(--color-danger-text)",
             fontSize: "var(--font-size-small)",
           }}
         >
@@ -381,9 +383,13 @@ function MenuItem({
   );
 }
 
+// DEF-011: design.md §4's `icon-button` is "40px (44px TOUCH) square" and §5
+// requires >= 44x44 on touch viewports; with no coarse-pointer rule in the app
+// the control is one size everywhere, so that size must be the touch one.
+// Guarded by `e2e/tests/touch-target.spec.ts`.
 const iconButton = {
-  minWidth: "var(--size-control-md)",
-  minHeight: "var(--size-control-md)",
+  minWidth: "var(--size-touch-target)",
+  minHeight: "var(--size-touch-target)",
   borderRadius: "var(--radius-md)",
   border: "none",
   background: "transparent",

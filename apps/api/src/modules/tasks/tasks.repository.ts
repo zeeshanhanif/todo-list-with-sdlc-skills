@@ -20,6 +20,10 @@ export interface TaskRow {
    * filters `deleted_at IS NULL`, so they can only ever return null here
    * (FEAT-013 D5). */
   deletedAt: Date | null;
+  /** FR-TASK-012 — the manual rank within the list's active order (FEAT-014).
+   * Never null: the column is NOT NULL, and every row gets a distinct number
+   * per list at insert (`create`) or at the migration's backfill. */
+  position: number;
 }
 
 /** The fields PATCH /tasks/{id} may change (FEAT-011 §3.2). **Key presence is
@@ -35,14 +39,18 @@ export interface TaskPatch {
 }
 
 /** The columns every task read projects — one list so the statements below
- * cannot drift apart as the table grows (FEAT-014 still to add to it).
+ * cannot drift apart as the table grows. FEAT-014 added the last of them.
  *
  * `deleted_at` joined it in FEAT-013, which is the only feature that has a use
  * for the value: `setDeletion` must return the instant it wrote (or the one it
  * preserved on a repeat, D3). The five statements that filter
  * `deleted_at IS NULL` now project a column they know is null — the cost of
- * keeping ONE projection, and cheaper than the drift two would buy. */
-const TASK_COLUMNS = `id, list_id, title, completed_at, deleted_at, created_at, due_at, priority`;
+ * keeping ONE projection, and cheaper than the drift two would buy.
+ *
+ * `position` joined it in FEAT-014 and rides the same rule: it is meaningful
+ * only for active rows, but every statement projects it, because a second
+ * projection is exactly the drift this constant exists to prevent (D8). */
+const TASK_COLUMNS = `id, list_id, title, completed_at, deleted_at, created_at, due_at, priority, position`;
 
 /**
  * Persistence for the `tasks` table (FEAT-010 technical-design §5).
@@ -110,9 +118,16 @@ export class TasksRepository {
    * Every task in one of the caller's lists that is not soft-deleted
    * (FR-TASK-013 — the column exists, FEAT-013 gives it behavior), in **one
    * statement** (NFR-PERF-001, technical-design D3). Ordered so the service can
-   * partition by walking the rows once: active first (oldest-first, the append
-   * order of technical-design D4), then completed (most recently completed
-   * first).
+   * partition by walking the rows once: active first, then completed (most
+   * recently completed first).
+   *
+   * **The active branch sorts by `position`** since FEAT-014 (FR-TASK-012) —
+   * the user's manual arrangement. `created_at ASC, id ASC` stays **behind**
+   * it rather than being replaced, and that is load-bearing: reorder renumbers
+   * only the ACTIVE set (FEAT-014 D3), so a task that was completed and is
+   * later reopened can arrive holding a position an active row already uses.
+   * The tiebreaker is what makes that landing deterministic instead of
+   * arbitrary (D4, AC-9/AC-10). The completed branch is untouched.
    */
   async findByList(
     ownerId: string,
@@ -124,6 +139,7 @@ export class TasksRepository {
          FROM tasks
         WHERE owner_id = $1 AND list_id = $2 AND deleted_at IS NULL
         ORDER BY (completed_at IS NOT NULL) ASC,
+                 CASE WHEN completed_at IS NULL THEN position END ASC,
                  CASE WHEN completed_at IS NULL THEN created_at END ASC,
                  completed_at DESC,
                  id ASC`,
@@ -285,11 +301,74 @@ export class TasksRepository {
     return row ? toTaskRow(row) : null;
   }
 
+  /**
+   * The ids of the caller's **active, non-deleted** tasks in one list — the set
+   * a submitted reorder vector must match exactly (FEAT-014 §3.1, AC-5).
+   *
+   * A dedicated statement rather than a reuse of `findByList`: the check needs
+   * ids only, and it runs inside the reorder transaction, where reading the
+   * whole projection would be work with no reader. Order is irrelevant to a set
+   * comparison and deliberately unspecified.
+   */
+  async findActiveIdsByList(
+    ownerId: string,
+    listId: string,
+    q: TxClient = this.db,
+  ): Promise<string[]> {
+    const res = await q.query<{ id: string }>(
+      `SELECT id
+         FROM tasks
+        WHERE owner_id = $1
+          AND list_id = $2
+          AND completed_at IS NULL
+          AND deleted_at IS NULL`,
+      [ownerId, listId],
+    );
+    return res.rows.map((r) => r.id);
+  }
+
+  /**
+   * Rewrite the given tasks' positions to a dense `0..n-1` in the submitted
+   * order (FR-TASK-012; FEAT-014 D2). One statement, no per-row round trips
+   * (AC-11).
+   *
+   * The `unnest(...) WITH ORDINALITY` shape is `ListsRepository.setPositions`'
+   * (FEAT-009), with **`list_id = $2` added to the WHERE**: without it, an id
+   * belonging to another of the caller's own lists would be renumbered here —
+   * ownership alone does not scope this operation, the list does. The caller
+   * has already established that `orderedIds` is exactly the list's active set,
+   * so this statement is a rewrite, not a merge.
+   */
+  async setPositions(
+    tx: TxClient,
+    ownerId: string,
+    listId: string,
+    orderedIds: string[],
+  ): Promise<void> {
+    await tx.query(
+      `UPDATE tasks AS t
+          SET position = ordered.position, updated_at = now()
+         FROM (
+           SELECT id, (ordinality - 1)::int AS position
+             FROM unnest($3::uuid[]) WITH ORDINALITY AS o(id, ordinality)
+         ) AS ordered
+        WHERE t.id = ordered.id AND t.owner_id = $1 AND t.list_id = $2`,
+      [ownerId, listId, orderedIds],
+    );
+  }
+
   /** Insert an **active** task (`completed_at` NULL) into one of the caller's
    * lists (FR-TASK-001). Ownership of the list is the caller's to check first;
    * `owner_id` is the session user, never a client-supplied field
    * (FR-AUTHZ-004), and `list_id` comes from the path — the "exactly one list,
-   * assigned at creation" of FR-LIST-009. */
+   * assigned at creation" of FR-LIST-009.
+   *
+   * **Appended last** (FR-TASK-012's own note; FEAT-014 D5): `position` comes
+   * from a `MAX(position) + 1` scalar sub-select in the same statement, so the
+   * insert stays one round trip. The MAX spans **all** of the list's rows,
+   * completed and soft-deleted included — a MAX filtered to active rows would
+   * hand a new task a number a soft-deleted row still holds, and FEAT-013's
+   * restore would then bring back a collision. */
   async create(
     ownerId: string,
     listId: string,
@@ -303,10 +382,13 @@ export class TasksRepository {
     // omitted priority simply omits the column from the INSERT.
     const withPriority = due.priority !== undefined;
     const res = await q.query<TaskRowShape>(
-      `INSERT INTO tasks (owner_id, list_id, title, due_at${
+      `INSERT INTO tasks (owner_id, list_id, title, due_at, position${
         withPriority ? ', priority' : ''
       })
-       VALUES ($1, $2, $3, $4${withPriority ? ', $5' : ''})
+       SELECT $1, $2, $3, $4,
+              COALESCE(MAX(position) + 1, 0)${withPriority ? ', $5' : ''}
+         FROM tasks
+        WHERE owner_id = $1 AND list_id = $2
        RETURNING ${TASK_COLUMNS}`,
       withPriority
         ? [ownerId, listId, title, due.dueAt ?? null, due.priority]
@@ -326,6 +408,7 @@ interface TaskRowShape {
   created_at: Date;
   due_at: Date | null;
   priority: TaskPriority;
+  position: number;
 }
 
 function toTaskRow(row: TaskRowShape): TaskRow {
@@ -338,5 +421,6 @@ function toTaskRow(row: TaskRowShape): TaskRow {
     createdAt: row.created_at,
     dueAt: row.due_at,
     priority: row.priority,
+    position: row.position,
   };
 }
