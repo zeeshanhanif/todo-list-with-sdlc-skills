@@ -33,7 +33,7 @@
 > copy alert markup out of an older screen without checking its token.
 > `apps/web/AGENTS.md`: read `node_modules/next/dist/docs/` before writing web code.
 
-- [ ] T1 — Shared contracts (`@todo/shared`, design §3.2): a FEAT-017 block adding
+- [x] T1 — Shared contracts (`@todo/shared`, design §3.2): a FEAT-017 block adding
       `ACCOUNT_EXPORT_PATH` (`"/account/export"`), `ACCOUNT_EXPORT_FORMAT_VERSION`
       (`1`), the document types `AccountExportDocument`, `AccountExportAccount`,
       `AccountExportList`, `AccountExportTask`, and the filename helper
