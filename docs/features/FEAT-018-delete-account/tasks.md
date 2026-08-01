@@ -104,7 +104,7 @@
       for missing, expired and revoked cookies), and AC-13 (`429 rate_limited`
       with `retryAfterSeconds` past the window maximum).
 
-- [ ] T6 — Web wiring: `app/api/account/delete/route.ts` (BFF `POST` proxy —
+- [x] T6 — Web wiring: `app/api/account/delete/route.ts` (BFF `POST` proxy —
       cookie **and** `x-forwarded-for` forwarded, status + body relayed verbatim,
       **and `Set-Cookie` relayed** so the cleared cookie lands on the web origin)
       and `lib/account-delete.ts` (`requestAccountDelete({ currentPassword })` →
