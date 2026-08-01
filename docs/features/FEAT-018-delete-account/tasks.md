@@ -146,7 +146,7 @@
       `inline-alert-contrast` and `touch-target`, all now both-theme — still
       green.
 
-- [ ] T9 — Verify: acceptance criteria AC-1..AC-19 (design §6) demonstrably pass;
+- [x] T9 — Verify: acceptance criteria AC-1..AC-19 (design §6) demonstrably pass;
       **AC-14 measured explicitly** (seed 100 lists / 5,000 tasks, delete, assert
       completion within the 2 s budget and zero surviving rows on every one of
       that user's tables — no earlier task owns it);

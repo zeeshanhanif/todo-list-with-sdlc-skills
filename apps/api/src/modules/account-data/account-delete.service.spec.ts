@@ -13,23 +13,39 @@ import {
 
 const USER = '11111111-1111-4111-8111-111111111111';
 
+/** The audit call's shape, so `record.mock.calls` stays typed — an `any` here
+ * would let a renamed field pass every assertion below. */
+type AuditMeta = {
+  userId?: string | null;
+  ip?: string | null;
+  detail?: Record<string, unknown> | null;
+};
+
 type Harness = {
   service: AccountDeleteService;
-  findCredential: jest.Mock;
-  deleteAccount: jest.Mock;
-  verify: jest.Mock;
-  record: jest.Mock;
+  findCredential: jest.Mock<Promise<{ passwordHash: string } | null>, []>;
+  deleteAccount: jest.Mock<Promise<boolean>, [string]>;
+  verify: jest.Mock<Promise<boolean>, [string, string]>;
+  record: jest.Mock<Promise<void>, [string, AuditMeta]>;
 };
 
 const harness = (): Harness => {
-  const findCredential = jest.fn().mockResolvedValue({ passwordHash: 'hash' });
-  const deleteAccount = jest.fn().mockResolvedValue(true);
-  const verify = jest.fn().mockResolvedValue(true);
-  const record = jest.fn().mockResolvedValue(undefined);
+  const findCredential = jest
+    .fn<Promise<{ passwordHash: string } | null>, []>()
+    .mockResolvedValue({ passwordHash: 'hash' });
+  const deleteAccount = jest
+    .fn<Promise<boolean>, [string]>()
+    .mockResolvedValue(true);
+  const verify = jest
+    .fn<Promise<boolean>, [string, string]>()
+    .mockResolvedValue(true);
+  const record = jest
+    .fn<Promise<void>, [string, AuditMeta]>()
+    .mockResolvedValue(undefined);
 
   const service = new AccountDeleteService(
     { findCredential, deleteAccount } as never,
-    { verify, hash: jest.fn() } as never,
+    { verify, hash: jest.fn() },
     { record } as never,
   );
   return { service, findCredential, deleteAccount, verify, record };
@@ -70,12 +86,13 @@ describe('AccountDeleteService', () => {
     it('AC-11: writes the audit row AFTER the delete transaction commits', async () => {
       const order: string[] = [];
       const h = harness();
-      h.deleteAccount.mockImplementation(async () => {
+      h.deleteAccount.mockImplementation(() => {
         order.push('delete');
-        return true;
+        return Promise.resolve(true);
       });
-      h.record.mockImplementation(async (event: string) => {
+      h.record.mockImplementation((event: string) => {
         order.push(`audit:${event}`);
+        return Promise.resolve();
       });
 
       await run(h);

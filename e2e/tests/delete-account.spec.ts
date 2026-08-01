@@ -128,6 +128,45 @@ test("UC-016: a signed-in user deletes their account, and the address is free ag
   // AC-18's return leg: the screen links back to the hub it came from.
   await expect(page.getByTestId("back-to-security")).toBeVisible();
 
+  // AC-18's other half: the row is *visually* marked as the destructive one —
+  // a mark in the danger token, not just different words (ui-design D6). Read
+  // as a computed colour rather than a class name, so a refactor that keeps the
+  // markup but drops the token fails here.
+  await page.goBack();
+  await page.waitForURL("/settings/security");
+  const markStroke = await page
+    .getByTestId("row-delete")
+    .locator("svg")
+    .evaluate((el) => getComputedStyle(el).stroke);
+  const rowColours = await page.evaluate(() => {
+    const root = getComputedStyle(document.documentElement);
+    return {
+      danger: root.getPropertyValue("--color-danger").trim(),
+      text: root.getPropertyValue("--color-text").trim(),
+    };
+  });
+  const asRgb = async (hex: string) =>
+    page.evaluate((h) => {
+      const probe = document.createElement("span");
+      probe.style.color = h;
+      document.body.appendChild(probe);
+      const c = getComputedStyle(probe).color;
+      probe.remove();
+      return c;
+    }, hex);
+  expect(markStroke).toBe(await asRgb(rowColours.danger));
+  // …and the LABEL is not the danger token: on this row's hovered background
+  // (`--color-surface-sunken`) danger text measures 4.41:1, under §5's 4.5:1,
+  // which is why the mark carries the meaning instead (ui-design D6).
+  const labelColour = await page
+    .getByTestId("row-delete")
+    .locator("span")
+    .first()
+    .evaluate((el) => getComputedStyle(el).color);
+  expect(labelColour).toBe(await asRgb(rowColours.text));
+  await page.getByTestId("row-delete").click();
+  await page.waitForURL("/settings/security/delete");
+
   // AC-15 (before): permanence, quantified, with the export offered first.
   await expect(page.getByTestId("delete-warning")).toContainText("permanent");
   // Two lists and three tasks were seeded — the third task is soft-deleted, and

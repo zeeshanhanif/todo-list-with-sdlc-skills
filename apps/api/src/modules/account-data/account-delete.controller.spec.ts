@@ -13,6 +13,7 @@ import { AppModule } from '../../app.module';
 import { configureApp } from '../../app-setup';
 import { DbService } from '../../infra/db.service';
 import { APP_CONFIG, type AppConfig } from '../../infra/config';
+import { AccountDeleteRepository } from './account-delete.repository';
 
 // Contract tests: boot the real app (global pipe + filter + cookie-parser) and
 // drive POST /account/delete over HTTP. Needs local Postgres.
@@ -297,7 +298,10 @@ describe('account delete endpoint (contract)', () => {
         .send({ currentPassword: 'not-my-password', confirm: true })
         .expect(400);
 
-      await request(server()).get(PROFILE_PATH).set('Cookie', user.cookie).expect(200);
+      await request(server())
+        .get(PROFILE_PATH)
+        .set('Cookie', user.cookie)
+        .expect(200);
     });
 
     it('AC-12: the failed attempt is recorded, carrying the user id and never the password', async () => {
@@ -322,14 +326,22 @@ describe('account delete endpoint (contract)', () => {
   describe('the confirmation and the password field (AC-6, FR-DATA-004)', () => {
     const cases: Array<[string, Record<string, unknown>, string]> = [
       ['confirm omitted', { currentPassword: VALID_PW }, 'confirm'],
-      ['confirm false', { currentPassword: VALID_PW, confirm: false }, 'confirm'],
+      [
+        'confirm false',
+        { currentPassword: VALID_PW, confirm: false },
+        'confirm',
+      ],
       [
         'confirm the string "true"',
         { currentPassword: VALID_PW, confirm: 'true' },
         'confirm',
       ],
       ['password omitted', { confirm: true }, 'currentPassword'],
-      ['password empty', { currentPassword: '', confirm: true }, 'currentPassword'],
+      [
+        'password empty',
+        { currentPassword: '', confirm: true },
+        'currentPassword',
+      ],
     ];
 
     it.each(cases)(
@@ -359,7 +371,9 @@ describe('account delete endpoint (contract)', () => {
         .send({ currentPassword: VALID_PW, confirm: true });
 
       expect(res.status).toBe(401);
-      expect((res.body as ApiError).code).toBe(AUTH_ERROR_CODES.unauthenticated);
+      expect((res.body as ApiError).code).toBe(
+        AUTH_ERROR_CODES.unauthenticated,
+      );
     });
 
     it('AC-7: a revoked (signed-out) cookie → 401, and the account survives', async () => {
@@ -391,6 +405,42 @@ describe('account delete endpoint (contract)', () => {
 
       expect(res.status).toBe(401);
       expect((await rowCounts(user.id)).users).toBe(1);
+    });
+  });
+
+  describe('a failed deletion (AC-10, ADR-003)', () => {
+    it('AC-10: a transaction that throws answers 500 internal_error — and the account is intact', async () => {
+      const user = await signedInUser();
+      // Fail the deletion at the repository, after the credential check has
+      // passed — the shape of a mid-transaction failure to everything above it.
+      jest
+        .spyOn(app.get(AccountDeleteRepository), 'deleteAccount')
+        .mockRejectedValueOnce(new Error('deadlock detected'));
+
+      const res = await deleteFor(user.cookie)
+        .set('X-Forwarded-For', nextIp())
+        .send({ currentPassword: VALID_PW, confirm: true });
+
+      expect(res.status).toBe(500);
+      expect((res.body as ApiError).code).toBe('internal_error');
+      // Rolled back: everything still there, and the caller can still act.
+      expect(await rowCounts(user.id)).toEqual({
+        users: 1,
+        lists: 1,
+        tasks: 1,
+        sessions: 1,
+      });
+      await request(server())
+        .get(PROFILE_PATH)
+        .set('Cookie', user.cookie)
+        .expect(200);
+      // And no audit row claims a deletion that did not happen.
+      const rows = await db.query(
+        `SELECT 1 FROM audit_log WHERE event = 'account_deleted'
+                                   AND detail->>'userId' = $1`,
+        [user.id],
+      );
+      expect(rows.rowCount).toBe(0);
     });
   });
 

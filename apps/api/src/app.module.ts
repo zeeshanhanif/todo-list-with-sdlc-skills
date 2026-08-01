@@ -14,7 +14,7 @@ import { RealtimeModule } from './common/realtime/realtime.module';
 // are wired in as their slices are built; cross-cutting concerns under ./common.
 // Active: Infra (DB/config), Health (liveness /healthz), Auth (FEAT-001..006),
 // Profile (FEAT-008), Lists (FEAT-009), Tasks (FEAT-010), Search (FEAT-015),
-// AccountData (FEAT-017 — export; FEAT-018 adds deletion) and Realtime (FEAT-019
+// AccountData (FEAT-017 — export; FEAT-018 — delete account) and Realtime (FEAT-019
 // — cross-cutting: the change-signal publisher profile/lists/tasks emit through,
 // plus its token endpoint).
 @Module({

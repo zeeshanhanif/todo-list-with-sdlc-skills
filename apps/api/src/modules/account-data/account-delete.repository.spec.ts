@@ -115,10 +115,9 @@ describe('AccountDeleteRepository (integration)', () => {
 
   afterEach(async () => {
     for (const id of userIds) {
-      await db.query(
-        `DELETE FROM email_outbox WHERE payload->>'userId' = $1`,
-        [id],
-      );
+      await db.query(`DELETE FROM email_outbox WHERE payload->>'userId' = $1`, [
+        id,
+      ]);
       await db.query('DELETE FROM users WHERE id = $1', [id]);
     }
     userIds.length = 0;
