@@ -137,9 +137,13 @@ Why it still deserves a ruling:
   `AccountExportTask`, bump `ACCOUNT_EXPORT_FORMAT_VERSION`, and update AC-4 and
   the screen's copy.
 
-**Route:** requirements-engineering amendment (clarify FR-DATA-002's note) if
-the user reads it as inclusive; otherwise no action — the current behaviour
-stands as designed and documented.
+**Ruled 2026-08-01 by the user: keep excluding them — the behaviour as built
+stands.** "Active and completed" governs, and the screen's own copy already
+tells users to restore a task first if they want it in the file. No amendment,
+no code change. Recorded here rather than only in a conversation so the next
+person to read FR-DATA-002's note finds the question already answered instead of
+re-opening it — and so FEAT-018 inherits a settled scope rather than an open
+one.
 
 ### 2. Carried, from the implementation: the standing contrast sweeps do not composite partial alpha
 

@@ -16,6 +16,7 @@ recycled.
 | DEF-006 | 2026-07-29 | NFR-USE-004 (design.md §5 contrast) / FEAT-001, FEAT-003, FEAT-005, FEAT-009 — the **inline-alert** instances DEF-003 and DEF-004 both missed | Five shipped sites still put `--color-danger` on `--color-danger-subtle` at `small` — the **3.95:1** pairing DEF-003 measured and `--color-danger-text` (6.80:1) exists to replace: `app/signup/page.tsx:89`, `app/signin/page.tsx:128`, `app/reset-password/page.tsx:46`, `components/lists-nav.tsx:117`, `components/list-dialog.tsx:196`. A web-tier pass, not per-feature rework. **Two more found during the fix**: the sign-up alert contains two LINKS carrying their own `--color-danger` on the same tint | `edfe9b0` (all seven → `--color-danger-text`; a rendered sweep and a source sweep added) | 2026-08-01 — both guards red before / green after; 3.95→6.80:1 light, 8.31:1 dark; FEAT-001/003/005/009 re-verified **Accepted (unchanged)**; api 442, web 78, e2e 53 |
 | DEF-009 | 2026-07-30 | NFR-USE-004 (design.md §5 focus) / product-wide — every screen since FEAT-001 | design.md §5 requires "a visible 2px `--color-focus-ring` ring with 2px offset on `:focus-visible`" and the token exists in both themes, but **no CSS in `apps/web` ever set it** — every screen relied on the browser's 1px default since the first slice. Found by FEAT-008 acceptance while verifying AC-16's keyboard clause; the default indicator is visible, so this was a design-system conformance gap, not an accessibility blocker. A web-tier pass like DEF-005/DEF-006, not per-feature rework | `70b4a30` (one `:focus-visible` rule in globals.css, width and offset from `--border-width-thick`) | 2026-08-01 — guard red before (1px measured) / green after; ring confirmed unclipped visually in row and sidebar; product-wide re-verification **Accepted (unchanged)**; api 442, web 78, e2e 53 |
 | DEF-010 | 2026-08-01 | FR-SRCH-007/008 (smart views) / FEAT-016 — `views.service.spec` AC-2 and `smart-views.spec` UC-014 | **Test defect, not a product defect.** Both fixtures assume a wall-clock condition that holds for only part of each day: the unit test needs New York and Calcutta to share a calendar date (false after ~14:30 NY), and the E2E seeds a task at `now() + 5 hours` and expects it in Today (false after 19:00 UTC). The product is correct in both cases — verified by inspecting the seeded instants against the rule. One root cause, two symptoms; CI would fail daily for part of the day | `3fd7619` (both fixtures derive their zone from the current instant — `Etc/GMT±N`, fixed offset, no DST) | 2026-08-01 — red before / green after; arithmetic checked across all 24 UTC hours; FEAT-016 re-verified **Accepted (unchanged)**; api 442, e2e 48 |
+| DEF-012 | 2026-08-01 | NFR-USE-004 (design.md §5 contrast) / the **guards themselves** — `control-contrast.spec.ts` (DEF-005) and `inline-alert-contrast.spec.ts` (DEF-006) | The two standing contrast sweeps **never set the dark theme**, so every ratio the project has measured is a light-theme ratio. Their helpers also read `getComputedStyle().backgroundColor` and skip only *fully* transparent values, so they could not measure dark correctly even if pointed at it: the dark tints are `rgba(…, 0.15)` over the surface, and comparing text against that raw value computes a ratio no pixel ever had. Found by FEAT-017's acceptance, whose own both-themes guard went red on its first run for exactly this reason | `e2e/tests/contrast.ts` (shared, compositing measurement) + both sweeps parametrised over `["light","dark"]` | 2026-08-01 — **no product defect found**: every existing pairing already conformed in dark. The guards were incomplete, not wrong. Discrimination proven in both themes; e2e 60 → **65** |
 | DEF-011 | 2026-08-01 | NFR-USE-004 (design.md §5 targets) / product-wide — icon-only controls since FEAT-009 | Icon-only buttons are **40px** (`--size-control-md`) on every viewport, where design.md §4 specifies "40px (**44px touch**)" and §5 requires "≥ 44×44px on touch viewports". No coarse-pointer rule exists anywhere in `apps/web`, so the touch size was never implemented. Found by FEAT-014 acceptance (AC-12 names the 44px target explicitly). A web-tier pass like DEF-005/DEF-006/DEF-009, not per-feature rework — `detail-panel.tsx` already shows the codebase's own answer | `1838a4d` (lists-nav's two icon buttons → `--size-touch-target`; FEAT-014's three fixed in its own rework at `152de92`) | 2026-08-01 — `e2e/tests/touch-target.spec.ts` measured 40×40 before / ≥44×44 after; FEAT-009 re-verified **Accepted (unchanged)**; api 442, e2e 48 |
 
 ## DEF-006 — the inline-alert instances of the DEF-003 pairing
@@ -776,3 +777,61 @@ controls.
 unclipped in both a task row and the sidebar, where `overflow-y: auto` could have
 cropped an offset outline. api 442/442, web 78/78, worker 24/24, e2e **53/53**,
 lint · boundaries · build clean.
+
+## DEF-012 — the contrast guards never measured the dark theme (2026-08-01)
+
+**Reported by** FEAT-017's acceptance run. Its own SCR-WEB-016 guard went red on
+its first execution, and the cause turned out to be the *measurement*, not the
+screen — which raised the obvious question about the two standing sweeps that
+had been guarding this rule for the whole project.
+
+**Symptom — two faults, and the second is the one that mattered.**
+
+1. *Coverage.* Neither `control-contrast.spec.ts` (DEF-005) nor
+   `inline-alert-contrast.spec.ts` (DEF-006) ever set a theme. Every ratio this
+   project had measured was a **light-theme** ratio. `tokens.json` annotates
+   `dangerText` as "7.8:1 on the dark dangerSubtle tint" — a number nothing
+   verified.
+2. *Correctness.* Both helpers read `getComputedStyle().backgroundColor` and
+   skipped only **fully** transparent values, so they could not have measured
+   dark correctly even if pointed at it: the dark tints are `rgba(…, 0.15)` over
+   the surface, and comparing text against that raw value computes a ratio
+   against a colour no pixel ever had. In light the tints are opaque hex, which
+   is why this never surfaced.
+
+**Fix.** One shared module, `e2e/tests/contrast.ts`, holding the ratio
+computation, the **compositing** background walk, the vacuity guard and the
+theme helpers; both sweeps import it and are parametrised over
+`["light", "dark"]`. The sweeps previously carried a `contrastRatio` each —
+two copies of a measurement is how two guards drift into disagreeing about what
+they measure.
+
+`assertTheme` is not ceremony: it polls `documentElement.dataset.theme` after
+navigation, because a "both themes" sweep whose emulation silently fails
+measures light twice and reports double the confidence for none of the coverage.
+
+**No product defect was found, and that is the honest headline.** Every existing
+pairing already conformed in dark. The two guards were incomplete, not wrong.
+
+**Discrimination proven rather than assumed**, in both directions, because a
+sweep that has never failed is indistinguishable from one that cannot:
+
+| Injected regression | light | dark |
+| :-- | :-- | :-- |
+| sign-in alert `--color-danger-text` → `--color-danger` | **red, 3.95:1** ✅ caught | green — and *correctly so*: dark's `#F87171` on the composited tint genuinely clears 4.5:1 |
+| sign-in alert text → `--color-danger-subtle` (text on itself) | **red, 1.00:1** | **red, 3.93:1** |
+
+The second row is the proof the first could not give. Its dark failure reports
+the background as `rgb(52, 34, 49.3)` — fractional components, i.e. a genuinely
+**composited** colour. Before this fix that same background would have been read
+as opaque `rgb(239, 68, 68)`, a completely different and much lighter colour, and
+the ratio would have been meaningless.
+
+**Method note worth keeping.** The first regression above is the more natural one
+to reach for, and on its own it would have "proven" the dark sweep works while
+proving nothing — it passes in dark for a legitimate reason. A discrimination
+check has to fail *for the reason you are testing*, not merely fail.
+
+**Verification.** Both sweeps green in both themes; **e2e 60 → 65** (the sweeps
+went 2→4 and 3→6 tests); lint clean. No production file changed — the diff is
+test infrastructure only.
