@@ -80,7 +80,7 @@
       and that a task whose `list_id` matches no returned list is not silently
       dropped into a phantom list (AC-9's mapping half).
 
-- [ ] T4 — Contract: `AccountExportController` + `account-data.module.ts`,
+- [x] T4 — Contract: `AccountExportController` + `account-data.module.ts`,
       registered in `app.module.ts` (design §3.1, §5.1). Class-level
       `@UseGuards(SessionGuard)`; **no `ChangeSignalInterceptor`** — this is a
       read and publishes no `changed` signal. Returns the document **unwrapped**

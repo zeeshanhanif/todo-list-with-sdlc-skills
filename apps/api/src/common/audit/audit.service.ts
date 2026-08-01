@@ -12,6 +12,14 @@ export const AUDIT_EVENTS = {
   /** A change-password attempt failed the current-password check (FEAT-006;
    * UC-006 alt 3a). Never carries the submitted password. */
   passwordChangeFailure: 'password_change_failure',
+  /** A user exported their entire account (FEAT-017; FR-DATA-001,
+   * technical-design D6). NFR-SEC-009's list is illustrative rather than
+   * exhaustive — this is the single most sensitive *read* in the product, and
+   * since the endpoint changes no domain state this row is the only durable
+   * trace that it happened. Carries the user id and nothing else: the audit log
+   * must never become a second copy of the data it protects, so no list names,
+   * no titles, not even counts. */
+  dataExported: 'data_exported',
 } as const;
 
 /**
