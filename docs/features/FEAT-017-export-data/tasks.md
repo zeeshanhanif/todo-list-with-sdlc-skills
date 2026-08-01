@@ -100,7 +100,7 @@
       `Content-Disposition` filename matches the user's zone-resolved date), and
       the `Content-Disposition` header survives for a `curl`-shaped request.
 
-- [ ] T5 — Web wiring: `app/api/account/export/route.ts` (BFF `POST` proxy —
+- [x] T5 — Web wiring: `app/api/account/export/route.ts` (BFF `POST` proxy —
       cookie forwarded, status + body relayed verbatim, **and
       `Content-Disposition` relayed**, which the profile proxy has no reason to
       do) and `lib/account-export.ts` (`requestExport()` returning
