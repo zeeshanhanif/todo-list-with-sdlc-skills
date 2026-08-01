@@ -112,7 +112,18 @@ test("UC-015: a signed-in user exports their data and gets a real file", async (
   await page.waitForURL("/settings/profile");
   await page.getByTestId("settings-tab-inactive").click();
   await page.waitForURL("/settings/security");
-  await page.getByTestId("row-export").click();
+  // AC-13 says the row is **keyboard-reachable**, so it is reached by keyboard
+  // rather than by click: tab until the row holds focus, then Enter. A click
+  // would pass on a div with an onClick handler, which is exactly what this
+  // criterion exists to rule out.
+  const row = page.getByTestId("row-export");
+  let reached = false;
+  for (let i = 0; i < 25 && !reached; i++) {
+    await page.keyboard.press("Tab");
+    reached = await row.evaluate((el) => el === document.activeElement);
+  }
+  expect(reached, "the Export data row never received keyboard focus").toBe(true);
+  await page.keyboard.press("Enter");
   await page.waitForURL("/settings/security/export");
 
   // AC-13's return leg: the screen links back to the hub it came from.
@@ -199,6 +210,14 @@ test("AC-14: a failed export shows an error state and downloads nothing", async 
 
   await page.getByTestId("export-button").click();
   await expect(page.getByTestId("export-error")).toBeVisible();
+  // AC-14 says the state NAMES what failed — a visible-but-empty alert would
+  // satisfy a mere visibility check while telling the user nothing.
+  await expect(page.getByTestId("export-error")).toContainText(
+    "Couldn’t build your export just now",
+  );
+  await expect(page.getByTestId("export-error")).toContainText(
+    "Nothing was downloaded",
+  );
   expect(downloaded).toBe(false);
 
   // The session survives a failed export — this is not an auth failure.
