@@ -1,7 +1,7 @@
 # Tasks: FEAT-017 — Export personal data (JSON)
 
 > Executes: docs/features/FEAT-017-export-data/technical-design.md
-> Status: pending · Last updated: 2026-08-01
+> Status: all tasks done · Last updated: 2026-08-01
 > Notes: **This feature mints the `account-data` module** — the last capability
 > module in the API monolith (architecture §5; `src/modules/README.md` already
 > reserves its row). `apps/api/src/modules/profile/` is the closest structural
@@ -135,7 +135,7 @@
       up), with the existing specs — including `control-contrast`, `focus-ring`,
       `inline-alert-contrast` and `touch-target` — still green.
 
-- [ ] T8 — Verify: acceptance criteria AC-1..AC-15 (design §6) demonstrably pass;
+- [x] T8 — Verify: acceptance criteria AC-1..AC-15 (design §6) demonstrably pass;
       **AC-10 measured explicitly** (seed 100 lists / 5,000 tasks, assert one
       complete document within the 2 s budget with every task present — no
       earlier task owns it, and it is the criterion D9 rests on);

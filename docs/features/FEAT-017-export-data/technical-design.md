@@ -478,3 +478,17 @@ endpoint, data) matched the design as built; the folder slug is
 3. **No import.** FR-DATA has no counterpart requirement, so nothing in this
    design claims the file can be re-ingested. Worth saying out loud because
    "export" invites the assumption.
+4. **The standing contrast sweeps do not composite partial alpha** — found
+   during this feature's implementation (T8), recorded rather than acted on
+   because it belongs to the DEF ledger, not to FEAT-017's scope.
+   `control-contrast.spec.ts` and `inline-alert-contrast.spec.ts` read
+   `getComputedStyle(el).backgroundColor` and skip only *fully* transparent
+   values. In the **light** theme every tint is opaque hex, so their numbers are
+   right. In the **dark** theme the tints are `rgba(…, 0.15)` over the surface,
+   and comparing text against that raw value computes a ratio no pixel on screen
+   ever had. FEAT-017's own guard composites (see
+   `e2e/tests/export-data.spec.ts`, the BOTH-themes test) and its first run went
+   red for precisely this reason. Whether the older sweeps are *wrong* or merely
+   *imprecise* is unknown until someone re-measures them composited — which is
+   the work this item is asking for, and is a defect-ledger question since it
+   concerns already-verified screens.

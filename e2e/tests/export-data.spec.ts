@@ -260,6 +260,139 @@ test("AC-15: the export screen's controls show the design system's focus ring", 
   expect(parseFloat(ring.width)).toBeGreaterThanOrEqual(2);
 });
 
+test("AC-12: the control passes through `preparing` before `ready`", async ({
+  page,
+  request,
+}) => {
+  const email = uniqueEmail();
+  await registerWithData(request, email);
+  await signIn(page, email);
+  await page.goto("/settings/security/export");
+
+  // The real export takes ~40 ms at the NFR-SCAL-002 ceiling, so `preparing`
+  // would flash past unobservably. Held open deliberately — the state has to
+  // exist for the slow case, which is exactly the case a fast local run never
+  // produces.
+  await page.route("**/api/account/export", async (route) => {
+    await new Promise((r) => setTimeout(r, 1_000));
+    await route.continue();
+  });
+
+  await page.getByTestId("export-button").click();
+
+  const button = page.getByTestId("export-button");
+  await expect(button).toHaveText("Preparing your export…");
+  await expect(button).toBeDisabled();
+  await expect(page.getByTestId("export-status")).toContainText(
+    "Preparing your export…",
+  );
+
+  await expect(page.getByTestId("export-ready")).toBeVisible({ timeout: 15_000 });
+  await expect(button).toHaveText("Export my data");
+  await expect(button).toBeEnabled();
+});
+
+test("AC-15: the export screen's targets clear 44px on a touch viewport", async ({
+  page,
+  request,
+}) => {
+  const email = uniqueEmail();
+  await registerWithData(request, email);
+  await signIn(page, email);
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  // The hub row first — it is the target that carries the user here.
+  await page.goto("/settings/security");
+  const row = await page.getByTestId("row-export").boundingBox();
+  expect(row!.height).toBeGreaterThanOrEqual(44);
+
+  await page.goto("/settings/security/export");
+  const button = await page.getByTestId("export-button").boundingBox();
+  expect(button!.height).toBeGreaterThanOrEqual(44);
+
+  // And the retry control, which only exists in the error state.
+  await page.route("**/api/account/export", (route) =>
+    route.fulfill({ status: 500, body: "{}" }),
+  );
+  await page.getByTestId("export-button").click();
+  await expect(page.getByTestId("export-error")).toBeVisible();
+  const retry = await page.getByTestId("export-retry").boundingBox();
+  expect(retry!.height).toBeGreaterThanOrEqual(44);
+});
+
+test("AC-15 / NFR-USE-004: SCR-WEB-016's tinted alerts hold 4.5:1 in BOTH themes", async ({
+  page,
+  request,
+}) => {
+  const email = uniqueEmail();
+  await registerWithData(request, email);
+  await sql("UPDATE users SET theme = 'dark' WHERE email = $1", [email]);
+  await signIn(page, email);
+  await page.goto("/settings/security/export");
+
+  // The dark theme's tints are alpha-composited (rgba over the surface) rather
+  // than flat hex, so "it passes in light" is not evidence about dark — which
+  // is exactly the asymmetry DEF-004 found, where a light-only failure hid
+  // behind a passing dark pairing.
+  const ratioOf = async (testId: string, bgFrom: string): Promise<number> => {
+    const pair = await page.getByTestId(testId).evaluate((el, bgSel) => {
+      // The painted colour, not the declared one: a partially transparent
+      // tint must be composited over whatever is behind it, or the ratio is
+      // computed against a colour no pixel on screen ever had.
+      const parse = (c: string): number[] => {
+        const m = c.match(/[\d.]+/g)!.map(Number);
+        return [m[0], m[1], m[2], m.length > 3 ? m[3] : 1];
+      };
+      const painted = (node: Element | null): number[] => {
+        while (node) {
+          const [r, g, b, a] = parse(getComputedStyle(node).backgroundColor);
+          if (a === 1) return [r, g, b];
+          if (a > 0) {
+            const [br, bg_, bb] = painted(node.parentElement);
+            return [
+              a * r + (1 - a) * br,
+              a * g + (1 - a) * bg_,
+              a * b + (1 - a) * bb,
+            ];
+          }
+          node = node.parentElement;
+        }
+        return [255, 255, 255];
+      };
+      const bgEl = document.querySelector(`[data-testid="${bgSel}"]`)!;
+      const [r, g, b] = painted(bgEl);
+      return {
+        fg: getComputedStyle(el).color,
+        bg: `rgb(${r}, ${g}, ${b})`,
+      };
+    }, bgFrom);
+    return contrastRatio(pair.fg, pair.bg);
+  };
+
+  // The success tint, on the way through.
+  await Promise.all([
+    page.waitForEvent("download"),
+    page.getByTestId("export-button").click(),
+  ]);
+  await expect(page.getByTestId("export-ready")).toBeVisible();
+  expect(await ratioOf("export-ready", "export-ready")).toBeGreaterThanOrEqual(
+    MIN_BODY,
+  );
+
+  // The danger tint, and the retry control that sits inside it.
+  await page.route("**/api/account/export", (route) =>
+    route.fulfill({ status: 500, body: "{}" }),
+  );
+  await page.getByTestId("export-button").click();
+  await expect(page.getByTestId("export-error")).toBeVisible();
+  expect(await ratioOf("export-error", "export-error")).toBeGreaterThanOrEqual(
+    MIN_BODY,
+  );
+  expect(await ratioOf("export-retry", "export-error")).toBeGreaterThanOrEqual(
+    MIN_BODY,
+  );
+});
+
 test("AC-6: the export screen is not reachable signed out", async ({ page }) => {
   await page.goto("/settings/security/export");
 
