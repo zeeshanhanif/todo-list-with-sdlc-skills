@@ -79,10 +79,10 @@
 | FR-SRCH-009 | Paginate/lazy-load large views | Should | Active | SI | UC-013 | arch §8; features/FEAT-015-search/technical-design.md; features/FEAT-015-search/ui-design.md; features/FEAT-016-smart-views/technical-design.md; features/FEAT-016-smart-views/ui-design.md | FEAT-015 | features/FEAT-015-search/acceptance-report.md; features/FEAT-016-smart-views/acceptance-report.md (partial) |
 | FR-DATA-001 | Export all data as JSON | Must | Active | PRIV | UC-015 | features/FEAT-017-export-data/technical-design.md; features/FEAT-017-export-data/ui-design.md | FEAT-017 | features/FEAT-017-export-data/acceptance-report.md |
 | FR-DATA-002 | Export includes lists + active/completed tasks | Must | Active | PRIV | UC-015 | features/FEAT-017-export-data/technical-design.md; features/FEAT-017-export-data/ui-design.md | FEAT-017 | features/FEAT-017-export-data/acceptance-report.md |
-| FR-DATA-003 | Permanently delete account + data | Must | Active | PRIV | UC-016 | ADR-003; features/FEAT-018-delete-account/technical-design.md; features/FEAT-018-delete-account/ui-design.md | FEAT-018 | _TBD_ |
-| FR-DATA-004 | Confirm + re-enter password before delete | Must | Active | SEC | UC-016 | features/FEAT-018-delete-account/technical-design.md; features/FEAT-018-delete-account/ui-design.md | FEAT-018 | _TBD_ |
-| FR-DATA-005 | Terminate sessions; free email on delete | Must | Active | PRIV | UC-016 | ADR-005; features/FEAT-018-delete-account/technical-design.md; features/FEAT-018-delete-account/ui-design.md | FEAT-018 | _TBD_ |
-| FR-DATA-006 | Inform user deletion is permanent | Must | Active | PRIV | UC-016 | features/FEAT-018-delete-account/technical-design.md; features/FEAT-018-delete-account/ui-design.md | FEAT-018 | _TBD_ |
+| FR-DATA-003 | Permanently delete account + data | Must | Active | PRIV | UC-016 | ADR-003; features/FEAT-018-delete-account/technical-design.md; features/FEAT-018-delete-account/ui-design.md | FEAT-018 | features/FEAT-018-delete-account/acceptance-report.md |
+| FR-DATA-004 | Confirm + re-enter password before delete | Must | Active | SEC | UC-016 | features/FEAT-018-delete-account/technical-design.md; features/FEAT-018-delete-account/ui-design.md | FEAT-018 | features/FEAT-018-delete-account/acceptance-report.md |
+| FR-DATA-005 | Terminate sessions; free email on delete | Must | Active | PRIV | UC-016 | ADR-005; features/FEAT-018-delete-account/technical-design.md; features/FEAT-018-delete-account/ui-design.md | FEAT-018 | features/FEAT-018-delete-account/acceptance-report.md |
+| FR-DATA-006 | Inform user deletion is permanent | Must | Active | PRIV | UC-016 | features/FEAT-018-delete-account/technical-design.md; features/FEAT-018-delete-account/ui-design.md | FEAT-018 | features/FEAT-018-delete-account/acceptance-report.md |
 
 ## Non-functional requirements
 
