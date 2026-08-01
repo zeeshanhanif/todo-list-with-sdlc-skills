@@ -63,6 +63,13 @@ export default async function SecuritySettingsPage() {
           help="Download your lists and tasks as a JSON file."
           divider
         />
+        <HubRow
+          href="/settings/security/delete"
+          label="Delete account"
+          help="Permanently delete your account and everything in it."
+          divider
+          destructive
+        />
       </section>
     </AppShell>
   );
@@ -75,6 +82,7 @@ function HubRow({
   label,
   help,
   divider = false,
+  destructive = false,
 }: {
   href: string;
   label: string;
@@ -83,6 +91,13 @@ function HubRow({
    * bottom one so it is set by each row after the first — the card never grows
    * a trailing rule as FEAT-018 appends its own. */
   divider?: boolean;
+  /** Marks the row as the destructive one (FEAT-018 ui-design D6) — by an icon
+   * in `--color-danger`, NOT a red label: the row's own hover background is
+   * `--color-surface-sunken`, where `--color-danger` text measures 4.41:1,
+   * under design.md §5's 4.5:1. An icon is a UI graphic at ≥ 3:1 and clears
+   * every state in both themes. Colour never carries it alone (§7) — the label
+   * and help copy say "delete" and "permanently". */
+  destructive?: boolean;
 }) {
   return (
     <Link
@@ -108,6 +123,7 @@ function HubRow({
           fontSize: "var(--font-size-body)",
         }}
       >
+        {destructive && <TrashGlyph />}
         {label}
       </span>
       <span
@@ -121,5 +137,39 @@ function HubRow({
         {help}
       </span>
     </Link>
+  );
+}
+
+/** The destructive row's mark (FEAT-018 ui-design D6). `aria-hidden` because
+ * the label already says "Delete account" — it pairs with the text rather than
+ * carrying meaning alone (design.md §7). Inline rather than from an icon
+ * package: this app has no icon dependency, and adding one for a single mark
+ * would be a bigger change than the feature. */
+function TrashGlyph() {
+  return (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="var(--color-danger)"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      // `inline-block` explicitly: Tailwind's preflight sets `svg { display:
+      // block }`, which would drop the mark onto its own line above the label.
+      style={{
+        display: "inline-block",
+        verticalAlign: "-2px",
+        marginRight: "var(--space-2)",
+      }}
+    >
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M19 6l-1 14H6L5 6" />
+      <path d="M10 11v5M14 11v5" />
+    </svg>
   );
 }

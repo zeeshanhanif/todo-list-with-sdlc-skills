@@ -117,7 +117,7 @@
       surfaces as the typed failure rather than a thrown parse error
       (NFR-REL-004).
 
-- [ ] T7 — UI integration point (design §5.2): `app/settings/security/delete/page.tsx`
+- [x] T7 — UI integration point (design §5.2): `app/settings/security/delete/page.tsx`
       (**SCR-WEB-017**) + `components/delete-account.tsx` client island consuming
       `POST /api/account/delete`, and a third `HubRow` on
       `app/settings/security/page.tsx` (**SCR-WEB-014**) — **last**, with the
