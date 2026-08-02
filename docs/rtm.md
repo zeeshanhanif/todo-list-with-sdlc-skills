@@ -67,7 +67,7 @@
 | FR-TASK-012 | Manually reorder active tasks | Should | Active | SI | UC-010 | ADR-003; features/FEAT-014-reorder-tasks/technical-design.md; features/FEAT-014-reorder-tasks/ui-design.md | FEAT-014 | features/FEAT-014-reorder-tasks/acceptance-report.md |
 | FR-TASK-013 | Soft-delete task (recoverable) | Must | Active | SI | UC-012 | ADR-003; arch §8; features/FEAT-013-delete-restore/technical-design.md; features/FEAT-013-delete-restore/ui-design.md | FEAT-013 | features/FEAT-013-delete-restore/acceptance-report.md |
 | FR-TASK-014 | Restore (undo) soft-deleted task | Must | Active | SI | UC-012 | ADR-003; features/FEAT-013-delete-restore/technical-design.md; features/FEAT-013-delete-restore/ui-design.md | FEAT-013 | features/FEAT-013-delete-restore/acceptance-report.md |
-| FR-TASK-015 | Purge soft-deleted after retention | Should | Active | PRIV | UC-012 | ADR-007; arch §8 | FEAT-020 | _TBD_ |
+| FR-TASK-015 | Purge soft-deleted after retention | Should | Active | PRIV | UC-012 | ADR-007; arch §8; features/FEAT-020-purge-job/technical-design.md | FEAT-020 | _TBD_ |
 | FR-SRCH-001 | Keyword search across all lists | Must | Active | SI | UC-013 | arch §8; features/FEAT-015-search/technical-design.md; features/FEAT-015-search/ui-design.md | FEAT-015 | features/FEAT-015-search/acceptance-report.md |
 | FR-SRCH-002 | Results show list + status | Must | Active | SI | UC-013 | features/FEAT-015-search/technical-design.md; features/FEAT-015-search/ui-design.md | FEAT-015 | features/FEAT-015-search/acceptance-report.md |
 | FR-SRCH-003 | Filter by status | Must | Active | SI | UC-013 | features/FEAT-015-search/technical-design.md; features/FEAT-015-search/ui-design.md | FEAT-015 | features/FEAT-015-search/acceptance-report.md |
