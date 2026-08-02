@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { PasswordPolicyService } from './password-policy.service';
-import { PasswordHasher } from './password-hasher';
+import { PasswordHasher } from '../../common/crypto/password-hasher';
 import { VerificationTokenService } from './verification-token.service';
 import { ResetTokenService } from './reset-token.service';
 import { UsersRepository } from './users.repository';

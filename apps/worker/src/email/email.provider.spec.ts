@@ -13,6 +13,9 @@ const base: WorkerConfig = {
   emailBatchSize: 50,
   backoffBaseSeconds: 60,
   backoffCapSeconds: 3600,
+  // Not read by the port factory — the job's purge pass owns them (FEAT-020).
+  taskRetentionDays: 30,
+  purgeBatchSize: 500,
 };
 
 describe("createEmailPort (AC-7)", () => {

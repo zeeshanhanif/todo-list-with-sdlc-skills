@@ -16,7 +16,9 @@ recycled.
 | DEF-006 | 2026-07-29 | NFR-USE-004 (design.md §5 contrast) / FEAT-001, FEAT-003, FEAT-005, FEAT-009 — the **inline-alert** instances DEF-003 and DEF-004 both missed | Five shipped sites still put `--color-danger` on `--color-danger-subtle` at `small` — the **3.95:1** pairing DEF-003 measured and `--color-danger-text` (6.80:1) exists to replace: `app/signup/page.tsx:89`, `app/signin/page.tsx:128`, `app/reset-password/page.tsx:46`, `components/lists-nav.tsx:117`, `components/list-dialog.tsx:196`. A web-tier pass, not per-feature rework. **Two more found during the fix**: the sign-up alert contains two LINKS carrying their own `--color-danger` on the same tint | `edfe9b0` (all seven → `--color-danger-text`; a rendered sweep and a source sweep added) | 2026-08-01 — both guards red before / green after; 3.95→6.80:1 light, 8.31:1 dark; FEAT-001/003/005/009 re-verified **Accepted (unchanged)**; api 442, web 78, e2e 53 |
 | DEF-009 | 2026-07-30 | NFR-USE-004 (design.md §5 focus) / product-wide — every screen since FEAT-001 | design.md §5 requires "a visible 2px `--color-focus-ring` ring with 2px offset on `:focus-visible`" and the token exists in both themes, but **no CSS in `apps/web` ever set it** — every screen relied on the browser's 1px default since the first slice. Found by FEAT-008 acceptance while verifying AC-16's keyboard clause; the default indicator is visible, so this was a design-system conformance gap, not an accessibility blocker. A web-tier pass like DEF-005/DEF-006, not per-feature rework | `70b4a30` (one `:focus-visible` rule in globals.css, width and offset from `--border-width-thick`) | 2026-08-01 — guard red before (1px measured) / green after; ring confirmed unclipped visually in row and sidebar; product-wide re-verification **Accepted (unchanged)**; api 442, web 78, e2e 53 |
 | DEF-010 | 2026-08-01 | FR-SRCH-007/008 (smart views) / FEAT-016 — `views.service.spec` AC-2 and `smart-views.spec` UC-014 | **Test defect, not a product defect.** Both fixtures assume a wall-clock condition that holds for only part of each day: the unit test needs New York and Calcutta to share a calendar date (false after ~14:30 NY), and the E2E seeds a task at `now() + 5 hours` and expects it in Today (false after 19:00 UTC). The product is correct in both cases — verified by inspecting the seeded instants against the rule. One root cause, two symptoms; CI would fail daily for part of the day | `3fd7619` (both fixtures derive their zone from the current instant — `Etc/GMT±N`, fixed offset, no DST) | 2026-08-01 — red before / green after; arithmetic checked across all 24 UTC hours; FEAT-016 re-verified **Accepted (unchanged)**; api 442, e2e 48 |
+| DEF-012 | 2026-08-01 | NFR-USE-004 (design.md §5 contrast) / the **guards themselves** — `control-contrast.spec.ts` (DEF-005) and `inline-alert-contrast.spec.ts` (DEF-006) | The two standing contrast sweeps **never set the dark theme**, so every ratio the project has measured is a light-theme ratio. Their helpers also read `getComputedStyle().backgroundColor` and skip only *fully* transparent values, so they could not measure dark correctly even if pointed at it: the dark tints are `rgba(…, 0.15)` over the surface, and comparing text against that raw value computes a ratio no pixel ever had. Found by FEAT-017's acceptance, whose own both-themes guard went red on its first run for exactly this reason | `e2e/tests/contrast.ts` (shared, compositing measurement) + both sweeps parametrised over `["light","dark"]` | 2026-08-01 — **no product defect found**: every existing pairing already conformed in dark. The guards were incomplete, not wrong. Discrimination proven in both themes; e2e 60 → **65** |
 | DEF-011 | 2026-08-01 | NFR-USE-004 (design.md §5 targets) / product-wide — icon-only controls since FEAT-009 | Icon-only buttons are **40px** (`--size-control-md`) on every viewport, where design.md §4 specifies "40px (**44px touch**)" and §5 requires "≥ 44×44px on touch viewports". No coarse-pointer rule exists anywhere in `apps/web`, so the touch size was never implemented. Found by FEAT-014 acceptance (AC-12 names the 44px target explicitly). A web-tier pass like DEF-005/DEF-006/DEF-009, not per-feature rework — `detail-panel.tsx` already shows the codebase's own answer | `1838a4d` (lists-nav's two icon buttons → `--size-touch-target`; FEAT-014's three fixed in its own rework at `152de92`) | 2026-08-01 — `e2e/tests/touch-target.spec.ts` measured 40×40 before / ≥44×44 after; FEAT-009 re-verified **Accepted (unchanged)**; api 442, e2e 48 |
+| DEF-013 | 2026-08-02 | *(no FR — test infrastructure)* / api suite, product-wide | `auth_rate_buckets` rows survive between suite runs, and every spec's `nextIp()` counter restarts at `.1`, so two runs inside one **15-minute** window hit the same `(ip, route, window_start)` keys and their counts **add up**. Measured: one key went **31 → 62 → 93** across three consecutive runs against a default `AUTH_RATELIMIT_MAX` of **30**; the specs that omit `X-Forwarded-For` share a single bucket keyed on the localhost socket address, which was found sitting at **135** registrations for one window. Any spec whose per-run usage crosses its limit on a later run gets `429` where it expects success — the suite's repeatability depended on what time it was and how recently it last ran. Found while investigating DEF-002; **a distinct defect, and not DEF-002's cause** (the failures observed there are `404`s in two specs that both raise the limit to 1000) | `6ceaef5` (globalSetup truncates the table; `rate-limit-bucket-hygiene.spec.ts` guards it) | 2026-08-02 — guard red before (both assertions) / green after; a deliberately seeded 900-count stale bucket is cleared by a normal run; api 529, worker 51, web 96 twice consecutively |
 
 ## DEF-006 — the inline-alert instances of the DEF-003 pairing
 
@@ -378,7 +380,59 @@ a leaked `AUTH_RATELIMIT_MAX` between suites in a reused worker. That leak was
 real and was fixed during FEAT-010, but the instrumented trace shows `max=2`
 correct at the moment of failure — the count was wrong, not the limit.
 
-## DEF-002 — residual parallel-run flakiness (open)
+## DEF-013 — rate-limit buckets accumulate across suite runs
+
+**Reported:** 2026-08-02, while investigating DEF-002.
+**Owning requirement:** none — test infrastructure, though the mechanism is
+product code behaving exactly as designed.
+
+**Symptom.** The api suite's repeatability depends on the wall clock. Running it
+twice inside fifteen minutes can fail the second run with `429 rate_limited`
+where the first passed.
+
+**Cause.** Three facts compose:
+
+1. `auth_rate_buckets` is keyed `(ip, route, window_start)` on a **15-minute**
+   fixed window (`floor(now / 900000)`), per `rate-limit.guard.ts`.
+2. Every spec's `nextIp()` is `${PREFIX}${(ipCounter++ % 250) + 1}` with
+   `ipCounter` starting at **0 on every run** — so run N and run N+1 use the
+   *same* synthetic IPs, in the same order.
+3. Nothing clears the table between runs. Specs delete their **own** prefix in
+   `afterAll`, but only some specs do, and a crashed run cleans nothing.
+
+So two runs inside one window increment the same keys. **Measured** (table
+truncated first, then three consecutive full runs):
+
+| after run | rows | max count on one key |
+| :-- | :-- | :-- |
+| 1 | 345 | 31 |
+| 2 | 345 | 62 |
+| 3 | 345 | 93 |
+
+Linear, +31 per run, against a default `AUTH_RATELIMIT_MAX` of **30**. Before the
+truncate was introduced the live table held **1474 rows**, the oldest from the
+previous day, including `::ffff:127.0.0.1 POST /auth/register` at **135** for a
+single window — that bucket is shared by *every* spec that omits
+`X-Forwarded-For`, because `clientIp()` then falls back to the socket address.
+
+**Fix.** `apps/api/test/global-setup.js` truncates `auth_rate_buckets` before any
+worker starts. globalSetup is the only place that can clear it safely: it runs
+once, before the workers, so the delete cannot land mid-request — which is
+precisely the hazard DEF-001 recorded for per-spec deletes racing each other.
+
+**Guard.** `rate-limit-bucket-hygiene.spec.ts` asserts that no bucket survives
+from an older window and that no key sits above a level a single run can produce.
+Red before the fix (measured 465 on one key), green after.
+
+**Relationship to DEF-002 — distinct, and not its cause.** This was found while
+chasing DEF-002 and is worth separating carefully. DEF-002's observed failures
+are `404`s in `task-item.controller.spec` and `tasks-lists-integration.spec`,
+**both of which raise `AUTH_RATELIMIT_MAX` to 1000**, so no bucket could have
+produced them. DEF-013 is a real repeat-safety defect that would have bitten a
+developer or CI eventually; it does not explain DEF-002, and DEF-002 stays open.
+
+
+## DEF-002 — residual api-suite flakiness, order/timing dependent (open)
 
 **Reported:** 2026-07-27, while fixing DEF-001. Recorded separately because the
 evidence shows it is a **distinct cause**, not leftover DEF-001.
@@ -455,6 +509,62 @@ readable failures.
 **Impact and workaround.** The gate is trustworthy when run serially
 (`npm test -w @todo/api -- --runInBand`, ~9 s vs ~4 s). Feature verification
 should use serial execution until this is fixed, and the report should say so.
+
+### Investigation 2026-08-02 — still open; hypothesis 1 retired, four more ruled out
+
+**Reproduced: 3 failures in 145 parallel runs (~2%)**, all three inside the first
+25; 120 consecutive clean runs followed. The rate is lower than the ~8% recorded
+in July, and low enough that a 30-run measurement proves nothing — plan for 50+
+runs before believing any result. All three failures share one shape, and it is
+**not** the shape hypothesis 1 predicted:
+
+| Spec | Assertion | Expected → received |
+| :-- | :-- | :-- |
+| `task-item.controller.spec` | FEAT-012 AC-9, complete a task just created | 200 → **404** |
+| `task-item.controller.spec` | AC-12, GET/PATCH a task just created | 200 → **404** |
+| `tasks-lists-integration.spec` | FEAT-020 AC-4, create a task in a fresh Inbox | 201 → **404** |
+
+**Hypothesis 1 (unasserted fixture preconditions) is retired as the
+explanation.** Both specs already assert `201`/`200` on every fixture step — the
+work FEAT-010 landed — and the failures occur *after* those assertions pass. The
+registration, the login and (in two of three cases) the task creation all
+succeeded; the resource then could not be found milliseconds later. The
+assertions did their job: they proved the precondition held. So the defect is a
+row that genuinely stops being visible to an ownership-scoped query, not a
+fixture quietly proceeding from a failed setup.
+
+**Ruled out this session** (checked directly, so the next session need not):
+
+- *Rate limiting, for these failures.* Both affected specs set
+  `AUTH_RATELIMIT_MAX = 1000`, so no bucket could produce their 404s. (The
+  investigation did find a real bucket defect — **DEF-013**, fixed — but it is a
+  `429` mechanism and cannot cause a `404`.)
+- *Email collisions between specs.* Every spec's fixture email is
+  `<prefix>-${randomUUID()}@example.com` with a per-spec prefix; collisions are
+  impossible, so no spec's cleanup can delete another's user.
+- *IP-range collisions.* All ranges verified disjoint (the one apparent duplicate
+  of `198.18.10.` is prose inside `rate-limit-isolation.spec.ts`). DEF-001's
+  guard is holding.
+- *FEAT-018's account deletion over-reaching.* Every statement in
+  `account-delete.repository.ts` is scoped `WHERE id = $1`; the cascade cannot
+  reach another user's rows.
+- *Prototype-level `DbService` mocks leaking between specs in a reused worker.*
+  There are none; the audit spec's `db down` fixture mocks a local object.
+
+**Where the next session should start.** The failure is a `404` from an
+ownership-scoped statement (`WHERE owner_id = $1 AND id = $2 AND deleted_at IS
+NULL`), which admits exactly three causes: the row was deleted, its `owner_id`
+does not match, or `deleted_at` is set. Instrument to distinguish them — a probe
+that, on a non-2xx fixture response, dumps the response body's error `code`, the
+row's presence, its `owner_id`, and the `user_id` the session cookie resolves to
+will separate "row gone" from "owner mismatch" in a single hit. That probe was
+built and run for 90 runs this session without catching a failure; it is cheap to
+rebuild and is the fastest path to a cause. As a permanent aid, both task specs'
+`addTask` helpers now assert **with the response body attached**, so the next
+occurrence names which resource was missing rather than only its status.
+
+**Measurement hygiene, re-learned:** the harness must run alone. Nothing else may
+touch the database while a rate measurement is in flight.
 
 
 ## DEF-007 — the API ignores the root `.env` (open)
@@ -776,3 +886,61 @@ controls.
 unclipped in both a task row and the sidebar, where `overflow-y: auto` could have
 cropped an offset outline. api 442/442, web 78/78, worker 24/24, e2e **53/53**,
 lint · boundaries · build clean.
+
+## DEF-012 — the contrast guards never measured the dark theme (2026-08-01)
+
+**Reported by** FEAT-017's acceptance run. Its own SCR-WEB-016 guard went red on
+its first execution, and the cause turned out to be the *measurement*, not the
+screen — which raised the obvious question about the two standing sweeps that
+had been guarding this rule for the whole project.
+
+**Symptom — two faults, and the second is the one that mattered.**
+
+1. *Coverage.* Neither `control-contrast.spec.ts` (DEF-005) nor
+   `inline-alert-contrast.spec.ts` (DEF-006) ever set a theme. Every ratio this
+   project had measured was a **light-theme** ratio. `tokens.json` annotates
+   `dangerText` as "7.8:1 on the dark dangerSubtle tint" — a number nothing
+   verified.
+2. *Correctness.* Both helpers read `getComputedStyle().backgroundColor` and
+   skipped only **fully** transparent values, so they could not have measured
+   dark correctly even if pointed at it: the dark tints are `rgba(…, 0.15)` over
+   the surface, and comparing text against that raw value computes a ratio
+   against a colour no pixel ever had. In light the tints are opaque hex, which
+   is why this never surfaced.
+
+**Fix.** One shared module, `e2e/tests/contrast.ts`, holding the ratio
+computation, the **compositing** background walk, the vacuity guard and the
+theme helpers; both sweeps import it and are parametrised over
+`["light", "dark"]`. The sweeps previously carried a `contrastRatio` each —
+two copies of a measurement is how two guards drift into disagreeing about what
+they measure.
+
+`assertTheme` is not ceremony: it polls `documentElement.dataset.theme` after
+navigation, because a "both themes" sweep whose emulation silently fails
+measures light twice and reports double the confidence for none of the coverage.
+
+**No product defect was found, and that is the honest headline.** Every existing
+pairing already conformed in dark. The two guards were incomplete, not wrong.
+
+**Discrimination proven rather than assumed**, in both directions, because a
+sweep that has never failed is indistinguishable from one that cannot:
+
+| Injected regression | light | dark |
+| :-- | :-- | :-- |
+| sign-in alert `--color-danger-text` → `--color-danger` | **red, 3.95:1** ✅ caught | green — and *correctly so*: dark's `#F87171` on the composited tint genuinely clears 4.5:1 |
+| sign-in alert text → `--color-danger-subtle` (text on itself) | **red, 1.00:1** | **red, 3.93:1** |
+
+The second row is the proof the first could not give. Its dark failure reports
+the background as `rgb(52, 34, 49.3)` — fractional components, i.e. a genuinely
+**composited** colour. Before this fix that same background would have been read
+as opaque `rgb(239, 68, 68)`, a completely different and much lighter colour, and
+the ratio would have been meaningless.
+
+**Method note worth keeping.** The first regression above is the more natural one
+to reach for, and on its own it would have "proven" the dark sweep works while
+proving nothing — it passes in dark for a legitimate reason. A discrimination
+check has to fail *for the reason you are testing*, not merely fail.
+
+**Verification.** Both sweeps green in both themes; **e2e 60 → 65** (the sweeps
+went 2→4 and 3→6 tests); lint clean. No production file changed — the diff is
+test infrastructure only.

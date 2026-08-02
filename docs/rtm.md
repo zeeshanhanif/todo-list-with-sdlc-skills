@@ -67,7 +67,7 @@
 | FR-TASK-012 | Manually reorder active tasks | Should | Active | SI | UC-010 | ADR-003; features/FEAT-014-reorder-tasks/technical-design.md; features/FEAT-014-reorder-tasks/ui-design.md | FEAT-014 | features/FEAT-014-reorder-tasks/acceptance-report.md |
 | FR-TASK-013 | Soft-delete task (recoverable) | Must | Active | SI | UC-012 | ADR-003; arch §8; features/FEAT-013-delete-restore/technical-design.md; features/FEAT-013-delete-restore/ui-design.md | FEAT-013 | features/FEAT-013-delete-restore/acceptance-report.md |
 | FR-TASK-014 | Restore (undo) soft-deleted task | Must | Active | SI | UC-012 | ADR-003; features/FEAT-013-delete-restore/technical-design.md; features/FEAT-013-delete-restore/ui-design.md | FEAT-013 | features/FEAT-013-delete-restore/acceptance-report.md |
-| FR-TASK-015 | Purge soft-deleted after retention | Should | Active | PRIV | UC-012 | ADR-007; arch §8 | FEAT-020 | _TBD_ |
+| FR-TASK-015 | Purge soft-deleted after retention | Should | Active | PRIV | UC-012 | ADR-007; arch §8; features/FEAT-020-purge-job/technical-design.md | FEAT-020 | features/FEAT-020-purge-job/acceptance-report.md |
 | FR-SRCH-001 | Keyword search across all lists | Must | Active | SI | UC-013 | arch §8; features/FEAT-015-search/technical-design.md; features/FEAT-015-search/ui-design.md | FEAT-015 | features/FEAT-015-search/acceptance-report.md |
 | FR-SRCH-002 | Results show list + status | Must | Active | SI | UC-013 | features/FEAT-015-search/technical-design.md; features/FEAT-015-search/ui-design.md | FEAT-015 | features/FEAT-015-search/acceptance-report.md |
 | FR-SRCH-003 | Filter by status | Must | Active | SI | UC-013 | features/FEAT-015-search/technical-design.md; features/FEAT-015-search/ui-design.md | FEAT-015 | features/FEAT-015-search/acceptance-report.md |
@@ -77,12 +77,12 @@
 | FR-SRCH-007 | Smart views (Today/Upcoming/Overdue/All) | Should | Active | SI | UC-014 | features/FEAT-016-smart-views/technical-design.md; features/FEAT-016-smart-views/ui-design.md | FEAT-016 | features/FEAT-016-smart-views/acceptance-report.md |
 | FR-SRCH-008 | Smart-view membership semantics | Should | Active | SI | UC-014 | features/FEAT-016-smart-views/technical-design.md; features/FEAT-016-smart-views/ui-design.md | FEAT-016 | features/FEAT-016-smart-views/acceptance-report.md |
 | FR-SRCH-009 | Paginate/lazy-load large views | Should | Active | SI | UC-013 | arch §8; features/FEAT-015-search/technical-design.md; features/FEAT-015-search/ui-design.md; features/FEAT-016-smart-views/technical-design.md; features/FEAT-016-smart-views/ui-design.md | FEAT-015 | features/FEAT-015-search/acceptance-report.md; features/FEAT-016-smart-views/acceptance-report.md (partial) |
-| FR-DATA-001 | Export all data as JSON | Must | Active | PRIV | UC-015 | _TBD_ | FEAT-017 | _TBD_ |
-| FR-DATA-002 | Export includes lists + active/completed tasks | Must | Active | PRIV | UC-015 | _TBD_ | FEAT-017 | _TBD_ |
-| FR-DATA-003 | Permanently delete account + data | Must | Active | PRIV | UC-016 | ADR-003 | FEAT-018 | _TBD_ |
-| FR-DATA-004 | Confirm + re-enter password before delete | Must | Active | SEC | UC-016 | _TBD_ | FEAT-018 | _TBD_ |
-| FR-DATA-005 | Terminate sessions; free email on delete | Must | Active | PRIV | UC-016 | ADR-005 | FEAT-018 | _TBD_ |
-| FR-DATA-006 | Inform user deletion is permanent | Must | Active | PRIV | UC-016 | _TBD_ | FEAT-018 | _TBD_ |
+| FR-DATA-001 | Export all data as JSON | Must | Active | PRIV | UC-015 | features/FEAT-017-export-data/technical-design.md; features/FEAT-017-export-data/ui-design.md | FEAT-017 | features/FEAT-017-export-data/acceptance-report.md |
+| FR-DATA-002 | Export includes lists + active/completed tasks | Must | Active | PRIV | UC-015 | features/FEAT-017-export-data/technical-design.md; features/FEAT-017-export-data/ui-design.md | FEAT-017 | features/FEAT-017-export-data/acceptance-report.md |
+| FR-DATA-003 | Permanently delete account + data | Must | Active | PRIV | UC-016 | ADR-003; features/FEAT-018-delete-account/technical-design.md; features/FEAT-018-delete-account/ui-design.md | FEAT-018 | features/FEAT-018-delete-account/acceptance-report.md |
+| FR-DATA-004 | Confirm + re-enter password before delete | Must | Active | SEC | UC-016 | features/FEAT-018-delete-account/technical-design.md; features/FEAT-018-delete-account/ui-design.md | FEAT-018 | features/FEAT-018-delete-account/acceptance-report.md |
+| FR-DATA-005 | Terminate sessions; free email on delete | Must | Active | PRIV | UC-016 | ADR-005; features/FEAT-018-delete-account/technical-design.md; features/FEAT-018-delete-account/ui-design.md | FEAT-018 | features/FEAT-018-delete-account/acceptance-report.md |
+| FR-DATA-006 | Inform user deletion is permanent | Must | Active | PRIV | UC-016 | features/FEAT-018-delete-account/technical-design.md; features/FEAT-018-delete-account/ui-design.md | FEAT-018 | features/FEAT-018-delete-account/acceptance-report.md |
 
 ## Non-functional requirements
 

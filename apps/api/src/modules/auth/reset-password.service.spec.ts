@@ -8,7 +8,7 @@ import { AuditService } from '../../common/audit/audit.service';
 import { AuditRepository } from '../../common/audit/audit.repository';
 import { AuthService } from './auth.service';
 import { PasswordPolicyService } from './password-policy.service';
-import { PasswordHasher } from './password-hasher';
+import { PasswordHasher } from '../../common/crypto/password-hasher';
 import { VerificationTokenService } from './verification-token.service';
 import { ResetTokenService } from './reset-token.service';
 import { UsersRepository } from './users.repository';

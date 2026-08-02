@@ -104,7 +104,14 @@ describe('task item endpoints (contract)', () => {
       .post(listTasksPath(listId))
       .set('Cookie', cookie)
       .send({ title: body.title });
-    expect(res.status).toBe(201);
+    // DEF-002: assert with the BODY attached. A bare status assertion says
+    // "expected 201, got 404" and nothing about WHICH resource was missing;
+    // the error code in the body is the difference between a lost list and a
+    // lost task when this next flakes.
+    expect({
+      status: res.status,
+      body: res.body as unknown,
+    }).toMatchObject({ status: 201 });
     const task = (res.body as CreateTaskResponse).task;
 
     const patch: Record<string, unknown> = {};

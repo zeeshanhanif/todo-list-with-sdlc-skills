@@ -17,6 +17,15 @@
   }
 }
 
+/* A single card action that fills the width on narrow screens, the way the
+   auth forms' buttons already do (FEAT-017 ui-design, SCR-WEB-016 responsive
+   note). A media query, so it cannot live in the component's inline styles. */
+@media (max-width: 640px) {
+  .card-action-full {
+    width: 100%;
+  }
+}
+
 /* App shell responsive frame (design.md §3; FEAT-009 ui-design D3). ≥ md the
    sidebar is persistent and the drawer chrome is hidden; < md the sidebar becomes
    a full drawer over the content and the main column is full-width. Media queries

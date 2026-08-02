@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { DbService } from '../../infra/db.service';
 import { APP_CONFIG, type AppConfig } from '../../infra/config';
 import { PasswordPolicyService } from './password-policy.service';
-import { PasswordHasher } from './password-hasher';
+import { PasswordHasher } from '../../common/crypto/password-hasher';
 import { VerificationTokenService } from './verification-token.service';
 import { ResetTokenService } from './reset-token.service';
 import { UsersRepository } from './users.repository';

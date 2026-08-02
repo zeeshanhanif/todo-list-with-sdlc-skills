@@ -12,6 +12,13 @@ export interface WorkerConfig {
   emailBatchSize: number;
   backoffBaseSeconds: number;
   backoffCapSeconds: number;
+  /**
+   * Soft-deleted tasks older than this are purged (FR-TASK-015). Configuration
+   * rather than a constant because SRS §3.4 still marks the 30-day figure
+   * *(confirm)* — FEAT-020 D1.
+   */
+  taskRetentionDays: number;
+  purgeBatchSize: number;
 }
 
 /**
@@ -38,5 +45,7 @@ export function readConfig(): WorkerConfig {
     emailBatchSize: Number(process.env.EMAIL_BATCH_SIZE ?? 50),
     backoffBaseSeconds: Number(process.env.EMAIL_BACKOFF_BASE_SECONDS ?? 60),
     backoffCapSeconds: Number(process.env.EMAIL_BACKOFF_CAP_SECONDS ?? 3600),
+    taskRetentionDays: Number(process.env.TASK_RETENTION_DAYS ?? 30),
+    purgeBatchSize: Number(process.env.PURGE_BATCH_SIZE ?? 500),
   };
 }

@@ -934,3 +934,170 @@ export interface SmartViewResponse {
   /** Opaque cursor for the next page, or `null` when this page is the last. */
   nextCursor: string | null;
 }
+
+// --- Account data: export personal data (FEAT-017) ---
+
+/** Path of the export endpoint. Single-subject: the export is always the caller's
+ * own data, so no id appears in the path, the query or the body — there is no
+ * request shape that addresses another account (FR-AUTHZ-004; technical-design
+ * §3.1). `POST` rather than `GET` because a URL carrying an entire dataset would
+ * be bookmarkable, prefetchable and logged (technical-design D1). */
+export const ACCOUNT_EXPORT_PATH = "/account/export";
+
+/**
+ * The export document's shape version (FR-DATA-001 — "portable,
+ * machine-readable"). It exists so a consumer can tell an old file from a new
+ * one, and the obligation it creates is real: **any future change to
+ * `AccountExportDocument`'s shape bumps this** (technical-design §8, watch
+ * item 2).
+ */
+export const ACCOUNT_EXPORT_FORMAT_VERSION = 1;
+
+/** The account's own fields, as the export carries them (FR-DATA-001).
+ *
+ * Deliberately narrow: credentials, token hashes, lockout counters and
+ * verification state are **not** the user's content, and writing a password hash
+ * into a file that lands in a downloads folder is the opposite of NFR-COMP-001's
+ * data minimization (technical-design §3.2). */
+export interface AccountExportAccount {
+  email: string;
+  /** The **stored** value — `null` when the user never set one. `displayNameFor`
+   * is deliberately NOT applied: an export is the one artifact where "did the
+   * user choose this?" is the whole question, so recording the derived fallback
+   * would write down a preference they never expressed (technical-design D4). */
+  displayName: string | null;
+  /** As stored, verbatim; `null` when never established (FEAT-008 D2). */
+  timezone: string | null;
+  theme: ThemePreference;
+  createdAt: string;
+}
+
+/** A task inside the export (FR-DATA-002).
+ *
+ * Two omissions are deliberate. There is no `isOverdue`: it is derived at read
+ * time against the clock (FEAT-011 D3) and has no meaning inside a stored file.
+ * There is no `status`: `completedAt === null` already *is* the status
+ * everywhere in this product, and two representations of one fact is the drift
+ * this codebase keeps refusing (technical-design §3.2). */
+export interface AccountExportTask {
+  id: string;
+  /** Repeated even though the task is nested inside its list, so the object
+   * stays self-describing when a script lifts it out of the tree
+   * (technical-design D3). */
+  listId: string;
+  title: string;
+  /** ISO-8601 UTC, or `null` when the task is active (FR-DATA-002). */
+  completedAt: string | null;
+  dueAt: string | null;
+  priority: TaskPriority;
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A list inside the export, with its tasks nested (FR-DATA-002). Lists with no
+ * tasks appear with an empty `tasks` array — "all of the user's current lists"
+ * includes the empty ones. */
+export interface AccountExportList {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+  tasks: AccountExportTask[];
+}
+
+/**
+ * The export document — **the success body of `POST /account/export` itself**,
+ * with no `{ export: … }` envelope around it (technical-design D2).
+ *
+ * That is a deliberate, single-site deviation from the wrapper convention every
+ * other endpoint in this API follows (`{ profile }`, `{ lists }`, `{ task }`):
+ * this body *is* the artifact the user keeps, so a wrapper would either be
+ * written into their file as meaningless noise or be stripped by the client —
+ * meaning the bytes they get are not the bytes the API returned. **Error**
+ * responses still use the standard `ApiError` envelope, so client error handling
+ * is unchanged.
+ *
+ * Soft-deleted tasks are **not** included (technical-design D7): FR-DATA-002
+ * enumerates "active and completed", which is this product's own two-state
+ * vocabulary, and a user who wants a deleted task in the file can restore it
+ * first inside FEAT-013's window.
+ */
+export interface AccountExportDocument {
+  formatVersion: number;
+  /** ISO-8601 UTC instant the export was compiled. */
+  exportedAt: string;
+  account: AccountExportAccount;
+  /** Ordered as the app orders them: `position` ascending, then `createdAt`. */
+  lists: AccountExportList[];
+}
+
+/**
+ * The download's filename — one rule, shared, so the `Content-Disposition` the
+ * API sets and the `download` attribute the browser uses cannot drift apart
+ * (the constant-sharing convention `PASSWORD_MIN_LENGTH` and `displayNameFor`
+ * set; technical-design D5).
+ *
+ * The date is resolved **in the user's effective timezone**, not UTC: every
+ * other date this product shows a user is in their zone (FR-PROF-003,
+ * NFR-LOC-001), and a Calcutta user exporting at 02:00 local should not get
+ * yesterday's date on their file. Pass `timezone ?? "UTC"` — the same fallback
+ * the rest of the system applies to a null zone.
+ */
+export const accountExportFilename = (
+  exportedAt: string | Date,
+  timeZone: string,
+): string => {
+  const instant =
+    typeof exportedAt === "string" ? new Date(exportedAt) : exportedAt;
+  // `en-CA` renders ISO-ordered YYYY-MM-DD, which is what we want the filename
+  // to carry; the zone does the actual work.
+  const date = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(instant);
+  return `todo-export-${date}.json`;
+};
+
+// --- Account data: delete account (FEAT-018) ---
+
+/** Path of the account-deletion endpoint. Single-subject, exactly like the
+ * export: the account deleted is always the caller's own, so no id appears in
+ * the path, the query or the body — there is no request shape that addresses
+ * another account (FR-AUTHZ-004; technical-design §3.1). */
+export const ACCOUNT_DELETE_PATH = "/account/delete";
+
+/**
+ * Request body of `POST /account/delete` (FR-DATA-003, FR-DATA-004).
+ *
+ * The user is taken from the session, never from the body (FR-AUTHZ-001) — the
+ * same rule `ChangePasswordRequest` follows, which is also where the field name
+ * `currentPassword` comes from: it is the same fact, so it keeps the same name.
+ */
+export interface DeleteAccountRequest {
+  currentPassword: string;
+  /**
+   * Must be the literal `true`. FR-DATA-004 requires an explicit confirmation
+   * of **the system**, not only of the screen, so it is encoded in the contract
+   * rather than left as a property of one client (technical-design D3): no
+   * caller destroys an account by sending a password alone, and the requirement
+   * is testable at the API.
+   */
+  confirm: true;
+}
+
+/**
+ * Success response (200) of `POST /account/delete`.
+ *
+ * Deliberately says nothing about what was deleted: the account is gone, and a
+ * count of destroyed rows would be data about a user we no longer hold. The
+ * response also carries a `Set-Cookie` clearing the session cookie — every
+ * session was revoked with the account (FR-DATA-005).
+ */
+export interface DeleteAccountResponse {
+  status: "account_deleted";
+}

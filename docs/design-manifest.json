@@ -491,7 +491,7 @@
         "supplements": []
       },
       "contract_bindings": [],
-      "notes": "Authenticated settings zone (app shell), served at /settings/security; reached from the new sidebar 'Settings' nav item (SCR-WEB-007 entry extended). Pure navigation hub — consumes no endpoint, so no loading/empty/error states apply (not gaps); an unresolved session redirects to /signin server-side (ui-design D4). Renders one list-row today (Change password → SCR-WEB-015); Export data (SCR-WEB-016, FEAT-017) and Delete account (SCR-WEB-017, FEAT-018) add rows to this same entry later. FEAT-008 EXTENSION (delta spec: features/FEAT-008-profile/ui-design.md#scr-web-014--settings--security--account-this-features-extension): gains the settings sub-nav above its h1, with 'Security & account' carrying aria-current=page. This is required rather than cosmetic — FEAT-008 moves the sidebar's Settings target to /settings/profile, so without the sub-nav this screen would become unreachable. The sub-nav is a semantic <nav><ul><li><a> styled with design.md's `tabs` treatment, NOT shadcn Tabs (whose semantics are same-page panels, and these are routes — ui-design D3): a composition of existing treatments, not a new component. The card, its rows and its copy are otherwise untouched.",
+      "notes": "Authenticated settings zone (app shell), served at /settings/security; reached from the new sidebar 'Settings' nav item (SCR-WEB-007 entry extended). Pure navigation hub — consumes no endpoint, so no loading/empty/error states apply (not gaps); an unresolved session redirects to /signin server-side (ui-design D4). Renders one list-row today (Change password → SCR-WEB-015); Export data (SCR-WEB-016, FEAT-017) and Delete account (SCR-WEB-017, FEAT-018) add rows to this same entry later. FEAT-008 EXTENSION (delta spec: features/FEAT-008-profile/ui-design.md#scr-web-014--settings--security--account-this-features-extension): gains the settings sub-nav above its h1, with 'Security & account' carrying aria-current=page. This is required rather than cosmetic — FEAT-008 moves the sidebar's Settings target to /settings/profile, so without the sub-nav this screen would become unreachable. The sub-nav is a semantic <nav><ul><li><a> styled with design.md's `tabs` treatment, NOT shadcn Tabs (whose semantics are same-page panels, and these are routes — ui-design D3): a composition of existing treatments, not a new component. The card, its rows and its copy are otherwise untouched. FEAT-017 EXTENSION (delta spec: features/FEAT-017-export-data/ui-design.md#scr-web-014--settings--security--account-this-features-extension): gains a second generic list-row, 'Export data' → /settings/security/export (SCR-WEB-016), in exactly the row pattern the base spec reserved for it. Row order is least-to-most consequential — Change password → Export data → (Delete account, FEAT-018) — so the irreversible action lands last rather than beside the routine one. The card, the other row and all copy are otherwise untouched; the hub stays pure navigation with no loading/empty/error states (not gaps). FEAT-018 EXTENSION (delta spec: features/FEAT-018-delete-account/ui-design.md#scr-web-014--settings--security--account-this-features-extension): gains the third and last generic list-row, 'Delete account' → /settings/security/delete (SCR-WEB-017), completing the order the base spec reserved — Change password → Export data → Delete account, least to most consequential. The row is marked destructive by a leading Lucide Trash2 icon in --color-danger plus its copy and its last position, NOT by a red label (ui-design D6): --color-danger measures 4.8:1 on --color-surface but only 4.41:1 on --color-surface-sunken, which is this row's own hover background — under §5's 4.5:1. The icon is a UI graphic needing ≥3:1 and clears every state in both themes. Label and help keep --color-text / --color-text-muted; the row treatment, the other two rows and all other copy are untouched, and the hub stays pure navigation with no loading/empty/error states (not gaps).",
       "conformance": {
         "result": "pass",
         "corrections": [],
@@ -529,6 +529,68 @@
       },
       "status": "designed",
       "designed_at": "2026-07-26"
+    },
+    "SCR-WEB-016": {
+      "name": "Export Data",
+      "surface": "WEB",
+      "feature": "FEAT-017",
+      "strategy": "code-native",
+      "source": {
+        "spec": "features/FEAT-017-export-data/ui-design.md#scr-web-016--export-data"
+      },
+      "states": {
+        "covered": [
+          "default",
+          "preparing",
+          "ready",
+          "error"
+        ],
+        "gaps": [],
+        "supplements": []
+      },
+      "contract_bindings": [
+        "POST /account/export"
+      ],
+      "notes": "Authenticated settings zone, served at /settings/security/export — the second leaf under the Security & Account hub, built to the shape SCR-WEB-015 established (back link + h1 + card, no SettingsNav sub-nav: the sub-nav belongs to the two settings SECTIONS, not their leaves). 'error' is a state supplement beyond the ux-foundations inventory (default/preparing/ready), recorded in covered rather than escalated because it introduces nothing new — it is design.md §4's standard data-view error convention, which NFR-USE-003 requires of any screen consuming an endpoint; the inventory's three states describe only the happy path. NO confirm-dialog despite the inventory's 'Confirm + download' phrasing (ui-design D1): design.md scopes confirm-dialog to destructive actions (NFR-USE-002), and an export destroys nothing — the deliberate navigation plus an explicit button press IS the confirmation. The 'ready' state is load-bearing, not decoration (D2): the download is a programmatic blob/anchor click that browsers announce inconsistently and screen readers often not at all, so without an in-page result a success and a silent failure look identical; it names the file and shows lists/tasks counts derived client-side from the document already in hand (D3 — no preview endpoint). The danger-variant inline-alert takes --color-danger-text on --color-danger-subtle (DEF-006's rule, guarded by inline-alert-contrast.spec.ts). Open item: mobile Safari may present a share sheet rather than a download — observe during implementation and adjust the copy 'is in your downloads' if so.",
+      "conformance": {
+        "result": "pass",
+        "corrections": [],
+        "escalations": []
+      },
+      "status": "designed",
+      "designed_at": "2026-08-01"
+    },
+    "SCR-WEB-017": {
+      "name": "Delete Account",
+      "surface": "WEB",
+      "feature": "FEAT-018",
+      "strategy": "code-native",
+      "source": {
+        "spec": "features/FEAT-018-delete-account/ui-design.md#scr-web-017--delete-account"
+      },
+      "states": {
+        "covered": [
+          "default",
+          "deleting",
+          "password-error",
+          "error",
+          "confirmed"
+        ],
+        "gaps": [],
+        "supplements": []
+      },
+      "contract_bindings": [
+        "POST /account/delete",
+        "GET /lists"
+      ],
+      "notes": "Authenticated settings zone, served at /settings/security/delete — the third and last leaf under the Security & Account hub, in the shape SCR-WEB-015/016 established (back link + h1 + card, no SettingsNav sub-nav). 'deleting' and 'error' are state supplements beyond the ux-foundations inventory (default/password-error/confirmed), recorded in covered rather than escalated because neither introduces anything new — 'deleting' is design.md §4's button loading state, 'error' its form-level inline-alert convention (NFR-USE-003), the same call FEAT-017 made for SCR-WEB-016 (ui-design D7). THIS SCREEN DOES GET A confirm-dialog — the deliberate opposite of FEAT-017 D1: design.md §4 names 'delete account' for the component and NFR-USE-002/FR-DATA-004 require it (D1). The password field lives on the PAGE and the dialog stays a pure yes/no contributing the `confirm: true` literal (D2) — a password input inside confirm-dialog would fork a system component. The dialog opens with focus on CANCEL, not Confirm, a recorded divergence from ListDialog's delete mode: the user just pressed Enter in a password field and a stray second Enter would destroy the account (D3). Counts in the alert and dialog body come from GET /lists summed over ListSummary.taskCount, which INCLUDES soft-deleted tasks — correct here because they are destroyed too, and the copy says so (D4); a failed count degrades the copy to 'your lists and tasks' and never blocks the action or renders 0 (D5). THE 'confirmed' STATE IS CLIENT-RENDERED AND TERMINAL: by then the session no longer exists, so any router.refresh() or push to a protected route would replace it with the sign-in form (technical-design D10, AC-17); it is neutral, not the success tint, and its only affordance is 'Go to sign in'. Danger tints take --color-danger-text on --color-danger-subtle (DEF-006's rule); all pairings measured in both themes composited (DEF-012's discipline) — table in ui-design's cross-screen decisions. Open item: the app shell behind the confirmed state is stale and every nav link now redirects to /signin — a shell concern (SCR-WEB-007), not FEAT-018's to invent.",
+      "conformance": {
+        "result": "pass",
+        "corrections": [],
+        "escalations": []
+      },
+      "status": "designed",
+      "designed_at": "2026-08-01"
     },
     "SCR-WEB-018": {
       "name": "First-run / Onboarding",
