@@ -22,7 +22,7 @@
       Done when: the worker builds and `readConfig()` returns 30/500 with the vars
       unset and the overridden values when set.
 
-- [ ] T3 — `PurgeRepository.purgeExpired({ retentionDays, limit })` in
+- [x] T3 — `PurgeRepository.purgeExpired({ retentionDays, limit })` in
       `apps/worker/src/purge/purge.repository.ts` — the batched
       `DELETE … FOR UPDATE SKIP LOCKED` against the retention cutoff, returning the
       row count (design §5; FR-TASK-015).
