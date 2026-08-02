@@ -70,3 +70,17 @@
       pass; `npm run boundaries`, `npm run lint`, worker + api + web suites and
       the e2e suite green; migration 013 up/down clean; no WIP markers.
       Done when: the full gate passes.
+
+## Rework round 1 — from acceptance-report.md (2026-08-02, verdict Rework)
+
+- [x] R1 — AC-8, second clause: make the job's completion line report both
+      passes' summaries, and assert it. `runPass` currently returns
+      `Error | null`, discarding each pass's result, so `main.ts:37-43` logs
+      `{msg, envFile, failed}` and neither summary (design §6 AC-8; NFR-OBS-001).
+      Includes minor 3: sync design §5's description of where the pass guard
+      lives (`run-pass.ts`, not `main.ts`) — descriptive text only, no contract,
+      schema, or criterion changes.
+      Done when: a test asserts the real entrypoint's completion line carries the
+      drain's `{sent, retried, deadLettered}` and the purge's `{purged}`, and
+      that a failed pass still leaves the other pass's summary present (AC-9
+      guarantees the other pass ran); worker + whole-repo suites green.

@@ -20,8 +20,12 @@ describe("runPass (AC-9 — independent job passes)", () => {
 
   afterEach(() => spy.mockRestore());
 
-  it("returns null and logs nothing when the pass succeeds", async () => {
-    expect(await runPass("outbox drain", async () => "ok")).toBeNull();
+  it("carries the pass's summary out on success, and logs nothing", async () => {
+    const outcome = await runPass("outbox drain", async () => ({ sent: 3 }));
+
+    // The summary is what main.ts puts on the completion line (AC-8) — if it
+    // were dropped here, that line could not report it.
+    expect(outcome).toEqual({ summary: { sent: 3 }, error: null });
     expect(errors).toHaveLength(0);
   });
 
@@ -30,7 +34,8 @@ describe("runPass (AC-9 — independent job passes)", () => {
 
     const result = await runPass("outbox drain", () => Promise.reject(boom));
 
-    expect(result).toBe(boom);
+    expect(result.error).toBe(boom);
+    expect(result.summary).toBeNull();
     expect(errors).toHaveLength(1);
     expect(JSON.parse(errors[0])).toEqual({
       msg: "outbox drain pass failed",
@@ -41,65 +46,70 @@ describe("runPass (AC-9 — independent job passes)", () => {
   it("wraps a non-Error rejection so the caller always gets an Error", async () => {
     const result = await runPass("task purge", () => Promise.reject("nope"));
 
-    expect(result).toBeInstanceOf(Error);
-    expect(result?.message).toBe("nope");
+    expect(result.error).toBeInstanceOf(Error);
+    expect(result.error?.message).toBe("nope");
   });
 
   it("a failing first pass does not stop the second, and the run still reports failure", async () => {
     const ran: string[] = [];
 
     // Exactly main.ts's composition: both passes attempt, in order.
-    const failures = [
-      await runPass("outbox drain", () => {
+    const outcomes = [
+      await runPass("outbox drain", (): Promise<unknown> => {
         ran.push("drain");
         throw new Error("INJECTED drain failure");
       }),
       await runPass("task purge", async () => {
         ran.push("purge");
+        return { purged: 4 };
       }),
     ];
 
     expect(ran).toEqual(["drain", "purge"]); // the purge ran anyway
-    expect(failures.filter((f) => f !== null)).toHaveLength(1);
-    expect(failures.find((f) => f !== null)?.message).toBe(
-      "INJECTED drain failure",
-    );
+    expect(outcomes.filter((o) => o.error !== null)).toHaveLength(1);
+    expect(outcomes[0].error?.message).toBe("INJECTED drain failure");
+    // AC-8 under failure: the surviving pass keeps its summary, so the
+    // completion line can still report it.
+    expect(outcomes[0].summary).toBeNull();
+    expect(outcomes[1].summary).toEqual({ purged: 4 });
   });
 
   it("a failing second pass does not retroactively skip the first, and still reports failure", async () => {
     const ran: string[] = [];
 
-    const failures = [
+    const outcomes = [
       await runPass("outbox drain", async () => {
         ran.push("drain");
+        return { sent: 2, retried: 0, deadLettered: 0 };
       }),
-      await runPass("task purge", () => {
+      await runPass("task purge", (): Promise<unknown> => {
         ran.push("purge");
         throw new Error("INJECTED purge failure");
       }),
     ];
 
     expect(ran).toEqual(["drain", "purge"]);
-    expect(failures.find((f) => f !== null)?.message).toBe(
-      "INJECTED purge failure",
-    );
+    expect(outcomes[1].error?.message).toBe("INJECTED purge failure");
+    expect(outcomes[0].summary).toEqual({ sent: 2, retried: 0, deadLettered: 0 });
+    expect(outcomes[1].summary).toBeNull();
   });
 
   it("both passes failing still runs both and surfaces a failure", async () => {
     const ran: string[] = [];
 
-    const failures = [
-      await runPass("outbox drain", () => {
+    const outcomes = [
+      await runPass("outbox drain", (): Promise<unknown> => {
         ran.push("drain");
         throw new Error("drain died");
       }),
-      await runPass("task purge", () => {
+      await runPass("task purge", (): Promise<unknown> => {
         ran.push("purge");
         throw new Error("purge died");
       }),
     ];
 
     expect(ran).toEqual(["drain", "purge"]);
-    expect(failures.filter((f) => f !== null)).toHaveLength(2);
+    expect(outcomes.filter((o) => o.error !== null)).toHaveLength(2);
+    expect(outcomes.every((o) => o.summary === null)).toBe(true);
   });
 });

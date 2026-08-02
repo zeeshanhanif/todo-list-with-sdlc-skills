@@ -153,9 +153,16 @@ New under `apps/worker/src/purge/` (mirroring `src/outbox/`'s two-file shape):
   `TaskPurgeService` (inject `PurgeRepository`, `WORKER_CONFIG`), wired in the
   same `useFactory` style as the outbox providers.
 
+- **`run-pass.ts`** — `runPass(name, pass)` → `PassOutcome<T>`
+  (`{ summary, error }`): runs one pass, converting a failure into a returned
+  outcome so the caller can run the other regardless (D4), and carrying the
+  pass's return value out so the completion line can report it (AC-8). Its own
+  module rather than a private function because `main.ts` runs the job on
+  import, leaving no seam to test AC-9 against.
 - **`main.ts`** (extended) — runs both passes, each guarded so one failure does
-  not skip the other (D4), then rethrows if either failed so the job's exit code
-  stays honest:
+  not skip the other (D4), logs **one completion line carrying both summaries**
+  (AC-8; a failed pass reports `null` there and its error on its own line), then
+  rethrows if either failed so the job's exit code stays honest:
 
 ```mermaid
 sequenceDiagram
