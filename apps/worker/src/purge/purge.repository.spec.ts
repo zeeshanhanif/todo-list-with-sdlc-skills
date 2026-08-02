@@ -156,6 +156,13 @@ describe("PurgeRepository (integration)", () => {
       [[listId, otherListId]],
     );
     expect(lists.rowCount).toBe(2);
+    // The criterion names `users` too — a purge that cascaded upward would be
+    // catastrophic and silent, so it is asserted rather than assumed.
+    const users = await pool.query(
+      `SELECT 1 FROM users WHERE id = ANY($1)`,
+      [[ownerId, otherOwnerId]],
+    );
+    expect(users.rowCount).toBe(2);
   });
 
   it("AC-6/AC-1 boundary: a row exactly at the window edge is not purged until it passes it", async () => {

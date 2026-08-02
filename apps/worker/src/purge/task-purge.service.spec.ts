@@ -149,4 +149,46 @@ describe("TaskPurgeService (integration)", () => {
     expect(after.purged).toBe(6);
     expect(await remaining()).toBe(0);
   });
+
+  // --- acceptance corrections ---
+
+  it("AC-6: the service purges by the window its CONFIG carries, not a fixed 30", async () => {
+    // The feature's tests all ran at retentionDays 30 against rows aged 31 days,
+    // so a service that ignored config and hard-coded 30 would have passed every
+    // one of them. This varies the window through the service and pins the link.
+    await pool.query(
+      `INSERT INTO tasks (owner_id, list_id, title, deleted_at)
+       VALUES ($1, $2, 'ten days deleted', now() - make_interval(days => 10))`,
+      [ownerId, listId],
+    );
+
+    // At the default window the row is inside retention and must survive.
+    expect((await new TaskPurgeService(repo, config()).purge()).purged).toBe(0);
+    expect(await remaining()).toBe(1);
+
+    // Configured tighter, the same row is now expired.
+    const tight = new TaskPurgeService(repo, config({ taskRetentionDays: 7 }));
+    expect((await tight.purge()).purged).toBe(1);
+    expect(await remaining()).toBe(0);
+  });
+
+  it("AC-7: the safety cap bounds the loop when batches never stop coming", async () => {
+    // The cap is the criterion's stated guard, and the real repository can never
+    // trigger it (rows run out). A repository that always claims to have deleted
+    // something is the only way to observe the bound — without it, purge() would
+    // never return.
+    let calls = 0;
+    const neverEmpty = {
+      purgeExpired: async (): Promise<number> => {
+        calls++;
+        return 1;
+      },
+    } as unknown as PurgeRepository;
+
+    const result = await new TaskPurgeService(neverEmpty, config()).purge();
+
+    // MAX_ITERATIONS = 1000 (design §5, mirroring OutboxDrainService).
+    expect(calls).toBe(1000);
+    expect(result.purged).toBe(1000);
+  });
 });
