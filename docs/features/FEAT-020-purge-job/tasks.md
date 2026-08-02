@@ -15,7 +15,7 @@
       (last migration 012) and the down migration drops the index, verified by
       `\di` / `pg_indexes` before and after.
 
-- [ ] T2 — Worker config: add `taskRetentionDays` (`TASK_RETENTION_DAYS`, default
+- [x] T2 — Worker config: add `taskRetentionDays` (`TASK_RETENTION_DAYS`, default
       30) and `purgeBatchSize` (`PURGE_BATCH_SIZE`, default 500) to
       `apps/worker/src/config.ts`; document both in `.env.example` beside the
       `EMAIL_*` block (design §5, D1).
