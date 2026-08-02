@@ -41,7 +41,7 @@
       → all purged across batches; the cap bounds the loop) and AC-8 (one summary
       line carrying `purged`).
 
-- [ ] T5 — Wire the job: register `PurgeRepository` + `TaskPurgeService` in
+- [x] T5 — Wire the job: register `PurgeRepository` + `TaskPurgeService` in
       `worker.module.ts`; `main.ts` runs `drain()` then `purge()` with each pass
       guarded so one failure cannot skip the other, rethrowing afterwards so the
       exit code stays honest; rewrite the `main.ts:11` forward-reference comment

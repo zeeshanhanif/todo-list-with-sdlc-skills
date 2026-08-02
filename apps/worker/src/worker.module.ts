@@ -7,11 +7,14 @@ import { createEmailPort } from "./email/email.provider";
 import { EmailRenderer } from "./email/email-renderer";
 import { OutboxRepository } from "./outbox/outbox.repository";
 import { OutboxDrainService } from "./outbox/outbox-drain.service";
+import { PurgeRepository } from "./purge/purge.repository";
+import { TaskPurgeService } from "./purge/task-purge.service";
 
 export const WORKER_CONFIG = "WORKER_CONFIG";
 
-// Wires the outbox drain pipeline (technical-design §5). The worker is a
-// standalone Cloud Run Job; main.ts resolves OutboxDrainService and runs it once.
+// Wires the job's two passes (technical-design §5): the outbox drain (FEAT-007)
+// and the soft-deleted task purge (FEAT-020). The worker is a standalone Cloud
+// Run Job; main.ts resolves both services and runs each once per invocation.
 @Module({
   providers: [
     { provide: WORKER_CONFIG, useFactory: () => readConfig() },
@@ -36,6 +39,17 @@ export const WORKER_CONFIG = "WORKER_CONFIG";
       useFactory: (repo, renderer, port, config) =>
         new OutboxDrainService(repo, renderer, port, config),
       inject: [OutboxRepository, EmailRenderer, EMAIL_PORT, WORKER_CONFIG],
+    },
+    {
+      provide: PurgeRepository,
+      useFactory: (p: Pool) => new PurgeRepository(p),
+      inject: [Pool],
+    },
+    {
+      provide: TaskPurgeService,
+      useFactory: (repo: PurgeRepository, c: WorkerConfig) =>
+        new TaskPurgeService(repo, c),
+      inject: [PurgeRepository, WORKER_CONFIG],
     },
   ],
 })
