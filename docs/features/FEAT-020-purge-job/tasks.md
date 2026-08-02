@@ -57,7 +57,7 @@
       Done when: the plan is captured in the run and shows the index scan — the
       measurement D5's claim stands or falls on.
 
-- [ ] T7 — AC-4, the API-observable boundary: in
+- [x] T7 — AC-4, the API-observable boundary: in
       `apps/api/src/modules/tasks/tasks-lists-integration.spec.ts`, soft-delete a
       task through the real endpoint, remove the row directly (reproducing the
       purge's only effect — design §8's recorded composition), then assert

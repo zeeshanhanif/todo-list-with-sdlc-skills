@@ -11,6 +11,8 @@ import {
   reopenTaskPath,
   restoreTaskPath,
   taskPath,
+  TASK_ERROR_CODES,
+  type ApiError,
   type CreateListResponse,
   type CreateTaskResponse,
   type DeleteListResponse,
@@ -543,5 +545,56 @@ describe('tasks × lists (cross-feature)', () => {
     // feature does not touch, so neither moves.
     expect(await search()).toEqual(searchBefore);
     expect(await allView()).toEqual(viewBefore);
+  });
+
+  // --- FEAT-020: the retention boundary ---
+  //
+  // FR-TASK-015's clause "after which they cannot be restored" is API-observable,
+  // but the API suite cannot run the worker. The purge's ONLY effect is the row's
+  // disappearance (FEAT-020 design §5), so this reproduces exactly that and then
+  // exercises the real restore contract. That the effect is the right one — that
+  // the purge deletes the expired rows and nothing else — is proven independently
+  // by apps/worker/src/purge/*.spec.ts. Recorded in FEAT-020 design §8 as designed
+  // composition, not a substituted assertion.
+  it('FEAT-020 AC-4: once purged, restore is 404 task_not_found — the window has closed', async () => {
+    const { cookie, inbox } = await signedInUser();
+
+    // Control: while the row is merely soft-deleted, restore SUCCEEDS. Without
+    // this the assertion below could pass for a reason unrelated to the purge
+    // (a broken restore route would satisfy it just as well).
+    const restorable = await addTask(cookie, inbox, 'Still in the window');
+    await remove(cookie, restorable.id);
+    await restore(cookie, restorable.id); // asserts 200 internally
+
+    const purged = await addTask(cookie, inbox, 'Past the window');
+    await remove(cookie, purged.id);
+    // The purge's only effect, reproduced.
+    await db.query('DELETE FROM tasks WHERE id = $1', [purged.id]);
+
+    const res = await request(server())
+      .post(restoreTaskPath(purged.id))
+      .set('Cookie', cookie);
+
+    expect(res.status).toBe(404);
+    expect((res.body as ApiError).code).toBe(TASK_ERROR_CODES.taskNotFound);
+
+    // Byte-identical to an id that never existed: purge leaves no trace the
+    // response could disclose (FEAT-013 §3's uniform not-found).
+    const unknown = await request(server())
+      .post(restoreTaskPath(randomUUID()))
+      .set('Cookie', cookie);
+    expect(JSON.stringify(res.body)).toBe(JSON.stringify(unknown.body));
+
+    // Irreversible: a second attempt does not resurrect it either.
+    const again = await request(server())
+      .post(restoreTaskPath(purged.id))
+      .set('Cookie', cookie);
+    expect(again.status).toBe(404);
+
+    // And the row really is gone, not merely hidden.
+    const row = await db.query('SELECT 1 FROM tasks WHERE id = $1', [
+      purged.id,
+    ]);
+    expect(row.rowCount).toBe(0);
   });
 });
