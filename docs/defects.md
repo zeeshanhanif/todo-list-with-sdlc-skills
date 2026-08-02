@@ -18,7 +18,7 @@ recycled.
 | DEF-010 | 2026-08-01 | FR-SRCH-007/008 (smart views) / FEAT-016 — `views.service.spec` AC-2 and `smart-views.spec` UC-014 | **Test defect, not a product defect.** Both fixtures assume a wall-clock condition that holds for only part of each day: the unit test needs New York and Calcutta to share a calendar date (false after ~14:30 NY), and the E2E seeds a task at `now() + 5 hours` and expects it in Today (false after 19:00 UTC). The product is correct in both cases — verified by inspecting the seeded instants against the rule. One root cause, two symptoms; CI would fail daily for part of the day | `3fd7619` (both fixtures derive their zone from the current instant — `Etc/GMT±N`, fixed offset, no DST) | 2026-08-01 — red before / green after; arithmetic checked across all 24 UTC hours; FEAT-016 re-verified **Accepted (unchanged)**; api 442, e2e 48 |
 | DEF-012 | 2026-08-01 | NFR-USE-004 (design.md §5 contrast) / the **guards themselves** — `control-contrast.spec.ts` (DEF-005) and `inline-alert-contrast.spec.ts` (DEF-006) | The two standing contrast sweeps **never set the dark theme**, so every ratio the project has measured is a light-theme ratio. Their helpers also read `getComputedStyle().backgroundColor` and skip only *fully* transparent values, so they could not measure dark correctly even if pointed at it: the dark tints are `rgba(…, 0.15)` over the surface, and comparing text against that raw value computes a ratio no pixel ever had. Found by FEAT-017's acceptance, whose own both-themes guard went red on its first run for exactly this reason | `e2e/tests/contrast.ts` (shared, compositing measurement) + both sweeps parametrised over `["light","dark"]` | 2026-08-01 — **no product defect found**: every existing pairing already conformed in dark. The guards were incomplete, not wrong. Discrimination proven in both themes; e2e 60 → **65** |
 | DEF-011 | 2026-08-01 | NFR-USE-004 (design.md §5 targets) / product-wide — icon-only controls since FEAT-009 | Icon-only buttons are **40px** (`--size-control-md`) on every viewport, where design.md §4 specifies "40px (**44px touch**)" and §5 requires "≥ 44×44px on touch viewports". No coarse-pointer rule exists anywhere in `apps/web`, so the touch size was never implemented. Found by FEAT-014 acceptance (AC-12 names the 44px target explicitly). A web-tier pass like DEF-005/DEF-006/DEF-009, not per-feature rework — `detail-panel.tsx` already shows the codebase's own answer | `1838a4d` (lists-nav's two icon buttons → `--size-touch-target`; FEAT-014's three fixed in its own rework at `152de92`) | 2026-08-01 — `e2e/tests/touch-target.spec.ts` measured 40×40 before / ≥44×44 after; FEAT-009 re-verified **Accepted (unchanged)**; api 442, e2e 48 |
-| DEF-013 | 2026-08-02 | *(no FR — test infrastructure)* / api suite, product-wide | `auth_rate_buckets` rows survive between suite runs, and every spec's `nextIp()` counter restarts at `.1`, so two runs inside one **15-minute** window hit the same `(ip, route, window_start)` keys and their counts **add up**. Measured: one key went **31 → 62 → 93** across three consecutive runs against a default `AUTH_RATELIMIT_MAX` of **30**; the specs that omit `X-Forwarded-For` share a single bucket keyed on the localhost socket address, which was found sitting at **135** registrations for one window. Any spec whose per-run usage crosses its limit on a later run gets `429` where it expects success — the suite's repeatability depended on what time it was and how recently it last ran. Found while investigating DEF-002; **a distinct defect, and not DEF-002's cause** (the failures observed there are `404`s in two specs that both raise the limit to 1000) | `<pending>` (globalSetup truncates the table; `rate-limit-bucket-hygiene.spec.ts` guards it) | `<pending>` |
+| DEF-013 | 2026-08-02 | *(no FR — test infrastructure)* / api suite, product-wide | `auth_rate_buckets` rows survive between suite runs, and every spec's `nextIp()` counter restarts at `.1`, so two runs inside one **15-minute** window hit the same `(ip, route, window_start)` keys and their counts **add up**. Measured: one key went **31 → 62 → 93** across three consecutive runs against a default `AUTH_RATELIMIT_MAX` of **30**; the specs that omit `X-Forwarded-For` share a single bucket keyed on the localhost socket address, which was found sitting at **135** registrations for one window. Any spec whose per-run usage crosses its limit on a later run gets `429` where it expects success — the suite's repeatability depended on what time it was and how recently it last ran. Found while investigating DEF-002; **a distinct defect, and not DEF-002's cause** (the failures observed there are `404`s in two specs that both raise the limit to 1000) | `6ceaef5` (globalSetup truncates the table; `rate-limit-bucket-hygiene.spec.ts` guards it) | 2026-08-02 — guard red before (both assertions) / green after; a deliberately seeded 900-count stale bucket is cleared by a normal run; api 529, worker 51, web 96 twice consecutively |
 
 ## DEF-006 — the inline-alert instances of the DEF-003 pairing
 
@@ -509,6 +509,62 @@ readable failures.
 **Impact and workaround.** The gate is trustworthy when run serially
 (`npm test -w @todo/api -- --runInBand`, ~9 s vs ~4 s). Feature verification
 should use serial execution until this is fixed, and the report should say so.
+
+### Investigation 2026-08-02 — still open; hypothesis 1 retired, four more ruled out
+
+**Reproduced: 3 failures in 145 parallel runs (~2%)**, all three inside the first
+25; 120 consecutive clean runs followed. The rate is lower than the ~8% recorded
+in July, and low enough that a 30-run measurement proves nothing — plan for 50+
+runs before believing any result. All three failures share one shape, and it is
+**not** the shape hypothesis 1 predicted:
+
+| Spec | Assertion | Expected → received |
+| :-- | :-- | :-- |
+| `task-item.controller.spec` | FEAT-012 AC-9, complete a task just created | 200 → **404** |
+| `task-item.controller.spec` | AC-12, GET/PATCH a task just created | 200 → **404** |
+| `tasks-lists-integration.spec` | FEAT-020 AC-4, create a task in a fresh Inbox | 201 → **404** |
+
+**Hypothesis 1 (unasserted fixture preconditions) is retired as the
+explanation.** Both specs already assert `201`/`200` on every fixture step — the
+work FEAT-010 landed — and the failures occur *after* those assertions pass. The
+registration, the login and (in two of three cases) the task creation all
+succeeded; the resource then could not be found milliseconds later. The
+assertions did their job: they proved the precondition held. So the defect is a
+row that genuinely stops being visible to an ownership-scoped query, not a
+fixture quietly proceeding from a failed setup.
+
+**Ruled out this session** (checked directly, so the next session need not):
+
+- *Rate limiting, for these failures.* Both affected specs set
+  `AUTH_RATELIMIT_MAX = 1000`, so no bucket could produce their 404s. (The
+  investigation did find a real bucket defect — **DEF-013**, fixed — but it is a
+  `429` mechanism and cannot cause a `404`.)
+- *Email collisions between specs.* Every spec's fixture email is
+  `<prefix>-${randomUUID()}@example.com` with a per-spec prefix; collisions are
+  impossible, so no spec's cleanup can delete another's user.
+- *IP-range collisions.* All ranges verified disjoint (the one apparent duplicate
+  of `198.18.10.` is prose inside `rate-limit-isolation.spec.ts`). DEF-001's
+  guard is holding.
+- *FEAT-018's account deletion over-reaching.* Every statement in
+  `account-delete.repository.ts` is scoped `WHERE id = $1`; the cascade cannot
+  reach another user's rows.
+- *Prototype-level `DbService` mocks leaking between specs in a reused worker.*
+  There are none; the audit spec's `db down` fixture mocks a local object.
+
+**Where the next session should start.** The failure is a `404` from an
+ownership-scoped statement (`WHERE owner_id = $1 AND id = $2 AND deleted_at IS
+NULL`), which admits exactly three causes: the row was deleted, its `owner_id`
+does not match, or `deleted_at` is set. Instrument to distinguish them — a probe
+that, on a non-2xx fixture response, dumps the response body's error `code`, the
+row's presence, its `owner_id`, and the `user_id` the session cookie resolves to
+will separate "row gone" from "owner mismatch" in a single hit. That probe was
+built and run for 90 runs this session without catching a failure; it is cheap to
+rebuild and is the fastest path to a cause. As a permanent aid, both task specs'
+`addTask` helpers now assert **with the response body attached**, so the next
+occurrence names which resource was missing rather than only its status.
+
+**Measurement hygiene, re-learned:** the harness must run alone. Nothing else may
+touch the database while a rate measurement is in flight.
 
 
 ## DEF-007 — the API ignores the root `.env` (open)
