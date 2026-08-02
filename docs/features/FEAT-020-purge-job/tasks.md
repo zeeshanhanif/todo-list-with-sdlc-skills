@@ -8,7 +8,7 @@
 > Behavioral tasks use Jest integration specs against local Postgres — the
 > worker's established runner (schema via `apps/worker/test/global-setup.js`).
 
-- [ ] T1 — Migration 013 (`migrations/1721600000000_task-purge-index.js`): partial
+- [x] T1 — Migration 013 (`migrations/1721600000000_task-purge-index.js`): partial
       index `tasks_purge_due_idx ON tasks (deleted_at) WHERE deleted_at IS NOT NULL`
       (design §4).
       Done when: `npm run db:migrate` applies clean against the current schema
