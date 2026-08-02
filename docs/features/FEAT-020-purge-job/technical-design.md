@@ -267,6 +267,12 @@ feature adds is a test (AC-4).
   cost grows with total tasks while the result set does not. The index is
   therefore included in migration 013, and AC-10/T6 make the claim falsifiable by
   reading the plan rather than asserting it in prose.
+  **Measured (T6, 20,040 tasks — 20,000 live, 40 expired):** with the index,
+  `Index Scan using tasks_purge_due_idx`, 43 buffers, 0.13 ms. Without it,
+  `Seq Scan` + `Sort`, 20,000 *"Rows Removed by Filter"*, 372 buffers, 1.64 ms —
+  ~12× the buffers and ~12× the time at a corpus this small, and the seq-scan
+  side grows with total tasks while the index side tracks only the expired set.
+  The claim holds.
 - **D6 — Purge broadcasts no Realtime signal.** Driver: FEAT-019's `changed`
   signal exists so another device can refetch a *visible* change (NFR-PERF-004).
   A purged row was already invisible on every device — it was soft-deleted, and

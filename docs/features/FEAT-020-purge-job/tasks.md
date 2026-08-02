@@ -51,7 +51,7 @@
       pass to throw in turn and observing the other still ran and the process
       exited non-zero.
 
-- [ ] T6 — Index effectiveness: `EXPLAIN` the purge's selection query at seeded
+- [x] T6 — Index effectiveness: `EXPLAIN` the purge's selection query at seeded
       scale and confirm it uses `tasks_purge_due_idx` rather than a sequential
       scan of `tasks` (design §4, D5; AC-10).
       Done when: the plan is captured in the run and shows the index scan — the
