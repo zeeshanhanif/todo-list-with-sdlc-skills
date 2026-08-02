@@ -26,6 +26,14 @@ interface CompletionLine {
   failed: number;
 }
 
+/**
+ * Nest's Logger colourises when it thinks it is attached to a TTY, so the raw
+ * output may or may not carry ANSI escapes. Stripping them first keeps the
+ * extraction from depending on which — and the escape is written as an
+ * explicit \u001b, never a literal control byte sitting invisibly in the source.
+ */
+const ANSI = /\u001b\[[0-9;]*m/g;
+
 /** Run the entrypoint and pull its `worker run complete` line out of the logs. */
 const runJob = async (): Promise<CompletionLine> => {
   const { stdout, stderr } = await run(
@@ -33,10 +41,13 @@ const runJob = async (): Promise<CompletionLine> => {
     ["ts-node", "--transpile-only", "src/main.ts"],
     { cwd: workerDir, env: { ...process.env, DATABASE_URL: DB } },
   );
-  const out = `${stdout}\n${stderr}`;
-  const match = out.match(/\{"msg":"worker run complete".*?\}(?=\s*$|\s*|\n)/m);
-  if (!match) throw new Error(`no completion line in worker output:\n${out}`);
-  return JSON.parse(match[0]) as CompletionLine;
+  const out = `${stdout}\n${stderr}`.replace(ANSI, "");
+  const line = out
+    .split("\n")
+    .find((l) => l.includes('"msg":"worker run complete"'));
+  if (!line) throw new Error(`no completion line in worker output:\n${out}`);
+  // The prefix ends where the JSON begins, and the JSON runs to end of line.
+  return JSON.parse(line.slice(line.indexOf("{"))) as CompletionLine;
 };
 
 describe("worker entrypoint completion line (AC-8)", () => {
