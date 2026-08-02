@@ -1,6 +1,149 @@
 # Acceptance Report: FEAT-020 — Soft-deleted task purge job
 
-> Verdict: **Rework** · Date: 2026-08-02
+> Verdict: **Accepted** · Date: 2026-08-02 (re-verification after rework round 1)
+> Prior verdict: **Rework** 2026-08-02 — preserved below.
+
+# Re-verification — 2026-08-02 · Verdict: **Accepted**
+
+> Standard: technical-design.md §6 @ `3155cad` — **byte-identical to the standard
+> the first pass audited** (diffed; §6 was not touched by the rework, only §5's
+> descriptive component text). Sources: docs/srs.md, docs/use-cases.md
+> Repo state audited: `3155cad`
+
+## Verdict summary
+
+**Accepted.** The single rework finding is closed: `runPass` now returns
+`PassOutcome<T>` (`{ summary, error }`), and the job's completion line carries
+both passes' summaries — observed directly this run as
+`{"msg":"worker run complete","envFile":"…","drain":{"sent":58,"retried":0,"deadLettered":0},"purge":{"purged":2},"failed":0}`.
+The criterion's failure mode was checked too: with the drain forced to throw, the
+line reads `"drain":null,"purge":{"purged":0},"failed":1` and the process exits
+`1` — the surviving pass keeps its summary, exactly as AC-8 and AC-9 together
+require. All eleven criteria hold, every suite was observed green in this run,
+and the standard itself was confirmed unchanged across the rework: **the code
+moved to meet the criterion, not the other way round.** One test correction was
+made during this pass (an invisible control byte — below). FR-TASK-015's Test ref
+is appended, closing the last open row in the plan.
+
+## What changed since the Rework verdict
+
+| Finding | Status |
+| :-- | :-- |
+| **R1** — AC-8 clause 2: completion line reported neither summary | **Closed.** `run-pass.ts` returns `{summary, error}`; `main.ts` logs `drain` and `purge` summaries plus `failed`. Commit `ff115c2`. |
+| **Minor 3** — design §5 placed the pass guard in `main.ts` | **Closed.** §5 now describes `run-pass.ts` and the completion line. Descriptive text only; §6 untouched (verified by diff). |
+| Minors 1, 2, 4 | Still open, still non-blocking — carried forward below. |
+
+## Audit table (re-derived, not carried over)
+
+| AC | Encodes | Test(s) | Audit | Observed |
+| :- | :------ | :------ | :---- | :------- |
+| AC-1 | FR-TASK-015 cl.1; UC-012 alt-3a | `purge.repository.spec` AC-1 | faithful | green |
+| AC-2 | FR-TASK-015 cl.2; FR-TASK-014 | `purge.repository.spec` AC-2 + edge | faithful (minor 2) | green |
+| AC-3 | FR-TASK-013 boundary | `purge.repository.spec` AC-3 | faithful | green |
+| AC-4 | FR-TASK-015 cl.3; "irreversible" | `tasks-lists-integration.spec` FEAT-020 AC-4 | faithful | green |
+| AC-5 | FR-TASK-015 cl.1 (completed rows) | `purge.repository.spec` AC-5 | faithful | green |
+| AC-6 | SRS §3.4 "30 days *(confirm)*" | `config.spec` ×4, `task-purge.service.spec` AC-6, `purge.repository.spec` AC-6 | faithful (corrected in pass 1) | green |
+| AC-7 | design D2/D3 | `task-purge.service.spec` ×4 incl. cap | faithful (corrected in pass 1) | green |
+| AC-8 | NFR-OBS-001 | `task-purge.service.spec` AC-8 **+ `worker-run.spec` ×2 (new)** | **now faithful on both clauses** | **green** |
+| AC-9 | ADR-007, D4 | `run-pass.spec` ×6 (strengthened); exit codes observed | faithful | green |
+| AC-10 | design D5 | `purge-plan.spec` ×2 | faithful | green |
+| AC-11 | FR-AUTHZ blast radius | `purge.repository.spec` AC-11 | faithful (corrected in pass 1) | green |
+
+## Corrected tests (this pass)
+
+- **AC-8 — `worker-run.spec.ts`'s extraction carried a literal ESC byte.** The
+  regex ended `(?=\s*$|\s*<ESC>|\n)` with an actual control character embedded in
+  the source. It *worked* — the ESC anchored the lazy match on Nest's colour-reset
+  code, so the whole JSON was captured — but the test's correctness depended on a
+  character invisible to editors, grep and code review. This audit found it by
+  retyping the line to check it and getting a different result: without the byte,
+  `.*?\}` truncates at the first nested brace and the test dies on a JSON parse
+  error rather than on the behaviour it guards. Replaced with an explicit ANSI
+  strip (escape written as `\u001b`), a line lookup, and a slice from the first
+  brace. **Verified still green, still red when the summaries are removed, and the
+  file now contains no control characters at all.** Commit `3155cad`.
+
+## Independent execution (re-run, from `3155cad`)
+
+| Check | Observed |
+| :-- | :-- |
+| `npm test` | api **527**, worker **51**, web **96** — all passed |
+| `npm run test:e2e` | **69 passed** (32.9s) |
+| `npm run boundaries` | no violations (210 modules) |
+| `npm run lint` | clean |
+| Migrations, fresh DB | all 13 up clean; `tasks_purge_due_idx` present with the expected partial predicate; down removes it |
+
+No flakiness observed. DEF-002 did not reproduce in this run (not evidence it is
+fixed).
+
+**Anti-fake-green review of the rework round (`7d76e66..3155cad`):** 149
+insertions, 20 replaced lines, no test deleted and none skipped. Every replaced
+line in `run-pass.spec.ts` is a consequence of the return type changing from
+`Error | null` to `PassOutcome<T>`, and each replacement is **equivalent or
+stronger** — the success case now asserts the summary as well as the absence of
+error, and both single-failure cases now assert that the surviving pass kept its
+summary. That is the criterion gaining teeth, not losing them.
+
+## Direct verification (this run)
+
+- **AC-8, observed at the process level** — the completion line from a real
+  `node apps/worker/dist/main.js` run carried both summaries (values above), and
+  the injected-failure run carried `"drain":null,"purge":{"purged":0},"failed":1`.
+- **FR-TASK-015, effect observed** — four rows seeded (expired-active,
+  expired-completed 60d, in-window 29d, never-deleted). After one real run the two
+  expired rows are gone; the other two remain.
+- **AC-9, exit code observed** — injected drain failure → exit `1`, purge still
+  ran.
+- **Contracts (§3)** — unchanged by the rework: still no HTTP endpoint, no shared
+  contract touched. `TaskPurgeService.purge()` still returns `{ purged }`; the
+  new `PassOutcome<T>` is internal to the worker's entrypoint seam.
+- **Screens:** none (no SCR IDs, no manifest entries; `apps/web` untouched).
+- **Pending environment:** none for this feature. The Cloud Scheduler cadence
+  that triggers the job remains deployment configuration
+  (`deploy/cloudrun-worker-job.yaml`, written not applied) and belongs to
+  first-deploy.
+
+## Findings (re-verification)
+
+**Rework: none. Design defect: none.**
+
+### Minor (3) — carried forward, non-blocking
+
+1. **AC-10 cites NFR-PERF-001 loosely** — that NFR bounds user-facing request
+   latency, not a batch job. The criterion is sound on D5's own terms; only the ID
+   citation overreaches.
+2. **AC-2's "still restorable" clause is verified by composition** — row survival
+   is asserted in AC-2's test, restorability in AC-4's control. Sound (FEAT-013
+   establishes that restore is legal exactly as long as the row exists), but the
+   link is implicit.
+3. **`AC-1`'s `toBeGreaterThanOrEqual(1)`** is loose because `purgeExpired` is
+   global over a shared test database. The `exists(id) === false` assertion is
+   what carries the criterion.
+
+*(Minor 3 of the first pass — the design §5 drift — is closed and removed from
+this list.)*
+
+## RTM (re-verification)
+
+**Written.** `FR-TASK-015`'s Test ref ← `features/FEAT-020-purge-job/acceptance-report.md`,
+**no `(partial)` marker**: the plan's touchpoint claims the whole FR and FEAT-020
+is the only feature in its Plan ref. That append completes the requirement's
+Plan → Design → Test lifecycle, and it was **the last FR row without a Test
+ref**: all 68 `FR-*` rows in the matrix now carry one.
+
+**Not** the last `_TBD_` overall, though — **28 `NFR-*` rows remain open**. Every
+one is assigned to *Foundations* rather than to a feature, and they are the
+infrastructure-level qualities no feature-scoped audit can close: uptime
+(NFR-REL-001), RPO/RTO (NFR-REL-002/003), the scale targets (NFR-SCAL-001..003),
+front-end timing (NFR-PERF-002), search latency at 5k tasks (NFR-PERF-003), and
+similar. They need a deployed environment and a load harness, and they belong to
+first-deploy and whatever verification follows it — recorded here so the
+completed FR set is not mistaken for a completed matrix.
+
+---
+
+# First pass — 2026-08-02 · Verdict: Rework *(superseded, preserved)*
+
 > Standard: technical-design.md §6 @ `28016d7` · Sources: docs/srs.md, docs/use-cases.md
 > Repo state audited: `28016d7`
 
