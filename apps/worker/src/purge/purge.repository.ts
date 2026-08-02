@@ -6,6 +6,21 @@ export interface PurgeParams {
 }
 
 /**
+ * The purge statement, exported so the AC-10 plan test can EXPLAIN exactly what
+ * runs in production rather than a copy that could drift away from it.
+ * $1 = retention days, $2 = batch size.
+ */
+export const PURGE_EXPIRED_SQL = `DELETE FROM tasks
+        WHERE id IN (
+          SELECT id FROM tasks
+           WHERE deleted_at IS NOT NULL
+             AND deleted_at < now() - make_interval(days => $1)
+           ORDER BY deleted_at
+           LIMIT $2
+           FOR UPDATE SKIP LOCKED
+        )`;
+
+/**
  * Data access for the soft-deleted task purge (technical-design §5, D2/D3;
  * FR-TASK-015). Raw pg (the worker does not use the API's DbService).
  */
@@ -29,18 +44,10 @@ export class PurgeRepository {
    * sequential index ranges rather than repeated re-scans.
    */
   async purgeExpired(params: PurgeParams): Promise<number> {
-    const res = await this.pool.query(
-      `DELETE FROM tasks
-        WHERE id IN (
-          SELECT id FROM tasks
-           WHERE deleted_at IS NOT NULL
-             AND deleted_at < now() - make_interval(days => $1)
-           ORDER BY deleted_at
-           LIMIT $2
-           FOR UPDATE SKIP LOCKED
-        )`,
-      [params.retentionDays, params.limit],
-    );
+    const res = await this.pool.query(PURGE_EXPIRED_SQL, [
+      params.retentionDays,
+      params.limit,
+    ]);
     return res.rowCount ?? 0;
   }
 }

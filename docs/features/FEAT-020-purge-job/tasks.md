@@ -1,7 +1,7 @@
 # Tasks: FEAT-020 — Soft-deleted task purge job
 
 > Executes: docs/features/FEAT-020-purge-job/technical-design.md
-> Status: pending per task · Last updated: 2026-08-02
+> Status: all tasks done (developer-done) · Last updated: 2026-08-02
 > No screens (backend-only) → no ui-design, no UI task. No architecture-named
 > critical E2E flow → no mandatory Playwright task (legitimate skip, design §8);
 > UC-012's user-facing half already has `e2e/tests/delete-restore.spec.ts`.
@@ -66,7 +66,7 @@
       Done when: the test passes and fails if the restore path stops returning the
       uniform not-found.
 
-- [ ] T8 — Verify: all acceptance criteria AC-1..AC-11 (design §6) demonstrably
+- [x] T8 — Verify: all acceptance criteria AC-1..AC-11 (design §6) demonstrably
       pass; `npm run boundaries`, `npm run lint`, worker + api + web suites and
       the e2e suite green; migration 013 up/down clean; no WIP markers.
       Done when: the full gate passes.
