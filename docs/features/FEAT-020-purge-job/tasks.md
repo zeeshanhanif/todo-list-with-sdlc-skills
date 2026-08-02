@@ -33,7 +33,7 @@
       and AC-11 (a second user's expired-looking-but-in-window rows and all
       `lists` rows survive a run).
 
-- [ ] T4 — `TaskPurgeService.purge()` in
+- [x] T4 — `TaskPurgeService.purge()` in
       `apps/worker/src/purge/task-purge.service.ts` — batch loop to exhaustion
       under the `MAX_ITERATIONS` safety cap, `{ purged }` summary returned and
       logged as structured JSON (design §5; NFR-OBS-001).
