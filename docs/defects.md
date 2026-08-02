@@ -18,6 +18,7 @@ recycled.
 | DEF-010 | 2026-08-01 | FR-SRCH-007/008 (smart views) / FEAT-016 — `views.service.spec` AC-2 and `smart-views.spec` UC-014 | **Test defect, not a product defect.** Both fixtures assume a wall-clock condition that holds for only part of each day: the unit test needs New York and Calcutta to share a calendar date (false after ~14:30 NY), and the E2E seeds a task at `now() + 5 hours` and expects it in Today (false after 19:00 UTC). The product is correct in both cases — verified by inspecting the seeded instants against the rule. One root cause, two symptoms; CI would fail daily for part of the day | `3fd7619` (both fixtures derive their zone from the current instant — `Etc/GMT±N`, fixed offset, no DST) | 2026-08-01 — red before / green after; arithmetic checked across all 24 UTC hours; FEAT-016 re-verified **Accepted (unchanged)**; api 442, e2e 48 |
 | DEF-012 | 2026-08-01 | NFR-USE-004 (design.md §5 contrast) / the **guards themselves** — `control-contrast.spec.ts` (DEF-005) and `inline-alert-contrast.spec.ts` (DEF-006) | The two standing contrast sweeps **never set the dark theme**, so every ratio the project has measured is a light-theme ratio. Their helpers also read `getComputedStyle().backgroundColor` and skip only *fully* transparent values, so they could not measure dark correctly even if pointed at it: the dark tints are `rgba(…, 0.15)` over the surface, and comparing text against that raw value computes a ratio no pixel ever had. Found by FEAT-017's acceptance, whose own both-themes guard went red on its first run for exactly this reason | `e2e/tests/contrast.ts` (shared, compositing measurement) + both sweeps parametrised over `["light","dark"]` | 2026-08-01 — **no product defect found**: every existing pairing already conformed in dark. The guards were incomplete, not wrong. Discrimination proven in both themes; e2e 60 → **65** |
 | DEF-011 | 2026-08-01 | NFR-USE-004 (design.md §5 targets) / product-wide — icon-only controls since FEAT-009 | Icon-only buttons are **40px** (`--size-control-md`) on every viewport, where design.md §4 specifies "40px (**44px touch**)" and §5 requires "≥ 44×44px on touch viewports". No coarse-pointer rule exists anywhere in `apps/web`, so the touch size was never implemented. Found by FEAT-014 acceptance (AC-12 names the 44px target explicitly). A web-tier pass like DEF-005/DEF-006/DEF-009, not per-feature rework — `detail-panel.tsx` already shows the codebase's own answer | `1838a4d` (lists-nav's two icon buttons → `--size-touch-target`; FEAT-014's three fixed in its own rework at `152de92`) | 2026-08-01 — `e2e/tests/touch-target.spec.ts` measured 40×40 before / ≥44×44 after; FEAT-009 re-verified **Accepted (unchanged)**; api 442, e2e 48 |
+| DEF-013 | 2026-08-02 | *(no FR — test infrastructure)* / api suite, product-wide | `auth_rate_buckets` rows survive between suite runs, and every spec's `nextIp()` counter restarts at `.1`, so two runs inside one **15-minute** window hit the same `(ip, route, window_start)` keys and their counts **add up**. Measured: one key went **31 → 62 → 93** across three consecutive runs against a default `AUTH_RATELIMIT_MAX` of **30**; the specs that omit `X-Forwarded-For` share a single bucket keyed on the localhost socket address, which was found sitting at **135** registrations for one window. Any spec whose per-run usage crosses its limit on a later run gets `429` where it expects success — the suite's repeatability depended on what time it was and how recently it last ran. Found while investigating DEF-002; **a distinct defect, and not DEF-002's cause** (the failures observed there are `404`s in two specs that both raise the limit to 1000) | `<pending>` (globalSetup truncates the table; `rate-limit-bucket-hygiene.spec.ts` guards it) | `<pending>` |
 
 ## DEF-006 — the inline-alert instances of the DEF-003 pairing
 
@@ -379,7 +380,59 @@ a leaked `AUTH_RATELIMIT_MAX` between suites in a reused worker. That leak was
 real and was fixed during FEAT-010, but the instrumented trace shows `max=2`
 correct at the moment of failure — the count was wrong, not the limit.
 
-## DEF-002 — residual parallel-run flakiness (open)
+## DEF-013 — rate-limit buckets accumulate across suite runs
+
+**Reported:** 2026-08-02, while investigating DEF-002.
+**Owning requirement:** none — test infrastructure, though the mechanism is
+product code behaving exactly as designed.
+
+**Symptom.** The api suite's repeatability depends on the wall clock. Running it
+twice inside fifteen minutes can fail the second run with `429 rate_limited`
+where the first passed.
+
+**Cause.** Three facts compose:
+
+1. `auth_rate_buckets` is keyed `(ip, route, window_start)` on a **15-minute**
+   fixed window (`floor(now / 900000)`), per `rate-limit.guard.ts`.
+2. Every spec's `nextIp()` is `${PREFIX}${(ipCounter++ % 250) + 1}` with
+   `ipCounter` starting at **0 on every run** — so run N and run N+1 use the
+   *same* synthetic IPs, in the same order.
+3. Nothing clears the table between runs. Specs delete their **own** prefix in
+   `afterAll`, but only some specs do, and a crashed run cleans nothing.
+
+So two runs inside one window increment the same keys. **Measured** (table
+truncated first, then three consecutive full runs):
+
+| after run | rows | max count on one key |
+| :-- | :-- | :-- |
+| 1 | 345 | 31 |
+| 2 | 345 | 62 |
+| 3 | 345 | 93 |
+
+Linear, +31 per run, against a default `AUTH_RATELIMIT_MAX` of **30**. Before the
+truncate was introduced the live table held **1474 rows**, the oldest from the
+previous day, including `::ffff:127.0.0.1 POST /auth/register` at **135** for a
+single window — that bucket is shared by *every* spec that omits
+`X-Forwarded-For`, because `clientIp()` then falls back to the socket address.
+
+**Fix.** `apps/api/test/global-setup.js` truncates `auth_rate_buckets` before any
+worker starts. globalSetup is the only place that can clear it safely: it runs
+once, before the workers, so the delete cannot land mid-request — which is
+precisely the hazard DEF-001 recorded for per-spec deletes racing each other.
+
+**Guard.** `rate-limit-bucket-hygiene.spec.ts` asserts that no bucket survives
+from an older window and that no key sits above a level a single run can produce.
+Red before the fix (measured 465 on one key), green after.
+
+**Relationship to DEF-002 — distinct, and not its cause.** This was found while
+chasing DEF-002 and is worth separating carefully. DEF-002's observed failures
+are `404`s in `task-item.controller.spec` and `tasks-lists-integration.spec`,
+**both of which raise `AUTH_RATELIMIT_MAX` to 1000**, so no bucket could have
+produced them. DEF-013 is a real repeat-safety defect that would have bitten a
+developer or CI eventually; it does not explain DEF-002, and DEF-002 stays open.
+
+
+## DEF-002 — residual api-suite flakiness, order/timing dependent (open)
 
 **Reported:** 2026-07-27, while fixing DEF-001. Recorded separately because the
 evidence shows it is a **distinct cause**, not leftover DEF-001.

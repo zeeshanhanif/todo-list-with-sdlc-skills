@@ -107,13 +107,23 @@ describe("worker entrypoint completion line (AC-8)", () => {
     expect(left.rowCount).toBe(0);
   });
 
-  it("a second run reports both summaries again with nothing left to do", async () => {
+  it("a second run reports both summaries again, whether or not there was work", async () => {
     const line = await runJob();
 
-    // Still BOTH keys present — the clause is about the line's shape, which must
-    // not depend on there being work.
-    expect(line.drain).not.toBeNull();
-    expect(line.purge).toEqual({ purged: 0 });
+    // Still BOTH keys present — AC-8 is about the line's SHAPE, which must not
+    // depend on there being work to do.
+    //
+    // Deliberately not `toEqual({ purged: 0 })`: the purge is global by design
+    // (FEAT-020 D7), so any expired row another spec or a manual experiment left
+    // in the shared database would be swept by this run and make an exact-zero
+    // assertion fail for a reason that has nothing to do with the criterion.
+    // That coupling is what this asserts around — the count is not the claim.
+    expect(line.drain).toEqual({
+      sent: expect.any(Number),
+      retried: expect.any(Number),
+      deadLettered: expect.any(Number),
+    });
+    expect(line.purge).toEqual({ purged: expect.any(Number) });
     expect(line.failed).toBe(0);
   });
 });

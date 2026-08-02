@@ -93,7 +93,12 @@ describe('tasks × lists (cross-feature)', () => {
       .post(listTasksPath(listId))
       .set('Cookie', cookie)
       .send({ title });
-    expect(res.status).toBe(201); // fixture precondition, asserted
+    // DEF-002: fixture precondition asserted WITH the body, so a failure names
+    // which resource was not found instead of just the status.
+    expect({
+      status: res.status,
+      body: res.body as unknown,
+    }).toMatchObject({ status: 201 });
     return (res.body as CreateTaskResponse).task;
   };
 
