@@ -448,3 +448,119 @@ test("NFR-USE-004 / design.md §5: both due-chip variants meet 4.5:1 [DEF-004]",
     `sidebar count badge ${badge.color} on ${badge.background} = ${badgeRatio.toFixed(2)}:1`,
   ).toBeGreaterThanOrEqual(4.5);
 });
+
+/**
+ * DEF-015 — the intercepted panel reads due dates in the account's timezone.
+ *
+ * FR-PROF-003 ("set timezone; it governs due-date reading") is a property of the
+ * ACCOUNT, not of a presentation, so SCR-WEB-010's two presentations (ui-design
+ * D1) must show a due instant as the same wall clock. The panel is rendered into
+ * the root layout's `detail` slot — a SIBLING of `children`, therefore outside
+ * the shell that hosts `PreferencesProvider` — so `useTimeZone()` fell through
+ * to its `"UTC"` fallback there while every other surface used the stored zone.
+ *
+ * `Asia/Karachi` is the zone under test because it is UTC+5 with **no DST**: the
+ * expected wall clock is the same arithmetic whatever day the suite runs on, so
+ * a red run means the zone was ignored and never means the calendar moved.
+ *
+ * The display half is only half the defect. Whatever zone the input DISPLAYS is
+ * the zone its edits are read back in (`fromDateTimeLocalValue`), so a panel
+ * showing UTC also STORES the user's typed wall clock as UTC — which is why the
+ * round-trip is asserted against the database, not just against the pixels.
+ */
+const KARACHI = "Asia/Karachi"; // UTC+5, no DST — stable arithmetic year-round
+
+async function setTimezone(email: string, zone: string): Promise<void> {
+  const client = new Client({ connectionString: DATABASE_URL });
+  await client.connect();
+  try {
+    await client.query("UPDATE users SET timezone = $2 WHERE email = $1", [
+      email,
+      zone,
+    ]);
+  } finally {
+    await client.end();
+  }
+}
+
+/** The stored instant for the caller's only task with a due date. */
+async function storedDueAt(email: string): Promise<string> {
+  const client = new Client({ connectionString: DATABASE_URL });
+  await client.connect();
+  try {
+    const { rows } = await client.query<{ due_at: Date }>(
+      `SELECT t.due_at FROM tasks t
+         JOIN users u ON u.id = t.owner_id
+        WHERE u.email = $1 AND t.due_at IS NOT NULL`,
+      [email],
+    );
+    expect(rows, "the seeded task should still have a due date").toHaveLength(1);
+    return rows[0].due_at.toISOString();
+  } finally {
+    await client.end();
+  }
+}
+
+test("DEF-015 / FR-PROF-003: the detail panel reads and writes due dates in the account's zone", async ({
+  page,
+  request,
+}) => {
+  const email = uniqueEmail();
+  await request.post(`${API}/auth/register`, {
+    data: { email, password: PW },
+  });
+  await markVerified(email);
+  await setTimezone(email, KARACHI);
+
+  await page.goto("/signin");
+  await page.getByTestId("email-input").fill(email);
+  await page.getByTestId("password-input").fill(PW);
+  await page.getByTestId("submit").click();
+  await page.waitForURL("/");
+
+  // Created through the UI, in the account's zone: 17:58 Karachi wall clock.
+  // The instant that names is 12:58Z — five hours earlier — and every surface
+  // must read that instant back as 17:58.
+  await page.getByTestId("quick-add-input").fill("Zoned detail");
+  await page.getByTestId("quick-add-due").fill("2026-09-14T17:58");
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("task-row-link")).toBeVisible();
+  expect(await storedDueAt(email)).toBe("2026-09-14T12:58:00.000Z");
+
+  // --- READ, panel (soft navigation — the intercepted presentation) ---
+  await page.getByTestId("task-row-link").click();
+  await expect(page.getByTestId("detail-panel")).toBeVisible();
+  const url = page.url();
+  await expect(
+    page.getByTestId("detail-due"),
+    "the panel must show the account's wall clock, not UTC",
+  ).toHaveValue("2026-09-14T17:58");
+
+  // --- READ, full page (hard navigation — the same URL, the other presentation) ---
+  await page.goto(url);
+  await expect(page.getByTestId("task-detail")).toBeVisible();
+  await expect(page.getByTestId("detail-panel")).toHaveCount(0);
+  await expect(
+    page.getByTestId("detail-due"),
+    "both presentations of one URL must agree on the wall clock",
+  ).toHaveValue("2026-09-14T17:58");
+
+  // --- WRITE, from the panel: what the user types is their wall clock ---
+  await page.goto("/");
+  await page.getByTestId("task-row-link").click();
+  await expect(page.getByTestId("detail-panel")).toBeVisible();
+  await page.getByTestId("detail-due").fill("2026-09-14T22:58");
+  // The field saves on change with no "Saved" affordance of its own (the chip
+  // beside it drops the time at this distance), so the landed write is observed
+  // where it matters — in the row the API stored.
+  await expect
+    .poll(() => storedDueAt(email), {
+      message:
+        "22:58 in Karachi is 17:58Z — storing 22:58Z would move the task five hours",
+      timeout: 10_000,
+    })
+    .toBe("2026-09-14T17:58:00.000Z");
+
+  // And the panel reads its own write back as the same wall clock.
+  await expect(page.getByTestId("detail-due")).toHaveValue("2026-09-14T22:58");
+});

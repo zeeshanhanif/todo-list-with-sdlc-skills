@@ -161,7 +161,11 @@ export function TaskDetail({
       </div>
 
       {/* Due date — design.md `due-date-picker`: clearable, interprets the
-          user's timezone (the browser's, per technical-design D1/§8). */}
+          ACCOUNT's timezone (`useTimeZone()`, FEAT-008 §5.3 — FEAT-011's
+          original "the browser's" was superseded there). Whatever zone this
+          reads in is the zone `fromDateTimeLocalValue` writes back in, so the
+          two must never come from different places: see DEF-015, where this
+          component rendered outside the preferences host and did both in UTC. */}
       <div style={{ marginTop: "var(--space-4)" }}>
         <label htmlFor="task-due" style={labelStyle}>
           Due

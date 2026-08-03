@@ -20,6 +20,7 @@ recycled.
 | DEF-011 | 2026-08-01 | NFR-USE-004 (design.md §5 targets) / product-wide — icon-only controls since FEAT-009 | Icon-only buttons are **40px** (`--size-control-md`) on every viewport, where design.md §4 specifies "40px (**44px touch**)" and §5 requires "≥ 44×44px on touch viewports". No coarse-pointer rule exists anywhere in `apps/web`, so the touch size was never implemented. Found by FEAT-014 acceptance (AC-12 names the 44px target explicitly). A web-tier pass like DEF-005/DEF-006/DEF-009, not per-feature rework — `detail-panel.tsx` already shows the codebase's own answer | `1838a4d` (lists-nav's two icon buttons → `--size-touch-target`; FEAT-014's three fixed in its own rework at `152de92`) | 2026-08-01 — `e2e/tests/touch-target.spec.ts` measured 40×40 before / ≥44×44 after; FEAT-009 re-verified **Accepted (unchanged)**; api 442, e2e 48 |
 | DEF-013 | 2026-08-02 | *(no FR — test infrastructure)* / api suite, product-wide | `auth_rate_buckets` rows survive between suite runs, and every spec's `nextIp()` counter restarts at `.1`, so two runs inside one **15-minute** window hit the same `(ip, route, window_start)` keys and their counts **add up**. Measured: one key went **31 → 62 → 93** across three consecutive runs against a default `AUTH_RATELIMIT_MAX` of **30**; the specs that omit `X-Forwarded-For` share a single bucket keyed on the localhost socket address, which was found sitting at **135** registrations for one window. Any spec whose per-run usage crosses its limit on a later run gets `429` where it expects success — the suite's repeatability depended on what time it was and how recently it last ran. Found while investigating DEF-002; **a distinct defect, and not DEF-002's cause** (the failures observed there are `404`s in two specs that both raise the limit to 1000) | `6ceaef5` (globalSetup truncates the table; `rate-limit-bucket-hygiene.spec.ts` guards it) | 2026-08-02 — guard red before (both assertions) / green after; a deliberately seeded 900-count stale bucket is cleared by a normal run; api 529, worker 51, web 96 twice consecutively |
 | DEF-014 | 2026-08-03 | *(no FR — test infrastructure)* / e2e suite, `profile.spec.ts` UC-007 (the click is FEAT-004's sign-out control on SCR-WEB-007) | The suite drives the web tier in **dev mode**, and Next's dev tools indicator is a `<nextjs-portal>` fixed to the viewport's **bottom-left** — where the shell's sign-out control sits (`marginTop: auto` in the sidebar footer). It hit-tests above the app, so Playwright's actionability check will not click through it: `getByTestId("sign-out").click()` retried 53× and timed out at 30s in CI. **Not CI-specific and not a product defect** — the indicator mounts ~**1s after paint**, so it is a race the machine's speed decides: measured locally, the click point is the button at T+0 and `<nextjs-portal>` from T+1000ms onward. The whole UC-007 test finishes in 1.6s on a warm dev machine and clicks ~20s in on CI, which is the entire difference between green and red. Production is unaffected — `next build` output has no indicator. CI had been red on this since **2026-07-31** (3 consecutive runs) | `59d379d` (`devIndicators: false` behind `NEXT_DISABLE_DEV_INDICATORS`, set by the e2e webServer env; `dev-overlay.spec.ts` guards it) | 2026-08-03 — guard red before (named `<nextjs-portal>` as the interceptor) / green after; full CI-equivalent green: api 529, worker 51, web 96, **e2e 70** with 2 workers |
+| DEF-015 | 2026-08-03 | FR-PROF-003 (timezone governs due-date reading) / **FEAT-011** — SCR-WEB-010's intercepted panel; reported against FEAT-008's preference | The task-detail **panel** (soft navigation from a row) shows a due date in **UTC** while every other surface shows the account's zone: a task created at 10:58 PM in `Asia/Karachi` (UTC+5) lists as `Today 10:58 PM` and opens in the panel reading `05:58 PM`. Cause: `@detail` is a **parallel route**, so the root layout renders it as a *sibling* of `children` — outside the app shell, therefore outside the `PreferencesProvider` the shell mounts (FEAT-008 §5.2) — and `useTimeZone()` fell through to its `"UTC"` fallback. The full page at `/tasks/{id}` renders inside `AppShell` and was always correct, so **one URL showed two different clocks** depending on how it was reached. **Not display-only:** the input writes back through `fromDateTimeLocalValue(v, timeZone)` with the same wrong zone, so a user typing 22:58 stored **22:58Z** instead of 17:58Z — measured — moving the task five hours. Reported by the user | `2a57fad` (the slot is its own preferences host; profile fetched in the same `Promise.all` as the task) | 2026-08-03 — guard red before on both clauses / green after; **acceptance re-verification of FEAT-011 still pending** |
 
 ## DEF-006 — the inline-alert instances of the DEF-003 pairing
 
@@ -1018,3 +1019,83 @@ in the failure. Red before the fix with exactly the reported cause
 (210 modules), lint clean, `npm run build` all units, api **529**, worker **51**,
 web **96**, and the e2e suite **70** (69 + the new guard) at `--workers=2` —
 matching CI's parallelism — green **twice consecutively**.
+
+## DEF-015 — the detail panel read due dates in UTC (2026-08-03)
+
+**Reported:** 2026-08-03, by the user, with a screenshot: the Inbox row reads
+`Today 10:58 PM` and the detail panel for that same task reads `03/08/2026,
+05:58 PM`. Their account is `Asia/Karachi` (UTC+5) — a clean five hours.
+
+**Symptom, precisely.** Creation is correct and reading in the *list* is correct;
+only the **intercepted panel** is wrong, and it is wrong by exactly the account's
+offset from UTC. Both the panel's `datetime-local` input and the preview chip
+beside it show the UTC wall clock.
+
+**Cause — route composition, not date arithmetic.** `lib/due-date.ts` is fine:
+every function there takes the zone explicitly and was passed one. The zone
+itself was wrong. `@detail` is a **parallel route**, and `app/layout.tsx`
+renders it as a *sibling* of `children`:
+
+```tsx
+<UndoHost>
+  {children}   {/* → AppShell → ShellFrame → PreferencesProvider */}
+  {detail}     {/* → DetailPanel → TaskDetail — outside all of it */}
+</UndoHost>
+```
+
+`PreferencesProvider` is mounted by `ShellFrame` (FEAT-008 technical-design
+§5.2), so nothing in the `detail` slot is inside it, and `useTimeZone()` returned
+its documented fallback: `usePreferences()?.timezone ?? "UTC"`. The fallback did
+its job — it is there so a failed profile fetch still renders dates (NFR-REL-004)
+— it was simply never meant to be the *normal* path for a whole surface.
+
+**Why the full page was fine, and why that matters.** `app/tasks/[id]/page.tsx`
+wraps its `TaskDetail` in `AppShell`. Same component, same URL, two
+presentations (ui-design D1) — and only the intercepted one was outside the
+preferences host. So the defect's real shape is that **one URL showed two
+different clocks depending on whether you clicked or refreshed**, which is also
+why it survived: the deep-link path a test would naturally reach for is the
+correct one.
+
+**Not a display bug — it corrupted writes.** The input renders with
+`toDateTimeLocalValue(dueAt, timeZone)` and saves with
+`fromDateTimeLocalValue(v, timeZone)` — the *same* `timeZone`. An unchanged
+save round-trips harmlessly (UTC out, UTC back), which is what made it look
+cosmetic. But a user who *edits* the time has their wall clock read as UTC.
+Measured against the unfixed code: typing `22:58` for a Karachi account stored
+`2026-09-14T22:58:00.000Z`, five hours later than the `17:58:00.000Z` it means.
+
+**Fix.** `app/@detail/(.)tasks/[id]/page.tsx` becomes its own preferences host —
+`fetchProfile()` in the same `Promise.all` as `fetchTask()` (the shell's own D7
+reasoning: one parallel primary-key read, not a second round-trip), wrapping the
+panel in `PreferencesProvider`. Two lines of behaviour; the alternative of
+hoisting the provider to the root layout would have put a session-dependent
+fetch on the signed-out screens too.
+
+Also corrected: `task-detail.tsx`'s due-date comment still said the picker
+"interprets the user's timezone (**the browser's**, per technical-design D1/§8)"
+— FEAT-011's original intent, superseded by FEAT-008 and stale ever since. A
+comment asserting the wrong source for the exact value that was wrong is worth a
+line of its own.
+
+**Guard.** `task-detail.spec.ts` — `DEF-015 / FR-PROF-003`, in the owning
+feature's suite. Sets the account to `Asia/Karachi` (UTC+5, **no DST**, so the
+expected wall clock is the same arithmetic on every day of the year), creates a
+task through the UI at 17:58 local, and asserts: the stored instant is `12:58Z`
+(creation was never the bug), the **panel** shows `17:58`, the **full page** at
+the same URL shows `17:58`, and an edit typed into the panel lands as the
+instant that wall clock names.
+
+**Discrimination proven on both clauses**, not just the reported one. The read
+clause was red before the fix with the user's own numbers (expected `17:58`,
+received `12:58`). The write clause was written after the fix, so it was
+re-checked against the reverted code in isolation — red, storing `22:58Z` where
+`17:58Z` was required. A clause that has never been observed red is not evidence.
+
+**Verification.** boundaries clean, lint clean, `npm run build` all units, api
+**529**, worker **51**, web **96**, e2e **71** (70 + this guard) at
+`--workers=2`.
+
+**Open:** acceptance re-verification of FEAT-011 (the route's step 5) has not
+been run — the ledger row says so rather than implying a verdict that does not
+exist.
