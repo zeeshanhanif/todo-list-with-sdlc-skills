@@ -19,6 +19,7 @@ recycled.
 | DEF-012 | 2026-08-01 | NFR-USE-004 (design.md §5 contrast) / the **guards themselves** — `control-contrast.spec.ts` (DEF-005) and `inline-alert-contrast.spec.ts` (DEF-006) | The two standing contrast sweeps **never set the dark theme**, so every ratio the project has measured is a light-theme ratio. Their helpers also read `getComputedStyle().backgroundColor` and skip only *fully* transparent values, so they could not measure dark correctly even if pointed at it: the dark tints are `rgba(…, 0.15)` over the surface, and comparing text against that raw value computes a ratio no pixel ever had. Found by FEAT-017's acceptance, whose own both-themes guard went red on its first run for exactly this reason | `e2e/tests/contrast.ts` (shared, compositing measurement) + both sweeps parametrised over `["light","dark"]` | 2026-08-01 — **no product defect found**: every existing pairing already conformed in dark. The guards were incomplete, not wrong. Discrimination proven in both themes; e2e 60 → **65** |
 | DEF-011 | 2026-08-01 | NFR-USE-004 (design.md §5 targets) / product-wide — icon-only controls since FEAT-009 | Icon-only buttons are **40px** (`--size-control-md`) on every viewport, where design.md §4 specifies "40px (**44px touch**)" and §5 requires "≥ 44×44px on touch viewports". No coarse-pointer rule exists anywhere in `apps/web`, so the touch size was never implemented. Found by FEAT-014 acceptance (AC-12 names the 44px target explicitly). A web-tier pass like DEF-005/DEF-006/DEF-009, not per-feature rework — `detail-panel.tsx` already shows the codebase's own answer | `1838a4d` (lists-nav's two icon buttons → `--size-touch-target`; FEAT-014's three fixed in its own rework at `152de92`) | 2026-08-01 — `e2e/tests/touch-target.spec.ts` measured 40×40 before / ≥44×44 after; FEAT-009 re-verified **Accepted (unchanged)**; api 442, e2e 48 |
 | DEF-013 | 2026-08-02 | *(no FR — test infrastructure)* / api suite, product-wide | `auth_rate_buckets` rows survive between suite runs, and every spec's `nextIp()` counter restarts at `.1`, so two runs inside one **15-minute** window hit the same `(ip, route, window_start)` keys and their counts **add up**. Measured: one key went **31 → 62 → 93** across three consecutive runs against a default `AUTH_RATELIMIT_MAX` of **30**; the specs that omit `X-Forwarded-For` share a single bucket keyed on the localhost socket address, which was found sitting at **135** registrations for one window. Any spec whose per-run usage crosses its limit on a later run gets `429` where it expects success — the suite's repeatability depended on what time it was and how recently it last ran. Found while investigating DEF-002; **a distinct defect, and not DEF-002's cause** (the failures observed there are `404`s in two specs that both raise the limit to 1000) | `6ceaef5` (globalSetup truncates the table; `rate-limit-bucket-hygiene.spec.ts` guards it) | 2026-08-02 — guard red before (both assertions) / green after; a deliberately seeded 900-count stale bucket is cleared by a normal run; api 529, worker 51, web 96 twice consecutively |
+| DEF-014 | 2026-08-03 | *(no FR — test infrastructure)* / e2e suite, `profile.spec.ts` UC-007 (the click is FEAT-004's sign-out control on SCR-WEB-007) | The suite drives the web tier in **dev mode**, and Next's dev tools indicator is a `<nextjs-portal>` fixed to the viewport's **bottom-left** — where the shell's sign-out control sits (`marginTop: auto` in the sidebar footer). It hit-tests above the app, so Playwright's actionability check will not click through it: `getByTestId("sign-out").click()` retried 53× and timed out at 30s in CI. **Not CI-specific and not a product defect** — the indicator mounts ~**1s after paint**, so it is a race the machine's speed decides: measured locally, the click point is the button at T+0 and `<nextjs-portal>` from T+1000ms onward. The whole UC-007 test finishes in 1.6s on a warm dev machine and clicks ~20s in on CI, which is the entire difference between green and red. Production is unaffected — `next build` output has no indicator. CI had been red on this since **2026-07-31** (3 consecutive runs) | `apps/web/next.config.ts` `devIndicators: false` behind `NEXT_DISABLE_DEV_INDICATORS`, set by the e2e webServer env; `e2e/tests/dev-overlay.spec.ts` guards it | 2026-08-03 — guard red before (named `<nextjs-portal>` as the interceptor) / green after; full CI-equivalent green: api 529, worker 51, web 96, **e2e 70** with 2 workers |
 
 ## DEF-006 — the inline-alert instances of the DEF-003 pairing
 
@@ -944,3 +945,76 @@ check has to fail *for the reason you are testing*, not merely fail.
 **Verification.** Both sweeps green in both themes; **e2e 60 → 65** (the sweeps
 went 2→4 and 3→6 tests); lint clean. No production file changed — the diff is
 test infrastructure only.
+
+## DEF-014 — the dev tools overlay sits on the sign-out control (2026-08-03)
+
+**Reported:** 2026-08-03, by the user, from a red `End-to-end (walking skeleton)`
+job on GitHub Actions. CI had been red on this since **2026-07-31** — three
+consecutive runs, all the same single failure.
+
+**Symptom.** `profile.spec.ts:159` (UC-007's D3 clause — signing out clears the
+device theme mirror) times out at 30s on `getByTestId("sign-out").click()`.
+Playwright resolves the locator, finds the button visible, enabled and stable,
+and then declines to click it 53 times in a row:
+
+```
+- <nextjs-portal></nextjs-portal> from <script data-nextjs-dev-overlay="true">…</script>
+  subtree intercepts pointer events
+```
+
+**Cause.** The suite drives the web tier in **dev mode**
+(`npm run dev -w @todo/web`, playwright.config.ts webServer). Next's dev tools
+indicator renders into a `<nextjs-portal>` fixed to the viewport's **bottom-left
+corner**, which is exactly where the app shell puts sign-out —
+`sign-out-button.tsx` gives it `marginTop: auto` in the sidebar footer, and the
+resolved dev config's `devIndicators.position` is `bottom-left`. The overlay
+hit-tests above the app, and Playwright's actionability check refuses to click
+through an intercepting element (correctly — a user could not click it either,
+if the overlay were real).
+
+**Why it looked CI-specific, and was not.** Measured locally at a 1280×720
+viewport, sign-out's click point is `(49, 674)`, and `elementFromPoint` there
+returns:
+
+| after page load | element at the click point |
+| :-- | :-- |
+| T+0ms | `<button data-testid="sign-out">` |
+| T+1000ms | `<nextjs-portal>` |
+| T+3000 / 6000 / 10000ms | `<nextjs-portal>` |
+
+The indicator mounts asynchronously, about a second after paint. So the outcome
+was decided by **how fast the machine was**, not by anything in the code: the
+whole UC-007 test runs in **1.6s** on a warm dev machine and wins the race, while
+on the runner — two workers, a "slow filesystem detected" warning from Next, and
+a cold dev server — the same click lands ~20s in and loses it. A first
+reproduction attempt measured at T+0 and saw a 0×0 portal, which is what "passes
+locally" looks like from the inside.
+
+**Not a product defect.** The dev overlay does not exist in `next build` output,
+so no user can meet it. It is the harness observing something that isn't shipped
+— the same class as DEF-012, where the guards were the thing at fault.
+
+**Fix.** `devIndicators: false` in `apps/web/next.config.ts`, behind
+`NEXT_DISABLE_DEV_INDICATORS`, which `e2e/playwright.config.ts` sets in the web
+server's env. Scoped to the harness deliberately: a developer running
+`npm run dev` by hand keeps the indicator, and `next build` is unaffected either
+way.
+
+**What was deliberately not done:** `click({ force: true })`, or a `.click()` on
+a re-positioned indicator. Forcing the click would have made this test green
+while leaving every other bottom-left control one timing change away from the
+same failure — and would have permanently disabled the actionability check that
+correctly caught a real overlay. That is the anti-fake-green line: the test was
+right, the harness was wrong.
+
+**Guard.** `e2e/tests/dev-overlay.spec.ts` signs in, **settles 4s** — past the
+observed ~1s mount, because a guard that can win the race is not a guard — and
+asserts that each shell control (`sign-out`, `search-trigger`, `new-list`) is
+still the topmost element at its own click point, naming the interceptor's tag
+in the failure. Red before the fix with exactly the reported cause
+(`[sign-out] is covered at its click point by <nextjs-portal>`), green after.
+
+**Verification.** Full CI-equivalent, in the workflow's order: boundaries clean
+(210 modules), lint clean, `npm run build` all units, api **529**, worker **51**,
+web **96**, and the e2e suite **70** (69 + the new guard) at `--workers=2` —
+matching CI's parallelism — green **twice consecutively**.

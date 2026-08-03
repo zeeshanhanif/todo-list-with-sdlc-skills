@@ -58,6 +58,15 @@ export default defineConfig({
         // signal deterministically without a Realtime socket (technical-design
         // §5). Test-only — absent from production builds.
         NEXT_PUBLIC_SYNC_TEST_HOOK: "1",
+        // DEF-014: suppress Next's dev tools indicator. It is a dev-only
+        // `<nextjs-portal>` pinned to the bottom-left corner — where the shell
+        // puts sign-out — and it hit-tests above the app, so Playwright will
+        // not click through it. It mounts ~1s after paint, so it silently
+        // decided verdicts by machine speed: UC-007 passed locally (1.6s) and
+        // timed out in CI. Suppressed in the HARNESS rather than worked around
+        // in the tests: a `force: true` click would have hidden this instead of
+        // fixing it, and would hide a real overlay regression next time.
+        NEXT_DISABLE_DEV_INDICATORS: "1",
       },
     },
   ],
