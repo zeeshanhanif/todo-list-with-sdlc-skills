@@ -7,7 +7,8 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
     "start:dev": "ts-node src/main.ts",
-    "test": "jest --runInBand"
+    "test": "jest --runInBand",
+    "test:cov": "npm test -- --coverage"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -39,6 +40,15 @@
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "coverageDirectory": "../coverage",
+    "coverageThreshold": {
+      "global": {
+        "statements": 70,
+        "branches": 70,
+        "functions": 70,
+        "lines": 70
+      }
     },
     "testEnvironment": "node",
     "globalSetup": "<rootDir>/../test/global-setup.js"

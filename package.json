@@ -17,6 +17,7 @@
     "build": "npm run build:shared && npm run build:tokens && npm run build -w @todo/api && npm run build -w @todo/worker && npm run build -w @todo/web",
     "lint": "npm run lint -w @todo/web && npm run lint -w @todo/api",
     "test": "npm run test -w @todo/api && npm run test -w @todo/worker && npm run test -w @todo/web",
+    "test:cov": "npm run test:cov -w @todo/api && npm run test:cov -w @todo/worker && npm run test:cov -w @todo/web",
     "test:e2e": "npm run build:shared && npm run build:tokens && npm run db:migrate && npm run test -w @todo/e2e",
     "boundaries": "depcruise apps packages --config .dependency-cruiser.cjs",
     "db:up": "docker compose up -d db",
