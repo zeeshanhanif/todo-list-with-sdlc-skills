@@ -50,8 +50,20 @@ jobs:
       - name: Build all units
         run: npm run build
 
-      - name: Unit tests
-        run: npm test
+      # Coverage runs here rather than in a step of its own: measured at
+      # 9.41s vs 9.43s for the api suite, instrumentation is free, and a
+      # second full run would only be a second chance to flake.
+      # NFR-MAINT-001 (core modules >= 70%) is enforced by the
+      # coverageThresholds in apps/api and apps/worker, so a coverage
+      # regression fails this step even when every test passes — which is
+      # NFR-MAINT-002's "gated in CI". The api names its core modules
+      # (auth, lists, tasks, authz) per the NFR's wording and carries a
+      # global floor for the rest; the worker is gated globally.
+      # Web is measured but NOT gated: its jest config cannot see async
+      # Server Components at all, so a threshold there would gate a
+      # deliberately partial denominator.
+      - name: Unit tests + coverage
+        run: npm run test:cov
 
       - name: Run DB migrations
         run: npm run db:migrate

@@ -15,7 +15,7 @@
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
+    "test:cov": "npm test -- --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
@@ -75,6 +75,38 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
+    "coverageThreshold": {
+      "global": {
+        "statements": 70,
+        "branches": 70,
+        "functions": 70,
+        "lines": 70
+      },
+      "./src/modules/auth/": {
+        "statements": 70,
+        "branches": 70,
+        "functions": 70,
+        "lines": 70
+      },
+      "./src/modules/lists/": {
+        "statements": 70,
+        "branches": 70,
+        "functions": 70,
+        "lines": 70
+      },
+      "./src/modules/tasks/": {
+        "statements": 70,
+        "branches": 70,
+        "functions": 70,
+        "lines": 70
+      },
+      "./src/common/authz/": {
+        "statements": 70,
+        "branches": 70,
+        "functions": 70,
+        "lines": 70
+      }
+    },
     "testEnvironment": "node",
     "globalSetup": "<rootDir>/../test/global-setup.js"
   }

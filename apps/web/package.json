@@ -9,6 +9,7 @@
     "build": "next build",
     "start": "next start",
     "test": "jest",
+    "test:cov": "npm test -- --coverage",
     "test:watch": "jest --watch",
     "lint": "eslint"
   },
