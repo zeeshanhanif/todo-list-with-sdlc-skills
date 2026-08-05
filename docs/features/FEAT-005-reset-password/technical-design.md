@@ -147,14 +147,14 @@ sequenceDiagram
     participant DB as "Postgres"
     participant OB as "email_outbox → worker"
     U->>API: "POST /auth/forgot { email }"
-    API->>DB: "find user; setResetToken (tx)"
+    API->>DB: "find user · setResetToken (tx)"
     API->>OB: "enqueue password_reset (tx)"
     API-->>U: "200 reset_requested (neutral)"
     Note over OB: "worker renders /reset-password?token=… and sends"
     U->>API: "POST /auth/reset { token, password }"
-    API->>DB: "match reset token; check expiry"
+    API->>DB: "match reset token · check expiry"
     API->>API: "policy.check(password)"
-    API->>DB: "update password; clear reset token; delete all sessions (tx)"
+    API->>DB: "update password · clear reset token · delete all sessions (tx)"
     API-->>U: "200 password_reset"
 ```
 

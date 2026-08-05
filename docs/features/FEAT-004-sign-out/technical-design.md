@@ -100,7 +100,7 @@ sequenceDiagram
     S->>DB: "DELETE FROM sessions WHERE token_hash = hash(sid)"
     S-->>C: "done (idempotent — 0 or 1 row)"
     C-->>W: "200 signed_out + Set-Cookie clears sid"
-    W-->>U: "relay clear-cookie; redirect to /signin"
+    W-->>U: "relay clear-cookie · redirect to /signin"
 ```
 
 ## 6. Acceptance criteria

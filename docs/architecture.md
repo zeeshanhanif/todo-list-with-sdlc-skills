@@ -193,7 +193,7 @@ sequenceDiagram
     V->>SPA: Submit email + password
     SPA->>API: POST /auth/register
     API->>API: Validate format + password policy (NFR-SEC-003)
-    API->>DB: BEGIN; insert user (unverified),<br/>create Inbox list, insert verification outbox row; COMMIT
+    API->>DB: BEGIN · insert user (unverified),<br/>create Inbox list, insert verification outbox row · COMMIT
     API-->>SPA: 201 "Check your email"
     Note over WK,EM: Later (within seconds), on schedule
     WK->>DB: Fetch pending outbox rows
