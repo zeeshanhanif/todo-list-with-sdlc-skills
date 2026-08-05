@@ -245,7 +245,7 @@ sequenceDiagram
     C->>C: "SessionGuard resolves the user"
     C->>S: "export(userId)"
     S->>R: "readAll(ownerId)"
-    R->>D: "BEGIN; REPEATABLE READ"
+    R->>D: "BEGIN (REPEATABLE READ)"
     R->>D: "account / lists / tasks"
     D-->>R: "rows (one snapshot)"
     R-->>S: "rows"

@@ -177,7 +177,7 @@ sequenceDiagram
     S->>DB: "read password_hash by user id"
     S->>S: "hasher.verify(current) → else 400 current_password_invalid"
     S->>S: "policy.check(new) → else 400 validation_failed"
-    S->>DB: "tx: update password + clear reset token; delete ALL sessions; insert new session"
+    S->>DB: "tx: update password + clear reset token · delete ALL sessions · insert new session"
     S->>DB: "audit password_changed"
     S-->>U: "200 password_changed + Set-Cookie sid=<rotated>"
 ```

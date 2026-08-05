@@ -312,7 +312,7 @@ sequenceDiagram
     S->>DB: "SELECT list WHERE id AND owner_id"
     S-->>U: "404 list_not_found (unknown or not owned)"
     S-->>U: "409 list_not_deletable (is_default)"
-    S->>DB: "tx: count tasks; DELETE list -> FK cascade removes tasks"
+    S->>DB: "tx: count tasks · DELETE list -> FK cascade removes tasks"
     S-->>U: "200 { status: list_deleted, deletedTaskCount }"
 ```
 

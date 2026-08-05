@@ -136,8 +136,8 @@ flowchart LR
     err --> form
     valid -->|"yes"| create["Account created; Inbox provisioned"]
     create --> notice["'Check your email' notice (SCR-WEB-002)"]
-    notice --> click["Visitor clicks email link"]
-    click --> linkok{"Link valid & unexpired?"}
+    notice --> clicked["Visitor clicks email link"]
+    clicked --> linkok{"Link valid & unexpired?"}
     linkok -->|"no"| resend["Expired result → resend (SCR-WEB-003)"]
     resend --> notice
     linkok -->|"yes"| verified["Verified → Sign In (SCR-WEB-004)"]
