@@ -37,6 +37,12 @@
       "skillPath": "skills/requirements-engineering/SKILL.md",
       "computedHash": "3e29e5ad2751f798890905c0d314ad6a5c23d55c52f1f88cdc3acbbd14d29a62"
     },
+    "sdlc-orchestrator": {
+      "source": "zeeshanhanif/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/sdlc-orchestrator/SKILL.md",
+      "computedHash": "199b03e0e7ca093b09d89fd021eb36c2ebe4a634f17c914699294c8029308319"
+    },
     "software-architecture": {
       "source": "zeeshanhanif/agent-skills",
       "sourceType": "github",
