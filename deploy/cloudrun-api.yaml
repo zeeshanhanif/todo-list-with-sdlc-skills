@@ -1,6 +1,10 @@
-# Cloud Run service — API tier (ADR-004). Placeholder image + secret refs.
-# Not applied: `gcloud run services replace deploy/cloudrun-api.yaml` is the
-# user's first-deploy step.
+# Cloud Run service — API tier (ADR-004).
+#
+# APPLIED BY THE PIPELINE. `${...}` placeholders are filled by `envsubst` in
+# .github/workflows/deploy-staging.yml / promote-prod.yml, which then run
+# `gcloud run services replace` on the rendered file. The rendered file exists
+# only in the ephemeral runner workspace — secret VALUES are GitHub Actions
+# secrets and are never written to this repo (NFR-MAINT-003).
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
@@ -17,7 +21,7 @@ spec:
     spec:
       containerConcurrency: 80
       containers:
-        - image: REGION-docker.pkg.dev/PROJECT/todo/api:latest
+        - image: ${API_IMAGE}
           ports:
             - containerPort: 3001
           env:
@@ -26,28 +30,34 @@ spec:
             - name: PORT
               value: "3001"
             - name: WEB_ORIGIN
-              value: https://todo-web-PLACEHOLDER.run.app
+              value: ${WEB_ORIGIN}
             # Set at deploy time (e.g. `gcloud run deploy --set-env-vars` or the
             # service config). Carries the DB password — visible to anyone with
             # Cloud Run viewer access. Never committed to source (NFR-MAINT-003).
             - name: DATABASE_URL
-              value: REPLACE_AT_DEPLOY
-            # Cross-device sync (FEAT-019, ADR-006). Leave REALTIME_PROVIDER at
-            # "none" until a Supabase project exists and
-            # deploy/supabase/realtime-authorization.sql has been applied to it;
-            # the web client falls back to its adaptive refetch schedule and
-            # still meets NFR-PERF-004. The last two carry SECRETS — set at
-            # deploy time, never committed (NFR-MAINT-003).
+              value: ${DATABASE_URL}
+            # Cross-device sync (FEAT-019, ADR-006). Enabled at first deploy
+            # (2026-08-13): both Supabase projects exist and
+            # deploy/supabase/realtime-authorization.sql has been applied. Set
+            # REALTIME_PROVIDER back to "none" to fall back to the client's
+            # adaptive refetch schedule, which still meets NFR-PERF-004.
+            #
+            # SUPABASE_SERVICE_ROLE_KEY holds a MODERN `sb_secret_...` key, not
+            # the legacy service_role JWT (legacy keys deprecate end of 2026).
+            # The publisher treats it as an opaque bearer string, so the swap
+            # needs no code change; the var name is a known cosmetic follow-up.
+            # The last two carry SECRETS — GitHub Actions secrets, never
+            # committed (NFR-MAINT-003).
             - name: REALTIME_PROVIDER
-              value: "none"
+              value: ${REALTIME_PROVIDER}
             - name: SUPABASE_URL
-              value: REPLACE_AT_DEPLOY
+              value: ${SUPABASE_URL}
             - name: SUPABASE_PUBLISHABLE_KEY
-              value: REPLACE_AT_DEPLOY
+              value: ${SUPABASE_PUBLISHABLE_KEY}
             - name: SUPABASE_SERVICE_ROLE_KEY
-              value: REPLACE_AT_DEPLOY
+              value: ${SUPABASE_SECRET_KEY}
             - name: SUPABASE_JWT_SECRET
-              value: REPLACE_AT_DEPLOY
+              value: ${SUPABASE_JWT_SECRET}
           resources:
             limits:
               cpu: "1"

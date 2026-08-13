@@ -1,0 +1,176 @@
+# Continuous delivery — PROD promotion (initial-deployment, 2026-08-13).
+#
+# Trigger: pushing a `v*` tag. This workflow does NOT rebuild. It copies the
+# image manifests staging already validated, by DIGEST, into prod's registry —
+# so what runs in prod is byte-identical to what was tested (architecture §7,
+# "same container images, different config/secrets"). Rollback is therefore
+# re-tagging an earlier known-good commit.
+#
+# The tagged commit must already have been deployed to staging by
+# deploy-staging.yml, since that is what put the images in staging's registry.
+name: Promote to prod
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Commit SHA to promote (must exist in staging's registry)
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: promote-prod
+  cancel-in-progress: false
+
+env:
+  # See deploy-staging.yml: project IDs stay, project numbers (inside the WIF
+  # provider resource) and Supabase refs move to Actions variables.
+  STAGING_PROJECT: todo-list-staging-9fbb
+  PROJECT_ID: todolist-53139
+  REGION: us-central1
+  REPO: todo
+  SUPABASE_REF: ${{ vars.PROD_SUPABASE_REF }}
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    # A GitHub Environment named `production` — add required reviewers there to
+    # gate promotion behind a manual approval. The deployment view was silent on
+    # the prod trigger, so this tag-plus-optional-approval is a recorded default.
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve the commit to promote
+        id: target
+        run: |
+          set -euo pipefail
+          # On a tag push, github.sha is already the commit the tag points at —
+          # no git plumbing needed, and it works on a shallow checkout.
+          SHA="${{ github.event.inputs.sha || github.sha }}"
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+          echo "Promoting commit ${SHA}"
+
+      # Two auth steps: read from staging's registry, write to prod's.
+      - id: auth_staging
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.STAGING_WIF_PROVIDER }}
+          service_account: github-deployer@todo-list-staging-9fbb.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - name: Pull the validated images from staging
+        env:
+          SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          set -euo pipefail
+          gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+          SRC="${REGION}-docker.pkg.dev/${STAGING_PROJECT}/${REPO}"
+          for unit in api web worker; do
+            docker pull "${SRC}/${unit}:${SHA}"
+            # Record the digest so we can prove prod runs the same bytes.
+            docker inspect --format='{{index .RepoDigests 0}}' "${SRC}/${unit}:${SHA}"
+          done
+
+      - id: auth_prod
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.PROD_WIF_PROVIDER }}
+          service_account: github-deployer@todolist-53139.iam.gserviceaccount.com
+
+      - name: Push the same manifests into prod's registry
+        env:
+          SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          set -euo pipefail
+          gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+          SRC="${REGION}-docker.pkg.dev/${STAGING_PROJECT}/${REPO}"
+          DST="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
+          for unit in api web worker; do
+            # Re-tagging does not alter content, so the manifest digest is
+            # preserved: prod pulls the identical image staging validated.
+            docker tag "${SRC}/${unit}:${SHA}" "${DST}/${unit}:${SHA}"
+            docker push "${DST}/${unit}:${SHA}"
+          done
+
+      - name: Run database migrations (prod)
+        env:
+          DATABASE_URL: ${{ secrets.PROD_MIGRATION_DATABASE_URL }}
+        run: |
+          npm ci
+          npx node-pg-migrate up -m migrations
+
+      - name: Deploy API
+        env:
+          SHA: ${{ steps.target.outputs.sha }}
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.PROD_SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_SECRET_KEY: ${{ secrets.PROD_SUPABASE_SECRET_KEY }}
+          SUPABASE_JWT_SECRET: ${{ secrets.PROD_SUPABASE_JWT_SECRET }}
+        run: |
+          set -euo pipefail
+          export API_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/api:${SHA}"
+          export SUPABASE_URL="https://${SUPABASE_REF}.supabase.co"
+          export REALTIME_PROVIDER=supabase
+          export WEB_ORIGIN="$(gcloud run services describe todo-web \
+            --region="$REGION" --project="$PROJECT_ID" \
+            --format='value(status.url)' 2>/dev/null || echo 'https://placeholder.invalid')"
+          envsubst < deploy/cloudrun-api.yaml > /tmp/api.yaml
+          gcloud run services replace /tmp/api.yaml --region="$REGION" --project="$PROJECT_ID"
+          gcloud run services add-iam-policy-binding todo-api \
+            --region="$REGION" --project="$PROJECT_ID" \
+            --member=allUsers --role=roles/run.invoker --quiet
+
+      - name: Deploy web
+        env:
+          SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          set -euo pipefail
+          export WEB_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/web:${SHA}"
+          export API_URL="$(gcloud run services describe todo-api \
+            --region="$REGION" --project="$PROJECT_ID" --format='value(status.url)')"
+          envsubst < deploy/cloudrun-web.yaml > /tmp/web.yaml
+          gcloud run services replace /tmp/web.yaml --region="$REGION" --project="$PROJECT_ID"
+          gcloud run services add-iam-policy-binding todo-web \
+            --region="$REGION" --project="$PROJECT_ID" \
+            --member=allUsers --role=roles/run.invoker --quiet
+
+      - name: Correct the API's WEB_ORIGIN now that the web URL is known
+        run: |
+          set -euo pipefail
+          WEB_URL="$(gcloud run services describe todo-web \
+            --region="$REGION" --project="$PROJECT_ID" --format='value(status.url)')"
+          gcloud run services update todo-api \
+            --region="$REGION" --project="$PROJECT_ID" \
+            --update-env-vars="WEB_ORIGIN=${WEB_URL}" --quiet
+
+      - name: Deploy worker job
+        env:
+          SHA: ${{ steps.target.outputs.sha }}
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          export WORKER_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/worker:${SHA}"
+          export EMAIL_PROVIDER=log
+          export EMAIL_FROM='To-Do <no-reply@todo.local>'
+          export EMAIL_API_KEY=""
+          export PUBLIC_APP_URL="$(gcloud run services describe todo-web \
+            --region="$REGION" --project="$PROJECT_ID" --format='value(status.url)')"
+          envsubst < deploy/cloudrun-worker-job.yaml > /tmp/worker.yaml
+          gcloud run jobs replace /tmp/worker.yaml --region="$REGION" --project="$PROJECT_ID"
+
+      - name: Report deployed URLs
+        run: |
+          {
+            echo "### Prod promoted"
+            echo ""
+            echo "- commit: \`${{ steps.target.outputs.sha }}\`"
+            echo "- web: $(gcloud run services describe todo-web --region="$REGION" --project="$PROJECT_ID" --format='value(status.url)')"
+            echo "- api: $(gcloud run services describe todo-api --region="$REGION" --project="$PROJECT_ID" --format='value(status.url)')"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -2,7 +2,10 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # This repo's default branch is `master`, not `main`. It read `[main]` from
+    # scaffolding until the first deploy (2026-08-13), so the push trigger had
+    # never once fired — every green run came from `pull_request`.
+    branches: [master]
   pull_request:
 
 jobs:
