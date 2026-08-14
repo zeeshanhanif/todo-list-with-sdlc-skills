@@ -27,8 +27,11 @@ spec:
           env:
             - name: NODE_ENV
               value: production
-            - name: PORT
-              value: "3001"
+            # No PORT here: Cloud Run RESERVES it and rejects the deploy with
+            # "The following reserved env names were provided: PORT" (observed
+            # 2026-08-14, first real apply). It injects PORT matching the
+            # containerPort above, and `readConfig()` reads `process.env.PORT`,
+            # so the app still listens where traffic arrives.
             - name: WEB_ORIGIN
               value: ${WEB_ORIGIN}
             # Set at deploy time (e.g. `gcloud run deploy --set-env-vars` or the

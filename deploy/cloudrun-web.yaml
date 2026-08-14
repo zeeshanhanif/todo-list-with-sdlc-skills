@@ -23,8 +23,9 @@ spec:
           env:
             - name: NODE_ENV
               value: production
-            - name: PORT
-              value: "3000"
+            # No PORT here — Cloud Run reserves it. See cloudrun-api.yaml.
+            # It injects PORT matching the containerPort above; Next's
+            # standalone server.js reads it.
             - name: API_URL
               value: ${API_URL}
           resources:
