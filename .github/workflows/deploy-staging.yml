@@ -1,7 +1,8 @@
 # Continuous delivery — STAGING (initial-deployment, 2026-08-13).
 #
-# Trigger: every push to the default branch. Builds each unit's image ONCE,
-# tagged with the commit SHA, then deploys staging from those exact images.
+# Trigger: a SUCCESSFUL CI run on master (see `workflow_run` below). Builds each
+# unit's image ONCE, tagged with the commit SHA, then deploys staging from those
+# exact images.
 # `promote-prod.yml` later copies these same image digests to prod — that is
 # what keeps architecture §7's "same container images, different config" true.
 #
@@ -10,7 +11,15 @@
 name: Deploy (staging)
 
 on:
-  push:
+  # Gated on CI: this fires only after the CI workflow COMPLETES on master, and
+  # the job below refuses to run unless it completed successfully. So nothing
+  # that fails tests, lint, boundaries or coverage ever reaches staging.
+  #
+  # `branches: [master]` filters on the *head branch of the triggering run*, so
+  # CI runs from pull requests (head branch = the PR branch) do not deploy.
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [master]
   workflow_dispatch:
 
@@ -33,13 +42,27 @@ env:
   REGION: us-central1
   REPO: todo
   SUPABASE_REF: ${{ vars.STAGING_SUPABASE_REF }}
+  # The commit to build and deploy. Under `workflow_run`, `github.sha` is the
+  # default branch tip at trigger time — NOT necessarily the commit CI just
+  # validated. Pinning to head_sha keeps "what CI proved" and "what ships" the
+  # same commit; the `||` covers manual workflow_dispatch runs.
+  SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: staging
+    # Never deploy a red build. workflow_run fires on completion regardless of
+    # outcome, so the conclusion has to be checked explicitly.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Same reason as SHA above: check out the validated commit, not the
+          # branch tip, which may have moved on.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - id: auth
         uses: google-github-actions/auth@v3
@@ -58,9 +81,9 @@ jobs:
           BASE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
           for unit in api web worker; do
             docker build -f "apps/${unit}/Dockerfile" \
-              -t "${BASE}/${unit}:${GITHUB_SHA}" \
+              -t "${BASE}/${unit}:${SHA}" \
               -t "${BASE}/${unit}:latest" .
-            docker push "${BASE}/${unit}:${GITHUB_SHA}"
+            docker push "${BASE}/${unit}:${SHA}"
             docker push "${BASE}/${unit}:latest"
           done
 
@@ -82,7 +105,7 @@ jobs:
           SUPABASE_JWT_SECRET: ${{ secrets.STAGING_SUPABASE_JWT_SECRET }}
         run: |
           set -euo pipefail
-          export API_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/api:${GITHUB_SHA}"
+          export API_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/api:${SHA}"
           export SUPABASE_URL="https://${SUPABASE_REF}.supabase.co"
           export REALTIME_PROVIDER=supabase
           # First pass: the web URL may not exist yet. Reuse the current value if
@@ -101,7 +124,7 @@ jobs:
       - name: Deploy web
         run: |
           set -euo pipefail
-          export WEB_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/web:${GITHUB_SHA}"
+          export WEB_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/web:${SHA}"
           export API_URL="$(gcloud run services describe todo-api \
             --region="$REGION" --project="$PROJECT_ID" --format='value(status.url)')"
           envsubst < deploy/cloudrun-web.yaml > /tmp/web.yaml
@@ -126,7 +149,7 @@ jobs:
           DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
         run: |
           set -euo pipefail
-          export WORKER_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/worker:${GITHUB_SHA}"
+          export WORKER_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/worker:${SHA}"
           export EMAIL_PROVIDER=log
           export EMAIL_FROM='To-Do <no-reply@todo.local>'
           export EMAIL_API_KEY=""
@@ -141,7 +164,7 @@ jobs:
           {
             echo "### Staging deployed"
             echo ""
-            echo "- commit: \`${GITHUB_SHA}\`"
+            echo "- commit: \`${SHA}\`"
             echo "- web: $(gcloud run services describe todo-web --region="$REGION" --project="$PROJECT_ID" --format='value(status.url)')"
             echo "- api: $(gcloud run services describe todo-api --region="$REGION" --project="$PROJECT_ID" --format='value(status.url)')"
           } >> "$GITHUB_STEP_SUMMARY"
