@@ -1,0 +1,170 @@
+# Continuous delivery — STAGING (initial-deployment, 2026-08-13).
+#
+# Trigger: a SUCCESSFUL CI run on master (see `workflow_run` below). Builds each
+# unit's image ONCE, tagged with the commit SHA, then deploys staging from those
+# exact images.
+# `promote-prod.yml` later copies these same image digests to prod — that is
+# what keeps architecture §7's "same container images, different config" true.
+#
+# Auth is Workload Identity Federation (GitHub OIDC → GCP). No service-account
+# key exists anywhere; `id-token: write` below is what mints the OIDC token.
+name: Deploy (staging)
+
+on:
+  # Gated on CI: this fires only after the CI workflow COMPLETES on master, and
+  # the job below refuses to run unless it completed successfully. So nothing
+  # that fails tests, lint, boundaries or coverage ever reaches staging.
+  #
+  # `branches: [master]` filters on the *head branch of the triggering run*, so
+  # CI runs from pull requests (head branch = the PR branch) do not deploy.
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  # One deploy at a time; a newer push supersedes an in-flight one.
+  group: deploy-staging
+  cancel-in-progress: false
+
+env:
+  # Project ID stays in-repo: it is already implied by the deployer service
+  # account email and the Artifact Registry path, and it names nothing secret.
+  # The project NUMBER (inside the WIF provider resource) and the Supabase ref
+  # live in GitHub Actions *variables* instead — non-secret, but kept out of a
+  # public repo so it does not enumerate the infrastructure topology.
+  PROJECT_ID: todo-list-staging-9fbb
+  REGION: us-central1
+  REPO: todo
+  SUPABASE_REF: ${{ vars.STAGING_SUPABASE_REF }}
+  # The commit to build and deploy. Under `workflow_run`, `github.sha` is the
+  # default branch tip at trigger time — NOT necessarily the commit CI just
+  # validated. Pinning to head_sha keeps "what CI proved" and "what ships" the
+  # same commit; the `||` covers manual workflow_dispatch runs.
+  SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: staging
+    # Never deploy a red build. workflow_run fires on completion regardless of
+    # outcome, so the conclusion has to be checked explicitly.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Same reason as SHA above: check out the validated commit, not the
+          # branch tip, which may have moved on.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.STAGING_WIF_PROVIDER }}
+          service_account: github-deployer@todo-list-staging-9fbb.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and push images
+        run: |
+          set -euo pipefail
+          BASE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
+          for unit in api web worker; do
+            docker build -f "apps/${unit}/Dockerfile" \
+              -t "${BASE}/${unit}:${SHA}" \
+              -t "${BASE}/${unit}:latest" .
+            docker push "${BASE}/${unit}:${SHA}"
+            docker push "${BASE}/${unit}:latest"
+          done
+
+      - name: Run database migrations
+        # Session pooler (5432), NOT the transaction pooler the app uses:
+        # node-pg-migrate takes session-scoped advisory locks, which transaction
+        # pooling does not support. Architecture §8 "migrations run on deploy".
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_MIGRATION_DATABASE_URL }}
+        run: |
+          npm ci
+          npx node-pg-migrate up -m migrations
+
+      - name: Deploy API
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_SECRET_KEY: ${{ secrets.STAGING_SUPABASE_SECRET_KEY }}
+          SUPABASE_JWT_SECRET: ${{ secrets.STAGING_SUPABASE_JWT_SECRET }}
+        run: |
+          set -euo pipefail
+          export API_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/api:${SHA}"
+          export SUPABASE_URL="https://${SUPABASE_REF}.supabase.co"
+          export REALTIME_PROVIDER=supabase
+          # First pass: the web URL may not exist yet. Reuse the current value if
+          # the service is already deployed, else a placeholder we correct below.
+          export WEB_ORIGIN="$(gcloud run services describe todo-web \
+            --region="$REGION" --project="$PROJECT_ID" \
+            --format='value(status.url)' 2>/dev/null || echo 'https://placeholder.invalid')"
+          # The rendered file lives only in this ephemeral runner and is never
+          # committed; secret values are masked by Actions in any log output.
+          envsubst < deploy/cloudrun-api.yaml > /tmp/api.yaml
+          gcloud run services replace /tmp/api.yaml --region="$REGION" --project="$PROJECT_ID"
+          gcloud run services add-iam-policy-binding todo-api \
+            --region="$REGION" --project="$PROJECT_ID" \
+            --member=allUsers --role=roles/run.invoker --quiet
+
+      - name: Deploy web
+        run: |
+          set -euo pipefail
+          export WEB_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/web:${SHA}"
+          export API_URL="$(gcloud run services describe todo-api \
+            --region="$REGION" --project="$PROJECT_ID" --format='value(status.url)')"
+          envsubst < deploy/cloudrun-web.yaml > /tmp/web.yaml
+          gcloud run services replace /tmp/web.yaml --region="$REGION" --project="$PROJECT_ID"
+          gcloud run services add-iam-policy-binding todo-web \
+            --region="$REGION" --project="$PROJECT_ID" \
+            --member=allUsers --role=roles/run.invoker --quiet
+
+      - name: Correct the API's WEB_ORIGIN now that the web URL is known
+        # web and api reference each other, so the first-ever deploy needs this
+        # second pass. On later deploys it is a no-op re-assertion.
+        run: |
+          set -euo pipefail
+          WEB_URL="$(gcloud run services describe todo-web \
+            --region="$REGION" --project="$PROJECT_ID" --format='value(status.url)')"
+          gcloud run services update todo-api \
+            --region="$REGION" --project="$PROJECT_ID" \
+            --update-env-vars="WEB_ORIGIN=${WEB_URL}" --quiet
+
+      - name: Deploy worker job
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          export WORKER_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/worker:${SHA}"
+          export EMAIL_PROVIDER=log
+          export EMAIL_FROM='To-Do <no-reply@todo.local>'
+          export EMAIL_API_KEY=""
+          export PUBLIC_APP_URL="$(gcloud run services describe todo-web \
+            --region="$REGION" --project="$PROJECT_ID" --format='value(status.url)')"
+          envsubst < deploy/cloudrun-worker-job.yaml > /tmp/worker.yaml
+          # `jobs replace` both creates and updates, so no create/update branch.
+          gcloud run jobs replace /tmp/worker.yaml --region="$REGION" --project="$PROJECT_ID"
+
+      - name: Report deployed URLs
+        run: |
+          {
+            echo "### Staging deployed"
+            echo ""
+            echo "- commit: \`${SHA}\`"
+            echo "- web: $(gcloud run services describe todo-web --region="$REGION" --project="$PROJECT_ID" --format='value(status.url)')"
+            echo "- api: $(gcloud run services describe todo-api --region="$REGION" --project="$PROJECT_ID" --format='value(status.url)')"
+          } >> "$GITHUB_STEP_SUMMARY"
