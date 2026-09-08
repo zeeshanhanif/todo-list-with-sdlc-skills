@@ -78,3 +78,18 @@ jobs:
         run: npm run test -w @todo/e2e
         env:
           CI: "true"
+
+      # DEF-016 is a rotating flake in profile.spec.ts that has never been
+      # reproducible locally (repetition, injected save latency and 20x CPU
+      # throttling all stayed green). It only appears here, and until now this
+      # job discarded the evidence: traces were configured `on-first-retry`
+      # with retries at 0, so none was ever written, and nothing was uploaded.
+      # Keep this step so the next occurrence is diagnosable instead of guessed.
+      - name: Upload Playwright artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results-${{ github.run_id }}-${{ github.run_attempt }}
+          path: e2e/test-results/
+          retention-days: 14
+          if-no-files-found: ignore

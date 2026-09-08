@@ -15,7 +15,13 @@ export default defineConfig({
   timeout: 30_000,
   expect: { timeout: 10_000 },
   reporter: "list",
-  use: { baseURL: "http://localhost:3000", trace: "on-first-retry" },
+  // `retain-on-failure`, NOT `on-first-retry`: this project runs with the
+  // default `retries: 0`, so "on first retry" meant a trace was never captured
+  // at all — every DEF-016 failure in CI produced zero diagnostic evidence.
+  // Deliberately not solved by setting `retries: 1`, which would let a flaky
+  // test pass on retry and exit 0, hiding the very defect we are hunting while
+  // CI gates deployment.
+  use: { baseURL: "http://localhost:3000", trace: "retain-on-failure" },
   webServer: [
     {
       command: "npm run start -w @todo/api",
